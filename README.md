@@ -1,29 +1,55 @@
 # Hestia
 
-One stateful brain, many thin windows. See [ARCHITECTURE.md](ARCHITECTURE.md) for
-the thesis and [MEMORY-DESIGN.md](MEMORY-DESIGN.md) for the memory plan.
+A local-first, self-hosted assistant for your home. One stateful "brain" runs a local LLM on
+hardware you own, and every window into it — your phone, a terminal, the kitchen mic, Home
+Assistant — talks to that same brain. Nothing runs in the cloud, nothing is exposed to the
+internet, and your data never leaves the house.
 
-> **Part of the Forager constellation.** Hestia is one of four related projects (with
-> `forager_ml`, `forager-field-station`, and the Homesteader Labs site). Cross-project knowledge
-> — how the repos relate, the shared model registry, the dev box / CUDA gotchas, brand, and known
-> divergences — lives in the **Forager wiki** at `~/Documents/Forager/forager-wiki/` (start at
-> `index.md`). Update it when you change something that crosses repos.
+**The idea it's built on.** Most "AI for the home" points the model at the things it's *worst*
+at: remembering a schedule, watching a threshold, firing a reminder at the right minute. Hestia
+does the opposite. Anything deterministic — a chore is due, the soil is dry, the trash goes out
+Tuesday — is handed to something dumb and reliable: a timer, a record, a row in a database. The
+LLM is left to do the one thing it's genuinely good at, which is judgment and conversation. The
+goal was never a smarter brain. It's a more reliable one. ([ARCHITECTURE.md](ARCHITECTURE.md) is
+the long version; [MEMORY-DESIGN.md](MEMORY-DESIGN.md) covers the memory plan.)
+
+**What it actually is.**
+
+- **A brain** (`brain/`) — an OpenAI-compatible endpoint (`POST /v1/chat/completions`) wrapping a
+  local LLM (Ollama, `qwen3:14b`) with an agent loop. Every client speaks one dialect.
+- **Eight scoped tools** — `home` (control Home Assistant), `media` (Plex + *arr), `memory`,
+  `records`, `reminder`, `search`, `status`, `weather`. There is deliberately **no shell tool**:
+  the brain can act in your house but cannot run arbitrary commands.
+- **Memory that grows** — markdown soft-facts plus a SQLite record of the things in your life
+  (pets, garden, wildlife, chores), and a background note-taker that *proposes* durable facts for
+  you to approve rather than writing them silently.
+- **A media appliance** — Plex + the *arr stack + Bazarr subtitles + qBittorrent behind a
+  fail-closed VPN kill-switch.
+- **Voice** — talk to it through Home Assistant's Assist pipeline or the browser.
+
+**What it isn't.** A cloud service, a wrapper around someone else's API, or anything you should put
+on the public internet. It runs rootless on your own box and never phones home.
+
+> ⚠️ **Read [SECURITY.md](SECURITY.md) before running it.** The brain has no built-in
+> authentication and can control your devices, so it must stay on a private network (Tailscale or
+> LAN). That's a deliberate trade-off, not an oversight — the doc explains the trust model.
+
+Hestia is part of the **Forager / Homesteader Labs** constellation, alongside `forager_ml`,
+`forager-field-station`, and the Homesteader Labs site.
 
 ## Status
 
-- **Phase 0 — Reach + brain** ✅ *in place* (see below)
-- **Phase 1 — Media appliance** ✅ *complete* — Plex + qBittorrent + gluetun VPN
-  kill-switch (verified) + the *arr automation layer (Prowlarr/Sonarr/Radarr +
-  FlareSolverr). Full loop wired: search → download (via VPN) → hardlink → Plex.
-- Phase 2 — House (Home Assistant) — *head start*: `hl-ha` already running on the Micro
-- Phase 3 — Voice (Assist pipeline) — not started
-- **Phase 4 — The seam (memory + tools)** 🔶 *in progress* — brain is now an agent:
-  tool-calling loop + six scoped tools (`home`, `media`, `memory`, `records`, `search`,
-  `weather`), deterministic skill injection, and **HA's conversation agent now points at
-  Hestia** (the seam — Assist/voice routes through the brain). Verified by voice/text. The
-  brain also **gets smarter over time**: a background note-taker proposes durable facts
-  after each exchange for review (see *Memory & learning* below). Next: vision (Eyes), the
-  voice satellite (Phase 3).
+- **Phase 0 — Reach + brain** ✅ — talk to your home model from your phone (details below).
+- **Phase 1 — Media appliance** ✅ — Plex + qBittorrent + gluetun VPN kill-switch (verified) + the
+  *arr automation layer (Prowlarr/Sonarr/Radarr + FlareSolverr + Bazarr subtitles). Full loop:
+  search → download (via VPN) → hardlink → Plex.
+- **Phase 2 — House (Home Assistant)** ✅ — HA running; lights and devices reachable via the `home` tool.
+- **Phase 3 — Voice** ✅ — speak to Hestia through HA's Assist pipeline and a browser voice loop.
+- **Phase 4 — The seam (memory + tools)** ✅ *core in place, still growing* — the brain is a
+  tool-calling agent with the eight tools above plus deterministic skill injection, and **HA's
+  conversation agent points at Hestia**, so Assist and voice route through the brain (which can
+  control HA back). It also gets smarter over time via the note-taker (see *Memory & learning*).
+  Next: vision (Eyes).
 
 ---
 
@@ -49,7 +75,8 @@ installed into `~/.config/systemd/user/`. Linger is enabled, so they survive
 logout/reboot. Ollama is pinned to the 5080 (`CUDA_VISIBLE_DEVICES`), leaving the
 4060 Ti free for Phase 3 (Whisper/Piper) per the benchmark verdict.
 
-Model: **`qwen2.5:14b`** (Q4_K_M) — the benchmark pick.
+Model: **`qwen3:14b`** (resident, thinking off) — the current pick after the model eval
+(`brain/eval_models.py`; `qwen2.5:14b` kept on disk as a fallback). See `MODEL_EVAL.md`.
 
 ### Operate
 
@@ -115,7 +142,7 @@ brain/
   records_store.py / memory_store.py   # SQLite entities+events / markdown soft facts
   note_taker.py   # background "gets smarter over time" extractor
   review_notes.py # CLI to review + promote the note-taker's proposals
-  tools/          # home, media, memory, records, search, weather (+ skill router)
+  tools/          # home, media, memory, records, reminder, search, status, weather (+ skill router)
   tests/          # pytest: stores, dispatch, note-taker (run: uv run --project brain pytest)
   pyproject.toml  # deps + dev (pytest) + pytest config (uv-managed, isolated venv)
 ```
