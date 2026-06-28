@@ -28,6 +28,9 @@ deploy/ha/lovelace-*-backup-*.json
 # (slskd.env.example, the tracked template, is deliberately NOT ignored)
 deploy/media/slskd.env
 deploy/media/*/config/
+# Personal content tab — weekly post material/drafts for HomesteaderLabs discovery.
+# Private working doc, not part of the public project.
+CONTENT-TAB.md
 # /brag launch-video output — rendered MP4s + node_modules + Hyperframes composition (heavy,
 # regenerable; the videos are deliverables, not source). See the forager-wiki brag-video playbook.
 brag-output/
