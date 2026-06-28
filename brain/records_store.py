@@ -189,14 +189,19 @@ def log_event(kind: str, subject: str | None = None, action: str | None = None,
     intake so a new subject mints cleanly instead of false-attaching across kinds)."""
     with _conn() as c:
         eid = None
+        created = False
         if subject:
-            eid = _resolve_or_create(c, subject, subject_kind or _SUBJECT_KIND.get(kind, "thing"),
-                                     strict=strict_subject)
+            skind = subject_kind or _SUBJECT_KIND.get(kind, "thing")
+            # Did the subject already exist? Mirror _resolve_or_create's lookup so `created`
+            # tells the caller a brand-new entity was minted (a likely typo'd/compound subject)
+            # instead of attaching to an existing record — caught loudly at the photo intake.
+            created = resolve(subject, conn=c, kind=skind if strict_subject else None) is None
+            eid = _resolve_or_create(c, subject, skind, strict=strict_subject)
         cur = c.execute(
             "INSERT INTO events(ts,kind,entity_id,action,detail,location,attrs,created_at) "
             "VALUES(?,?,?,?,?,?,?,?)",
             (ts or _now(), kind, eid, action, detail, location, json.dumps(attrs or {}), _now()))
-        return {"id": cur.lastrowid, "subject": subject, "kind": kind}
+        return {"id": cur.lastrowid, "subject": subject, "kind": kind, "created": created}
 
 
 # domain (from the photo Shortcut) -> the entity kind to mint the subject as if it's new.

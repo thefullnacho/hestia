@@ -384,7 +384,9 @@ async def ingest_photo(request: Request):
             "hint": "send the token as a header named 'X-Ingest-Token' (value = the token), "
                     "or as a form field named 'token'",
             "received_fields": got})
-    subject = (str(form.get("subject") or "")).strip()
+    # One post can name several subjects ("Carrots Round Bed, Beets Round Bed") so a single
+    # photo files against each real bed instead of minting one junk compound entity.
+    subjects = [s.strip() for s in re.split(r"[;,\n]+", str(form.get("subject") or "")) if s.strip()]
     file = form.get("file")
     missing = []
     # A File field parses to an UploadFile-like object; a Text field parses to str. Check by
@@ -392,8 +394,8 @@ async def ingest_photo(request: Request):
     # base UploadFile, which isn't an instance of FastAPI's subclass.
     if file is None or isinstance(file, str):
         missing.append("file  (must be a File-type form field named 'file' = the photo)")
-    if not subject:
-        missing.append("subject  (the entity name, e.g. the pup's name)")
+    if not subjects:
+        missing.append("subject  (the entity name, e.g. the pup's name; comma-separate several)")
     if missing:
         return JSONResponse(status_code=400, content={
             "error": "missing required field(s)", "missing": missing, "received_fields": got})
@@ -410,19 +412,31 @@ async def ingest_photo(request: Request):
         return JSONResponse(status_code=413, content={"error": "file too large"})
 
     safe_domain = re.sub(r"[^a-z0-9]+", "-", domain).strip("-") or "misc"
-    safe_subject = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") or "unknown"
-    dest_dir = PHOTO_DIR / safe_domain / safe_subject
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / f"{_dt.datetime.now().strftime('%Y%m%d-%H%M%S-%f')}{ext}"
-    dest.write_bytes(data)
+    stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    filed = []
+    for subject in subjects:
+        safe_subject = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") or "unknown"
+        dest_dir = PHOTO_DIR / safe_domain / safe_subject
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / f"{stamp}{ext}"
+        dest.write_bytes(data)
+        try:
+            rec = records_store.attach_photo(subject, str(dest), caption or None, domain)
+        except Exception as e:  # noqa: BLE001 — keep the file even if the record write hiccups
+            return JSONResponse(status_code=500,
+                                content={"error": f"saved file but record failed: {e}", "saved": str(dest)})
+        filed.append({"subject": rec.get("subject", subject), "created": bool(rec.get("created")),
+                      "saved": str(dest)})
 
-    try:
-        rec = records_store.attach_photo(subject, str(dest), caption or None, domain)
-    except Exception as e:  # noqa: BLE001 — keep the file even if the record write hiccups
-        return JSONResponse(status_code=500,
-                            content={"error": f"saved file but record failed: {e}", "saved": str(dest)})
-    return {"ok": True, "subject": rec.get("subject", subject), "domain": domain,
-            "saved": str(dest), "bytes": len(data)}
+    # Surface a mis-file loudly: a newly *created* entity usually means a typo'd or compound
+    # subject that matched no existing bed/pup — exactly the silent-junk failure we want caught.
+    new = [f["subject"] for f in filed if f["created"]]
+    warning = (f"⚠️ created NEW {'entity' if len(new) == 1 else 'entities'} "
+               + ", ".join(repr(n) for n in new)
+               + " — if that wasn't intended, the subject didn't match an existing record.") if new else None
+    return {"ok": True, "domain": domain, "bytes": len(data), "filed": filed, "warning": warning,
+            # back-compat: first subject's values, where older clients read them flat
+            "subject": filed[0]["subject"], "saved": filed[0]["saved"]}
 
 
 # --- Voice loop (browser mic -> brain -> Wyoming services) -------------------------------------
