@@ -9,15 +9,20 @@ It runs in the same `deploy/media/compose.yml` stack on hl-relay (`/opt/home/arr
 same compose network and the same `/mnt/media:/data` mount as Sonarr/Radarr — so the paths
 Bazarr sees are identical to theirs and **no path mapping is needed**.
 
-## Current deployment (hl-relay, 2026-06-16)
+## Current deployment (hl-relay) — FULLY OPERATIONAL (2026-06-28)
 
-Deployed and running on `:6767`. Already wired (via `config.yaml`, so it survives restarts):
+Deployed and running on `:6767`. Wired (via `config.yaml`, so it survives restarts):
 - **Sonarr + Radarr connections** — live (SignalR connected); keys set, reached by service name.
-- **No-account providers** — Podnapisi + TVSubtitles enabled.
+- **Providers** — opensubtitlescom (account) + Podnapisi + TVSubtitles, all reporting "Good".
+- **English language profile** (profileId 1, `en`) — created AND assigned to all 4 series + all
+  50 movies. New *arr imports get the profile auto-applied; the back-catalogue was assigned by
+  hand on 2026-06-28.
 
-**Remaining (UI, ~2 min):** create the English **language profile** and assign it as default —
-this is DB-backed, so it's done in the UI, not config.yaml. Until a profile is assigned, Bazarr
-won't search. Steps 3 below. Then, when you have an OpenSubtitles.com login, add it (step 4).
+> **Why TV/old-movie subs went missing (2026-06-28):** the profile existed but was never *assigned*
+> to existing items. Bazarr silently skips anything without a profile, so all TV and ~17 older
+> movies got zero subtitle searches. Fix: assign the profile (UI Mass Edit, or API — see Notes),
+> then run the wanted-search task. **If subtitles aren't appearing for a title, check its profile
+> assignment first** (Series/Movies tab shows the profile column; blank = it will never be searched).
 
 ## Deploy
 
