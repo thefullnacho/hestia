@@ -1,0 +1,468 @@
+{
+  "views": [
+    {
+      "type": "sections",
+      "title": "Home",
+      "path": "home",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Home",
+              "icon": "mdi:home"
+            },
+            {
+              "type": "custom:mushroom-chips-card",
+              "chips": [
+                {
+                  "type": "template",
+                  "icon": "mdi:power-off",
+                  "icon_color": "red",
+                  "content": "All Off",
+                  "tap_action": {
+                    "action": "call-service",
+                    "service": "light.turn_off",
+                    "target": {
+                      "entity_id": [
+                        "light.light_living_room_lights",
+                        "light.light_kitchen_lights",
+                        "light.light_dinning_room_lights",
+                        "light.light_outside_lights"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "template",
+                  "icon": "mdi:weather-night",
+                  "icon_color": "amber",
+                  "content": "Calm Home",
+                  "tap_action": {
+                    "action": "call-service",
+                    "service": "scene.turn_on",
+                    "target": {
+                      "entity_id": "scene.calm_home_default"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "weather-forecast",
+              "entity": "weather.forecast_home",
+              "forecast_type": "daily",
+              "name": "Home"
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Living Room",
+              "heading_style": "subtitle",
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.light_living_room_lights",
+              "name": "All Living Room",
+              "use_brightness": true,
+              "show_color_control": false,
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.tv",
+              "name": "TV",
+              "use_brightness": true,
+              "show_color_control": false
+            },
+            {
+              "type": "media-control",
+              "entity": "media_player.smarttv_4k_ffm"
+            },
+            {
+              "type": "thermostat",
+              "entity": "climate.living_room_ac"
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Kitchen",
+              "heading_style": "subtitle",
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.light_kitchen_lights",
+              "name": "All Kitchen",
+              "use_brightness": true,
+              "show_color_control": false,
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.overhead",
+              "name": "Overhead",
+              "use_brightness": true,
+              "show_color_control": false
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.overhead_3",
+              "name": "Overhead 2",
+              "use_brightness": true,
+              "show_color_control": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Dining Room",
+              "heading_style": "subtitle",
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.light_dinning_room_lights",
+              "name": "All Dining Room",
+              "use_brightness": true,
+              "show_color_control": false,
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.bar",
+              "name": "Bar",
+              "use_brightness": true,
+              "show_color_control": false
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.fan",
+              "name": "Fan",
+              "use_brightness": true,
+              "show_color_control": false
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.fan_2",
+              "name": "Fan 2",
+              "use_brightness": true,
+              "show_color_control": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Outside",
+              "heading_style": "subtitle",
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.light_outside_lights",
+              "name": "All Outside",
+              "use_brightness": true,
+              "show_color_control": false,
+              "icon": "mdi:lightbulb-group"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.lamppost_a",
+              "name": "Lamppost A",
+              "use_brightness": true,
+              "show_color_control": false
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.lamppost_b",
+              "name": "Lamppost B",
+              "use_brightness": true,
+              "show_color_control": false
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.front_door",
+              "name": "Front Door",
+              "use_brightness": true,
+              "show_color_control": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Bedroom (Master)",
+              "heading_style": "subtitle",
+              "icon": "mdi:lightbulb"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.overhead_2",
+              "name": "Overhead",
+              "use_brightness": true,
+              "show_color_control": false
+            },
+            {
+              "type": "thermostat",
+              "entity": "climate.master_bedroom_ac"
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Office",
+              "heading_style": "subtitle",
+              "icon": "mdi:lightbulb"
+            },
+            {
+              "type": "custom:mushroom-light-card",
+              "entity": "light.light_strip",
+              "name": "Light Strip",
+              "use_brightness": true,
+              "show_color_control": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sections",
+      "title": "Garden",
+      "path": "garden",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Soil Moisture",
+              "icon": "mdi:sprout"
+            },
+            {
+              "type": "gauge",
+              "entity": "sensor.unknown_device_soilmoisture1",
+              "name": "Beets",
+              "min": 0,
+              "max": 100,
+              "needle": true,
+              "segments": [
+                {
+                  "from": 0,
+                  "color": "#db4437"
+                },
+                {
+                  "from": 40,
+                  "color": "#0f9d58"
+                },
+                {
+                  "from": 90,
+                  "color": "#4285f4"
+                }
+              ]
+            },
+            {
+              "type": "gauge",
+              "entity": "sensor.unknown_device_soilmoisture2",
+              "name": "Carrots",
+              "min": 0,
+              "max": 100,
+              "needle": true,
+              "segments": [
+                {
+                  "from": 0,
+                  "color": "#db4437"
+                },
+                {
+                  "from": 40,
+                  "color": "#0f9d58"
+                },
+                {
+                  "from": 90,
+                  "color": "#4285f4"
+                }
+              ]
+            },
+            {
+              "type": "gauge",
+              "entity": "sensor.unknown_device_soilmoisture3",
+              "name": "Potatoes & Peas",
+              "min": 0,
+              "max": 100,
+              "needle": true,
+              "segments": [
+                {
+                  "from": 0,
+                  "color": "#db4437"
+                },
+                {
+                  "from": 40,
+                  "color": "#0f9d58"
+                },
+                {
+                  "from": 90,
+                  "color": "#4285f4"
+                }
+              ]
+            },
+            {
+              "type": "gauge",
+              "entity": "sensor.unknown_device_soilmoisture6",
+              "name": "Tomatoes",
+              "min": 0,
+              "max": 100,
+              "needle": true,
+              "segments": [
+                {
+                  "from": 0,
+                  "color": "#db4437"
+                },
+                {
+                  "from": 40,
+                  "color": "#0f9d58"
+                },
+                {
+                  "from": 90,
+                  "color": "#4285f4"
+                }
+              ]
+            },
+            {
+              "type": "gauge",
+              "entity": "sensor.unknown_device_soilmoisture7",
+              "name": "Hot Peppers",
+              "min": 0,
+              "max": 100,
+              "needle": true,
+              "segments": [
+                {
+                  "from": 0,
+                  "color": "#db4437"
+                },
+                {
+                  "from": 40,
+                  "color": "#0f9d58"
+                },
+                {
+                  "from": 90,
+                  "color": "#4285f4"
+                }
+              ]
+            },
+            {
+              "type": "gauge",
+              "entity": "sensor.unknown_device_soilmoisture8",
+              "name": "Artichoke & Pepper",
+              "min": 0,
+              "max": 100,
+              "needle": true,
+              "segments": [
+                {
+                  "from": 0,
+                  "color": "#db4437"
+                },
+                {
+                  "from": 40,
+                  "color": "#0f9d58"
+                },
+                {
+                  "from": 90,
+                  "color": "#4285f4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Forecast",
+              "icon": "mdi:weather-partly-cloudy"
+            },
+            {
+              "type": "weather-forecast",
+              "entity": "weather.forecast_home",
+              "forecast_type": "daily"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sections",
+      "title": "Status",
+      "path": "status",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "CRITICAL INFRASTRUCTURE",
+              "heading_style": "title"
+            },
+            {
+              "type": "custom:mushroom-chips-card",
+              "chips": [
+                {
+                  "type": "entity",
+                  "entity": "sensor.docker_host_hl_plex_status",
+                  "name": "Plex Server",
+                  "icon_color": "{% if is_state('sensor.docker_host_hl_plex_status', 'running') %} green\n{% else %} red\n{% endif %}\n",
+                  "icon": "mdi:plex",
+                  "tap_action": {
+                    "action": "navigate",
+                    "navigation_path": "http://hl-relay.homelab.local:32004/web"
+                  }
+                },
+                {
+                  "type": "entity",
+                  "entity": "sensor.docker_host_mosquitto_status",
+                  "name": "MQTT Broker",
+                  "icon_color": "{% if is_state('sensor.docker_host_mosquitto_status', 'running') %} green\n{% else %} red\n{% endif %}\n",
+                  "icon": "mdi:message-settings-variant",
+                  "tap_action": {
+                    "action": "none"
+                  }
+                },
+                {
+                  "type": "entity",
+                  "entity": "sensor.docker_host_ecowitt2mqtt_status",
+                  "name": "Ecowitt Bridge",
+                  "icon_color": "{% if is_state('sensor.docker_host_ecowitt2mqtt_status', 'running') %} green\n{% else %} red\n{% endif %}\n",
+                  "icon": "mdi:bridge",
+                  "tap_action": {
+                    "action": "none"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cards": []
+    }
+  ]
+}

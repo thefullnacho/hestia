@@ -1,0 +1,19 @@
+[Unit]
+Description=Hestia — Ollama (the brain's inference engine)
+After=network.target
+
+[Service]
+Type=exec
+# Localhost-only: clients reach the brain through Hestia, never Ollama directly.
+Environment=OLLAMA_HOST=127.0.0.1:11434
+# Pin to the RTX 5080 only; the 4060 Ti stays free for STT/TTS + memory note-taker.
+Environment=CUDA_VISIBLE_DEVICES=GPU-e3fb0b3b-fea8-81ab-c09d-ba3ba7dfb1bd
+# Keep the brain model resident forever (the 5080 is dedicated to it) — instant
+# responses, no cold-start. Set to e.g. 30m if you'd rather it free VRAM when idle.
+Environment=OLLAMA_KEEP_ALIVE=-1
+ExecStart=/usr/local/bin/ollama serve
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

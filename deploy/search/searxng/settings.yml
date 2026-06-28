@@ -1,0 +1,19 @@
+# Hestia private meta-search (SearXNG).
+# JSON output enabled so the brain's `search` tool can query it over the tailnet.
+use_default_settings: true
+
+server:
+  secret_key: "REPLACE_WITH_RANDOM_HEX"   # real key set only on hl-relay; gen: python3 -c "import secrets;print(secrets.token_hex(32))"
+  limiter: false          # local trusted network only — no rate limiting / bot wall
+  image_proxy: false
+  method: "GET"
+
+search:
+  formats:
+    - html
+    - json
+  safe_search: 1
+
+engines:
+  - name: wikipedia
+    disabled: false

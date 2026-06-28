@@ -1,0 +1,4 @@
+# voice spike — keep code, not weights/env
+.venv/
+voices/
+uv.lock

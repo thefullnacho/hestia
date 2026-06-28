@@ -1,0 +1,28 @@
+[Unit]
+Description=Hestia — Wyoming STT (faster-whisper small.en on the 4060 Ti) for HA Assist
+After=network.target
+
+[Service]
+Type=exec
+WorkingDirectory=%h/hestia/brain/voice/services
+# Pin to the free 4060 Ti (index 1); the 5080 stays the brain's. Same GPU-order belt as ollama.
+Environment=CUDA_DEVICE_ORDER=PCI_BUS_ID
+Environment=CUDA_VISIBLE_DEVICES=1
+# ctranslate2 dynamically loads libcublas.so.12 at the first transcribe (the CUDA encode path).
+# systemd starts us with an empty LD_LIBRARY_PATH, so without this the Wyoming connection
+# succeeds but every transcription throws "Library libcublas.so.12 is not found" -> HA Assist
+# shows "speech to text failed". Same CUDA libdir the interactive shell uses to run the spike.
+Environment=LD_LIBRARY_PATH=/usr/local/cuda-13.0/lib64
+# Bound to the Tailscale IP (not 0.0.0.0): unauthenticated like the brain, so the private mesh
+# IS the access control. HA on hl-relay reaches it over the tailnet. If tailscaled isn't up at
+# boot the bind fails and Restart=on-failure retries until tailscale0 has the address.
+ExecStart=%h/.local/bin/uv run --project %h/hestia/brain/voice/services \
+    python -m wyoming_faster_whisper \
+    --uri tcp://127.0.0.1:10300 --model small.en --language en \
+    --device cuda --compute-type float16 --beam-size 1 \
+    --data-dir %h/.local/share/hestia-voice/whisper
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

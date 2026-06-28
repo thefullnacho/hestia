@@ -1,0 +1,10 @@
+[Unit]
+Description=Hestia — nightly off-box backup (records DB + memories -> hl-relay)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# hl-relay LAN IP — set once; LAN reaches the real sshd, bypassing Tailscale SSH check-mode.
+Environment=HESTIA_BACKUP_HOST=RELAY_LAN_IP
+ExecStart=%h/hestia/deploy/backup/hestia-backup.sh

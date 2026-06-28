@@ -1,0 +1,11 @@
+# Training deps for the tool-firing LoRA. Install into THIS dir's own venv — never the
+# brain runtime venv (heavy CUDA stack; must not risk the resident brain).
+#   uv venv brain/train/.venv && . brain/train/.venv/bin/activate
+#   uv pip install -r brain/train/requirements.txt
+torch>=2.4
+transformers>=4.46
+peft>=0.13
+datasets>=3.0
+accelerate>=1.0
+bitsandbytes>=0.44
+sentencepiece

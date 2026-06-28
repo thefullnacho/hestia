@@ -1,0 +1,9 @@
+[project]
+name = "hestia-voice-services"
+version = "0.1.0"
+description = "Wyoming protocol servers for HA Assist — faster-whisper (STT) + piper (TTS), GPU-pinned to the 4060 Ti. HA on hl-relay connects to these over the tailnet; the brain stays the conversation agent."
+requires-python = ">=3.10"
+dependencies = [
+    "wyoming-faster-whisper>=2.5",
+    "wyoming-piper>=1.6",
+]

@@ -1,0 +1,20 @@
+# SearXNG — Hestia's private web-search backend. Runs on the appliance box (hl-relay),
+# reachable from the GPU brain at http://hl-relay:8095. No API keys; queries stay local.
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: hl-searxng
+    restart: unless-stopped
+    ports:
+      - "8095:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://hl-relay:8095/
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "3"

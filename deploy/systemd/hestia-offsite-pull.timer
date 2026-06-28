@@ -1,0 +1,13 @@
+[Unit]
+Description=Hestia off-site pull — 03:30 America/New_York (after the 02:00 ET home leg)
+
+[Timer]
+# Box runs on UTC, so pin the calendar to Eastern (systemd >=252) to guarantee this fires
+# AFTER the GPU box -> hl-relay push at 02:00 ET. Worst case (push late/missed) the puller
+# just grabs the latest dated dir on hl-relay, so the off-site copy is at most a day behind.
+OnCalendar=*-*-* 03:30:00 America/New_York
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

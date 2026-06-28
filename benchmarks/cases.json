@@ -1,0 +1,22 @@
+{
+  "_comment": "Tool-calling battery for Hestia. Each case is a user request; the model must emit ONE JSON action object. Scoring: format (valid single JSON), tool (right tool), args (key args match loosely). 'reasoning' cases need a sensible first step in a multi-step task. expect.args_any lists acceptable substrings (case-insensitive) for the named arg.",
+  "tools_prompt": "You are Hestia, a home + work assistant. You have these tools:\n- home(action, target): control the house. action in [turn_on, turn_off, get_state, set, open, close]. target is a device/area.\n- media(action, query): manage media. action in [download, search, delete, status]. query is a title or filter.\n- memory(op, content): op in [write, recall]. content is the fact or query.\n- search(query): web/local search for live info.\n- final(text): reply directly to the user when no tool is needed.\n\nReply with EXACTLY ONE JSON object and nothing else, no prose, no code fences:\n{\"tool\": \"<name>\", \"args\": { ... }}\nFor a direct answer use {\"tool\": \"final\", \"args\": {\"text\": \"...\"}}.",
+  "cases": [
+    {"id": "lights_off", "kind": "tool", "user": "turn off the kitchen lights", "expect": {"tool": "home", "args_any": {"action": ["turn_off"], "target": ["kitchen"]}}},
+    {"id": "lights_on", "kind": "tool", "user": "switch on the lamp in the office", "expect": {"tool": "home", "args_any": {"action": ["turn_on"], "target": ["office", "lamp"]}}},
+    {"id": "thermostat", "kind": "tool", "user": "set the thermostat to 68", "expect": {"tool": "home", "args_any": {"action": ["set"], "target": ["thermostat", "68"]}}},
+    {"id": "garage_state", "kind": "tool", "user": "is the garage door open?", "expect": {"tool": "home", "args_any": {"action": ["get_state"], "target": ["garage"]}}},
+    {"id": "dl_show", "kind": "tool", "user": "download the latest season of Severance", "expect": {"tool": "media", "args_any": {"action": ["download"], "query": ["severance"]}}},
+    {"id": "find_movie", "kind": "tool", "user": "find the movie Dune Part Two", "expect": {"tool": "media", "args_any": {"action": ["search", "download"], "query": ["dune"]}}},
+    {"id": "media_status", "kind": "tool", "user": "what's currently downloading?", "expect": {"tool": "media", "args_any": {"action": ["status"]}}},
+    {"id": "remember_coffee", "kind": "tool", "user": "remember that the good coffee is the bag with the orange label", "expect": {"tool": "memory", "args_any": {"op": ["write"], "content": ["coffee", "orange"]}}},
+    {"id": "recall_coffee", "kind": "tool", "user": "which coffee did I say was the good one?", "expect": {"tool": "memory", "args_any": {"op": ["recall"], "content": ["coffee"]}}},
+    {"id": "weather", "kind": "tool", "user": "what's the weather in Boston right now?", "expect": {"tool": "search", "args_any": {"query": ["boston", "weather"]}}},
+    {"id": "news", "kind": "tool", "user": "what happened with the Fed meeting today?", "expect": {"tool": "search", "args_any": {"query": ["fed"]}}},
+    {"id": "chitchat", "kind": "tool", "user": "thanks, that's all for now", "expect": {"tool": "final", "args_any": {}}},
+    {"id": "joke", "kind": "tool", "user": "tell me a quick joke", "expect": {"tool": "final", "args_any": {}}},
+    {"id": "reason_garage", "kind": "reasoning", "user": "if the garage is open, close it", "expect": {"tool": "home", "args_any": {"action": ["get_state", "close"], "target": ["garage"]}}},
+    {"id": "reason_cleanup", "kind": "reasoning", "user": "free up some space by deleting movies I've already watched", "expect": {"tool": "media", "args_any": {"action": ["status", "search", "delete"]}}},
+    {"id": "reason_conditional", "kind": "reasoning", "user": "if it's going to rain tomorrow, remind me to bring an umbrella", "expect": {"tool": "search", "args_any": {"query": ["rain", "weather", "forecast"]}}}
+  ]
+}

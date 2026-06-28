@@ -1,0 +1,24 @@
+[project]
+name = "hestia-brain"
+version = "0.0.0"
+description = "Hestia — the brain. OpenAI-compatible /v1 endpoint for the home + work intelligence."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "python-multipart>=0.0.9",
+    "wyoming>=1.5",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# brain/ on the path so tests import the flat modules (config, records_store, ...) the
+# same way the running brain does (WorkingDirectory=brain).
+pythonpath = ["."]
+addopts = "-q"

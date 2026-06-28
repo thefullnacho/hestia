@@ -1,0 +1,9 @@
+[Unit]
+Description=Hestia reminders — fire any due reminders every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

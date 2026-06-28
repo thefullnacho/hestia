@@ -1,0 +1,14 @@
+[Unit]
+Description=Hestia — nightly OFF-SITE backup pull (hl-relay -> encrypted restic repo on dedi)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=youruser
+Environment=RESTIC_REPOSITORY=/home/youruser/hestia-offsite/repo
+Environment=RESTIC_PASSWORD_FILE=/home/youruser/hestia-offsite/.restic-pass
+# Optional: a healthchecks.io (or self-hosted Healthchecks) URL so a SILENT failure pages you.
+# The script pings "$URL" on success and "$URL/fail" on any error.
+#Environment=HEALTHCHECK_URL=https://hc-ping.com/REPLACE-ME
+ExecStart=/home/youruser/hestia-offsite/hestia-offsite-pull.sh

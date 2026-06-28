@@ -1,0 +1,11 @@
+[Unit]
+Description=Hestia nightly backup — 2:00 AM America/New_York (box TZ; = 06:00 UTC during EDT)
+
+[Timer]
+# Box is on America/New_York, so a bare time is local Eastern and follows DST automatically.
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

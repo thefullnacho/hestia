@@ -1,0 +1,19 @@
+[Unit]
+Description=Hestia — Wyoming TTS (piper en_US-lessac-medium, CPU) for HA Assist
+After=network.target
+
+[Service]
+Type=exec
+WorkingDirectory=%h/hestia/brain/voice/services
+# CPU is sub-second for piper and leaves the 4060 Ti free for whisper. No CUDA env on purpose.
+# Tailnet-only bind, same rationale as hestia-whisper/hestia-brain.
+ExecStart=%h/.local/bin/uv run --project %h/hestia/brain/voice/services \
+    python -m wyoming_piper \
+    --uri tcp://127.0.0.1:10200 --voice en_US-lessac-medium \
+    --data-dir %h/.local/share/hestia-voice/piper \
+    --download-dir %h/.local/share/hestia-voice/piper
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

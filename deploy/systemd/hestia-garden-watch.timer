@@ -1,0 +1,10 @@
+[Unit]
+Description=Hestia garden watch — daily 7am ET (only notifies if actionable)
+
+[Timer]
+OnCalendar=*-*-* 07:00:00
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

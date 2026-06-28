@@ -1,0 +1,8 @@
+# ollama Modelfile for the tool-firing adapter. register.sh fills __ADAPTER_GGUF__.
+# FROM the existing qwen3:4b so we inherit its chat template + params; the GGUF LoRA
+# adapter is applied on top (no merge, no re-quantize needed).
+FROM qwen3:4b
+ADAPTER __ADAPTER_GGUF__
+
+# Match the eval/production serving: fast mode, low temperature.
+PARAMETER temperature 0.3

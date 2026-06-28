@@ -1,0 +1,23 @@
+[Unit]
+Description=Hestia — the brain (OpenAI-compatible /v1, stub proxy -> Ollama)
+After=network.target hestia-ollama.service
+Wants=hestia-ollama.service
+
+[Service]
+Type=exec
+WorkingDirectory=%h/hestia/brain
+Environment=HESTIA_OLLAMA=http://127.0.0.1:11434
+Environment=HESTIA_MODEL=qwen3:14b
+# qwen3 thinking off = fast resident mode (eval: 100%/100% English @1.5s). Set 1 to enable.
+Environment=HESTIA_THINK=0
+# Bound to the Tailscale IP (NOT 0.0.0.0) so the brain is reachable only over the private
+# mesh — phone, laptop, hl-relay/HA — and is physically absent from the LAN and docker
+# bridges. The brain is unauthenticated, so this network boundary IS the access control.
+# If tailscaled isn't up yet at boot the bind fails and Restart=on-failure retries until the
+# tailscale0 address exists.
+ExecStart=%h/.local/bin/uv run --project %h/hestia/brain uvicorn hestia:app --host 127.0.0.1 --port 8730
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

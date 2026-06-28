@@ -1,0 +1,146 @@
+# Hestia Phase 1 — the *arr automation layer (Prowlarr + Sonarr + Radarr).
+#
+# Deployed on the Dell Micro (hl-relay) at /opt/home/arr/. This is a SEPARATE
+# stack from the existing /opt/home/compose.yml (Plex, qBittorrent, gluetun VPN,
+# Home Assistant, AdGuard) — it adds the automation brain without touching those
+# already-running, kill-switch-verified containers.
+#
+# How it fits the existing box:
+#   * qBittorrent already runs behind gluetun (VPN kill-switch), WebUI on host :8090,
+#     downloads -> /mnt/media/downloads. The *arr apps reach it at
+#     host.docker.internal:8090 and use a remote-path-mapping /downloads -> /data/downloads.
+#   * /mnt/media is one filesystem, so mounting it as /data here lets Sonarr/Radarr
+#     hardlink (instant, space-free) from downloads into the Plex library instead of copying.
+#   * Plex already watches /mnt/media/{Movies,TV Shows}; Sonarr/Radarr drop finished
+#     media there, Plex picks it up.
+services:
+  # Solves Cloudflare challenges so Prowlarr can reach Cloudflare-protected public
+  # indexers (1337x, EZTV, ...). Prowlarr points an "indexer proxy" at it and tags
+  # the indexers that need it.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - TZ=America/New_York
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./prowlarr/config:/config
+    ports:
+      - "9696:9696"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./sonarr/config:/config
+      - /mnt/media:/data            # downloads at /data/downloads, library at /data/TV Shows
+    ports:
+      - "8989:8989"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./radarr/config:/config
+      - /mnt/media:/data            # downloads at /data/downloads, library at /data/Movies
+    ports:
+      - "7878:7878"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Subtitles for everything Sonarr/Radarr grab — Bazarr watches both libraries and pulls
+  # matching subs as sidecar .srt files next to each video, so English subtitles "just appear"
+  # (a hard requirement here — they're not optional for the household). Reaches the *arr apps
+  # over THIS compose's network by service name (http://sonarr:8989, http://radarr:7878), so no
+  # host hop is needed. Mounts the SAME /mnt/media:/data as Sonarr/Radarr, so the library paths
+  # it sees match theirs EXACTLY — no path-mapping required to write subs alongside the media.
+  # First-boot setup (connections, providers, languages) is in BAZARR.md.
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./bazarr/config:/config
+      - /mnt/media:/data            # library at /data/{Movies,TV Shows}; subs written sidecar
+    ports:
+      - "6767:6767"
+    restart: unless-stopped
+
+  # Music automation — the Sonarr/Radarr for albums/artists. Uses the PLUGINS build
+  # (note the tag), which adds a System -> Plugins menu so the Slskd download-client
+  # plugin can be installed; the stock linuxserver image has NO plugin support. Reaches
+  # qBittorrent at host.docker.internal:8090 like the others; library lands at /data/Music
+  # for Plex. Talks to slskd over the compose's internal network at http://slskd:5030.
+  lidarr:
+    image: ghcr.io/hotio/lidarr:pr-plugins   # plugins-branch build — verify System->Plugins exists after first boot; swap tag if hotio renames it
+    container_name: lidarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
+      - TZ=America/New_York
+    volumes:
+      - ./lidarr/config:/config
+      - /mnt/media:/data            # downloads at /data/downloads, library at /data/Music
+    ports:
+      - "8686:8686"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Soulseek daemon — gives Lidarr the individual tracks/rarities public torrents miss.
+  # Runs DIRECT (not through the qbit VPN) so incoming peer connections work, which means
+  # more sources and the ability to share back; rationale + privacy note in LIDARR-SLSKD.md.
+  # Shares the SAME /mnt/media filesystem so completed files hardlink into Lidarr's library.
+  # Creds come from slskd.env (gitignored); SLSKD_REMOTE_CONFIGURATION lets us finish setup
+  # (download dir + shares) in the web UI on first boot. Verify the download dir resolves to
+  # /data/downloads/slskd (on /mnt/media) — NOT the in-container default — so hardlinks work.
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    env_file:
+      - ./slskd.env                # Soulseek + web-UI creds — copy slskd.env.example, fill, keep out of git
+    environment:
+      - PUID=1000                   # match the *arr apps so downloads are owned 1000:1000
+      - PGID=1000                   # -> Lidarr (also 1000) can hardlink/import cleanly
+      - TZ=America/New_York
+      - SLSKD_REMOTE_CONFIGURATION=true
+      # NB: slskd ignores SLSKD_DIRECTORIES_* env vars (verified — they stay at the /app
+      # default). Set downloads/incomplete/shares/api_keys in slskd.yml instead; see
+      # LIDARR-SLSKD.md. The downloads dir MUST resolve under /mnt/media for hardlinks.
+    volumes:
+      - ./slskd/config:/app
+      - /mnt/media:/data            # downloads -> /data/downloads/slskd; share read-only from /data/Music
+    ports:
+      - "5030:5030"                 # web UI / API (Lidarr plugin points here)
+      - "50300:50300"               # Soulseek listen port (incoming peer connections)
+    restart: unless-stopped

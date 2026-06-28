@@ -1,0 +1,10 @@
+[project]
+name = "hestia-voice"
+version = "0.1.0"
+description = "Phase 3 voice spike — RODE USB mic -> faster-whisper (STT) -> brain -> piper (TTS). Isolated from the brain runtime venv on purpose."
+requires-python = ">=3.10"
+dependencies = [
+    "faster-whisper>=1.0",
+    "piper-tts>=1.2",
+    "httpx>=0.27",
+]

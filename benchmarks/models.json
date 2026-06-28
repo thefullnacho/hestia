@@ -1,0 +1,15 @@
+{
+  "_comment": "Benchmark shortlist. Optimized for tool-calling first, reasoning second, fits the 5080 (16GB) at Q4 except where noted. configs: which GPU layouts to evaluate. gguf paths are resolved under ../models/ (see download.sh). 'single' = --device Vulkan1 (5080). 'dual' = --device Vulkan1,Vulkan2 --split-mode layer --tensor-split 16,16 (pooled, ~32GB).",
+  "vulkan": {"single": "Vulkan1", "dual": "Vulkan1,Vulkan2", "tensor_split": "16,16"},
+  "models": [
+    {"name": "qwen2.5-7b",        "repo": "bartowski/Qwen2.5-7B-Instruct-GGUF",            "file": "Qwen2.5-7B-Instruct-Q4_K_M.gguf",            "approx_gb": 4.7,  "configs": ["single", "dual"], "note": "snappy baseline; Qwen2.5 has strong native tool use"},
+    {"name": "llama3.1-8b",       "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",     "file": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",     "approx_gb": 4.9,  "configs": ["single", "dual"], "note": "ubiquitous reference point"},
+    {"name": "qwen2.5-14b",       "repo": "bartowski/Qwen2.5-14B-Instruct-GGUF",           "file": "Qwen2.5-14B-Instruct-Q4_K_M.gguf",           "approx_gb": 8.9,  "configs": ["single", "dual"], "note": "likely the always-on sweet spot"},
+    {"name": "qwen2.5-coder-14b", "repo": "bartowski/Qwen2.5-Coder-14B-Instruct-GGUF",     "file": "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf",     "approx_gb": 9.0,  "configs": ["single", "dual"], "note": "bash/tool specialist"},
+    {"name": "mistral-small-24b", "repo": "bartowski/Mistral-Small-24B-Instruct-2501-GGUF", "file": "Mistral-Small-24B-Instruct-2501-Q4_K_M.gguf", "approx_gb": 14.3, "configs": ["single", "dual"], "note": "tight on one 16GB card; strong agentic"},
+    {"name": "qwen2.5-32b",       "repo": "bartowski/Qwen2.5-32B-Instruct-GGUF",           "file": "Qwen2.5-32B-Instruct-Q4_K_M.gguf",           "approx_gb": 19.9, "configs": ["dual"],           "note": "dual-only: neither 16GB card fits it alone — the pooling payoff test"},
+    {"name": "qwen3-14b",         "repo": "Qwen/Qwen3-14B-GGUF",                           "file": "Qwen3-14B-Q4_K_M.gguf",                      "approx_gb": 9.0,  "configs": ["single"], "prompt_suffix": " /no_think", "note": "matches the LIVE deployed brain (Ollama qwen3:14b). The true baseline to measure VL candidates against. /no_think keeps the JSON contract from being eaten by a reasoning block."},
+    {"name": "qwen2.5-vl-7b",     "repo": "ggml-org/Qwen2.5-VL-7B-Instruct-GGUF",          "file": "Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",         "approx_gb": 4.7,  "configs": ["single"],         "mmproj": "mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf", "note": "multimodal; serve LM-only for the text-regression A/B vs qwen2.5-7b (isolates the vision tax). mmproj = vision pass."},
+    {"name": "gemma3-12b",        "repo": "ggml-org/gemma-3-12b-it-GGUF",                  "file": "gemma-3-12b-it-Q4_K_M.gguf",                 "approx_gb": 7.3,  "configs": ["single"],         "mmproj": "mmproj-gemma-3-12b-it-f16.gguf",          "note": "native-multimodal at ~current-brain size; the 'multimodal at size' candidate vs qwen3:14b"}
+  ]
+}

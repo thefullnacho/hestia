@@ -1,0 +1,34 @@
+# Model weights — big, re-downloadable via benchmarks/download.sh
+models/
+# Benchmark outputs / server logs
+benchmarks/results/
+brain/eval_results/
+brain/sft_data/
+# SFT training: isolated venv + adapter/checkpoint output (large, regenerable)
+brain/train/.venv/
+brain/train/out/
+*.log
+# Secrets (HA token, *arr API keys, Tailscale) once the brain exists
+.env
+secrets/
+# Python / uv (keep uv.lock, drop the rest)
+__pycache__/
+*.pyc
+.venv/
+# Hestia's runtime memory store — facts the brain writes at runtime, not code.
+# Keep the README; don't pollute code history with learned facts (version separately if wanted).
+memory/*
+!memory/README.md
+
+# structured records DB (local, not versioned)
+data/
+*.db
+deploy/ha/lovelace-*-backup-*.json
+# media stack runtime — slskd creds + per-app config dirs live on hl-relay, not in git
+# (slskd.env.example, the tracked template, is deliberately NOT ignored)
+deploy/media/slskd.env
+deploy/media/*/config/
+# /brag launch-video output — rendered MP4s + node_modules + Hyperframes composition (heavy,
+# regenerable; the videos are deliverables, not source). See the forager-wiki brag-video playbook.
+brag-output/
+brag-output-reel/

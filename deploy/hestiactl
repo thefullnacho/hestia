@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+# hestiactl — one-screen status + start/stop/logs for the Hestia estate, driven
+# from the GPU box. Local services are systemd --user units; everything else is
+# docker on hl-relay over Tailscale SSH.
+#
+#   hestiactl status                 everything, one screen
+#   hestiactl health                 raw brain /health JSON
+#   hestiactl up|down|restart NAME   NAME: brain ollama | prowlarr sonarr radarr
+#                                    lidarr slskd flaresolverr | plex qbit ha
+#                                    adguard gluetun searxng mqtt | all
+#   hestiactl logs NAME [-f]         journalctl (local) or docker logs (remote)
+#   hestiactl vpn                    verify the qBittorrent kill-switch
+#
+# "all" means the Hestia-managed pieces: local units + the arr stack. The core
+# stack (Plex, qbit/gluetun, HA, AdGuard, MQTT) predates Hestia and is never
+# bulk-touched — control those one at a time, by name.
+
+set -uo pipefail
+
+REMOTE="${HESTIACTL_REMOTE:-youruser@hl-relay}"
+BRAIN_URL="${HESTIACTL_BRAIN_URL:-http://127.0.0.1:8730}"
+ARR_DIR="/opt/home/arr"
+
+LOCAL_UNITS=(hestia-brain hestia-ollama)
+ARR_SERVICES=(prowlarr sonarr radarr lidarr slskd flaresolverr)
+CORE_CONTAINERS=(hl-plex qbittorrent gluetun hl-ha adguardhome mosquitto hl-searxng ecowitt2mqtt ghost-archive)
+
+if [[ -t 1 ]]; then
+  GRN=$(tput setaf 2) RED=$(tput setaf 1) YLW=$(tput setaf 3) DIM=$(tput dim) BLD=$(tput bold) RST=$(tput sgr0)
+else
+  GRN='' RED='' YLW='' DIM='' BLD='' RST=''
+fi
+
+rssh() { ssh -o BatchMode=yes -o ConnectTimeout=5 "$REMOTE" "$@"; }
+
+die() { echo "${RED}error:${RST} $*" >&2; exit 1; }
+
+# Map friendly names -> (kind, real name). kind: local | arr | core
+resolve() {
+  local n=$1
+  case $n in
+    brain)   echo "local hestia-brain"; return ;;
+    ollama)  echo "local hestia-ollama"; return ;;
+    plex)    echo "core hl-plex"; return ;;
+    qbit|qbittorrent) echo "core qbittorrent"; return ;;
+    ha)      echo "core hl-ha"; return ;;
+    adguard) echo "core adguardhome"; return ;;
+    mqtt)    echo "core mosquitto"; return ;;
+    searxng) echo "core hl-searxng"; return ;;
+  esac
+  local s
+  for s in "${ARR_SERVICES[@]}"; do [[ $n == "$s" ]] && { echo "arr $n"; return; }; done
+  for s in "${CORE_CONTAINERS[@]}"; do [[ $n == "$s" ]] && { echo "core $n"; return; }; done
+  die "unknown service '$n' (try: brain ollama ${ARR_SERVICES[*]} plex qbit ha adguard gluetun mqtt searxng)"
+}
+
+mark() {  # mark <text-containing-Up-or-active>
+  if [[ $1 == *Up* || $1 == active ]]; then echo "${GRN}●${RST}"; else echo "${RED}●${RST}"; fi
+}
+
+cmd_status() {
+  echo "${BLD}── brain ─────────────────────────────${RST}"
+  local health
+  if health=$(curl -fsS --max-time 5 "$BRAIN_URL/health" 2>/dev/null); then
+    if command -v jq >/dev/null; then
+      echo "$health" | jq -r '"\("'"$GRN"'●'"$RST"'") status=\(.status)  ollama=\(.ollama)  model=\(.model)  tools=\(.tools|join(","))  memories=\(.memory_records)"'
+    else
+      echo "${GRN}●${RST} $health"
+    fi
+  else
+    echo "${RED}●${RST} $BRAIN_URL/health unreachable"
+  fi
+
+  echo "${BLD}── gpu box (systemd --user) ──────────${RST}"
+  local u state
+  for u in "${LOCAL_UNITS[@]}"; do
+    state=$(systemctl --user is-active "$u" 2>/dev/null || true)
+    printf '%s %-22s %s\n' "$(mark "$state")" "$u" "$state"
+  done
+  systemctl --user list-timers 'hestia-*' --no-pager --no-legend 2>/dev/null \
+    | awk -v d="$DIM" -v r="$RST" '{printf "%s· %-22s next %s %s %s%s\n", d, $NF, $1, $2, $3, r}'
+
+  echo "${BLD}── hl-relay (docker) ─────────────────${RST}"
+  local ps
+  if ! ps=$(rssh 'docker ps -a --format "{{.Names}}\t{{.Status}}"' 2>/dev/null); then
+    echo "${RED}●${RST} ssh to $REMOTE failed"
+    return 1
+  fi
+  local section name status line
+  for section in arr core; do
+    echo "${DIM}$section:${RST}"
+    local -a list
+    if [[ $section == arr ]]; then list=("${ARR_SERVICES[@]}"); else list=("${CORE_CONTAINERS[@]}"); fi
+    for name in "${list[@]}"; do
+      line=$(grep -P "^$name\t" <<<"$ps" || true)
+      if [[ -n $line ]]; then
+        status=${line#*$'\t'}
+        printf '%s %-22s %s\n' "$(mark "$status")" "$name" "$status"
+      else
+        printf '%s %-22s %s\n' "${RED}●${RST}" "$name" "not found"
+      fi
+    done
+  done
+}
+
+cmd_health() { curl -fsS --max-time 5 "$BRAIN_URL/health" | { command -v jq >/dev/null && jq . || cat; }; }
+
+confirm() {  # confirm <message>
+  local reply
+  read -r -p "${YLW}$1${RST} [y/N] " reply
+  [[ $reply == y || $reply == Y ]]
+}
+
+cmd_power() {  # cmd_power <up|down|restart> <name|all>
+  local action=$1 target=${2:-} verb
+  [[ -n $target ]] || die "usage: hestiactl $action <service|all>"
+  case $action in up) verb=start ;; down) verb=stop ;; restart) verb=restart ;; esac
+
+  if [[ $target == all ]]; then
+    local u
+    for u in "${LOCAL_UNITS[@]}"; do
+      echo "systemctl --user $verb $u"; systemctl --user "$verb" "$u"
+    done
+    if [[ $action == up ]]; then
+      echo "hl-relay: docker compose up -d ($ARR_DIR)"; rssh "cd $ARR_DIR && docker compose up -d"
+    else
+      echo "hl-relay: docker compose $verb ($ARR_DIR)"; rssh "cd $ARR_DIR && docker compose $verb"
+    fi
+    echo "${DIM}(core stack untouched — control plex/qbit/ha/adguard/gluetun individually)${RST}"
+    return
+  fi
+
+  local kind name
+  read -r kind name <<<"$(resolve "$target")"
+  case $kind in
+    local)
+      echo "systemctl --user $verb $name"; systemctl --user "$verb" "$name" ;;
+    arr)
+      if [[ $action == up ]]; then
+        rssh "cd $ARR_DIR && docker compose up -d $name"
+      else
+        rssh "cd $ARR_DIR && docker compose $verb $name"
+      fi ;;
+    core)
+      if [[ $action != up ]]; then
+        case $name in
+          adguardhome) confirm "adguardhome is the house DNS — $action it?" || exit 1 ;;
+          gluetun)     confirm "gluetun carries qBittorrent's network — $action it (qbit loses connectivity)?" || exit 1 ;;
+          hl-ha)       confirm "hl-ha is Home Assistant (and the Hestia voice seam) — $action it?" || exit 1 ;;
+        esac
+      fi
+      rssh "docker $verb $name" ;;
+  esac
+}
+
+cmd_logs() {
+  local target=${1:-} follow=${2:-}
+  [[ -n $target ]] || die "usage: hestiactl logs <service> [-f]"
+  local kind name
+  read -r kind name <<<"$(resolve "$target")"
+  if [[ $kind == local ]]; then
+    if [[ $follow == -f ]]; then journalctl --user -u "$name" -n 50 -f; else journalctl --user -u "$name" -n 100 --no-pager; fi
+  else
+    if [[ $follow == -f ]]; then ssh -t "$REMOTE" "docker logs --tail 50 -f $name"; else rssh "docker logs --tail 100 $name" 2>&1; fi
+  fi
+}
+
+cmd_vpn() {
+  echo "checking kill-switch: gluetun egress vs hl-relay host egress..."
+  local host_ip vpn_ip
+  host_ip=$(rssh 'curl -4 -fsS --max-time 10 https://ifconfig.me/ip 2>/dev/null || wget -4 -qO- -T 10 https://ifconfig.me/ip' || true)
+  vpn_ip=$(rssh 'docker exec gluetun wget -4 -qO- -T 10 https://ifconfig.me/ip' 2>/dev/null || true)
+  [[ -n $host_ip ]] || die "could not determine hl-relay host IP"
+  if [[ -z $vpn_ip ]]; then
+    echo "${RED}● FAIL${RST} — no egress from gluetun (VPN down). Kill-switch should be holding: verify qbit has no traffic."
+    exit 1
+  fi
+  if [[ $vpn_ip == "$host_ip" ]]; then
+    echo "${RED}● FAIL${RST} — gluetun egress ($vpn_ip) = host IP. Torrent traffic is NOT going through the VPN."
+    exit 1
+  fi
+  echo "${GRN}● OK${RST} — host $host_ip, VPN egress $vpn_ip (different — kill-switch intact)"
+}
+
+case ${1:-} in
+  status)            cmd_status ;;
+  health)            cmd_health ;;
+  up|down|restart)   cmd_power "$@" ;;
+  logs)              shift; cmd_logs "$@" ;;
+  vpn)               cmd_vpn ;;
+  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac
