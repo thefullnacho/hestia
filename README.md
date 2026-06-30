@@ -17,9 +17,10 @@ the long version; [MEMORY-DESIGN.md](MEMORY-DESIGN.md) covers the memory plan.)
 
 - **A brain** (`brain/`) — an OpenAI-compatible endpoint (`POST /v1/chat/completions`) wrapping a
   local LLM (Ollama, `qwen3:14b`) with an agent loop. Every client speaks one dialect.
-- **Eight scoped tools** — `home` (control Home Assistant), `media` (Plex + *arr), `memory`,
-  `records`, `reminder`, `search`, `status`, `weather`. There is deliberately **no shell tool**:
-  the brain can act in your house but cannot run arbitrary commands.
+- **Nine scoped tools** — `home` (control Home Assistant), `media` (Plex + *arr), `memory`,
+  `records`, `recipe` (the household's recipe collection), `reminder`, `search`, `status`,
+  `weather`. There is deliberately **no shell tool**: the brain can act in your house but
+  cannot run arbitrary commands.
 - **Memory that grows** — markdown soft-facts plus a SQLite record of the things in your life
   (pets, garden, wildlife, chores), and a background note-taker that *proposes* durable facts for
   you to approve rather than writing them silently.
@@ -46,7 +47,7 @@ Hestia is part of the **Forager / Homesteader Labs** constellation, alongside `f
 - **Phase 2 — House (Home Assistant)** ✅ — HA running; lights and devices reachable via the `home` tool.
 - **Phase 3 — Voice** ✅ — speak to Hestia through HA's Assist pipeline and a browser voice loop.
 - **Phase 4 — The seam (memory + tools)** ✅ *core in place, still growing* — the brain is a
-  tool-calling agent with the eight tools above plus deterministic skill injection, and **HA's
+  tool-calling agent with the nine tools above plus deterministic skill injection, and **HA's
   conversation agent points at Hestia**, so Assist and voice route through the brain (which can
   control HA back). It also gets smarter over time via the note-taker (see *Memory & learning*).
   Next: vision (Eyes).
@@ -142,7 +143,7 @@ brain/
   records_store.py / memory_store.py   # SQLite entities+events / markdown soft facts
   note_taker.py   # background "gets smarter over time" extractor
   review_notes.py # CLI to review + promote the note-taker's proposals
-  tools/          # home, media, memory, records, reminder, search, status, weather (+ skill router)
+  tools/          # home, media, memory, records, recipe, reminder, search, status, weather (+ skill router)
   tests/          # pytest: stores, dispatch, note-taker (run: uv run --project brain pytest)
   pyproject.toml  # deps + dev (pytest) + pytest config (uv-managed, isolated venv)
 ```
