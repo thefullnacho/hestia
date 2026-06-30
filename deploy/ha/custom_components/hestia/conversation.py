@@ -31,6 +31,11 @@ _LOGGER = logging.getLogger(__name__)
 MAX_SEND = 20           # turns of history replayed to the brain (mirrors clients/chat.html)
 IDLE_TTL = 600.0        # seconds a conversation's history lives past its last turn
 MAX_CONVERSATIONS = 64  # hard cap on tracked conversations (LRU-evicted) — belt and braces
+# Keep the mic open (no re-wake) when Hestia's reply ends in a question, so recipe-style
+# back-and-forth chains while a flat command confirmation ("Done.") lets the turn close. This
+# is ALSO what keeps conversation_id stable across follow-ups, so the history above can actually
+# accumulate. Set ALWAYS_CONTINUE = True to reopen the mic after every reply instead.
+ALWAYS_CONTINUE = False
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
@@ -86,6 +91,7 @@ class HestiaConversationEntity(conversation.ConversationEntity):
                       conversation_id[:8], len(history), len(send))
 
         text = "Sorry, I couldn't reach the Hestia brain."
+        cont = False
         try:
             async with session.post(self._url, json=payload,
                                     timeout=aiohttp.ClientTimeout(total=120)) as resp:
@@ -95,11 +101,15 @@ class HestiaConversationEntity(conversation.ConversationEntity):
             # (no dangling user turn, no apology masquerading as dialogue).
             history.append({"role": "user", "content": user_input.text})
             history.append({"role": "assistant", "content": text})
+            # Keep the conversation (and the mic) alive when the reply invites a follow-up.
+            cont = ALWAYS_CONTINUE or text.rstrip().endswith("?")
         except Exception as err:  # noqa: BLE001
             text = f"Sorry, I couldn't reach the Hestia brain: {err}"
 
+        _LOGGER.debug("reply convo=%s continue=%s chars=%d", conversation_id[:8], cont, len(text))
         response = intent.IntentResponse(language=user_input.language)
         response.async_set_speech(text)
         return conversation.ConversationResult(
-            response=response, conversation_id=conversation_id
+            response=response, conversation_id=conversation_id,
+            continue_conversation=cont,
         )
