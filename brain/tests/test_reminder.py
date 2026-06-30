@@ -34,6 +34,16 @@ NOW = dt.datetime(2026, 6, 28, 12, 0)
     ("tomorrow at 7",           dt.datetime(2026, 6, 29, 7, 0)),
     ("tomorrow morning",        dt.datetime(2026, 6, 29, 9, 0)),
     ("tonight",                 dt.datetime(2026, 6, 28, 21, 0)),
+    # Relative durations — the kitchen-timer path (NOW = 12:00).
+    ("10 minutes",              dt.datetime(2026, 6, 28, 12, 10)),
+    ("10 minute timer",         dt.datetime(2026, 6, 28, 12, 10)),  # extra words ignored
+    ("in 20 min",               dt.datetime(2026, 6, 28, 12, 20)),
+    ("20m",                     dt.datetime(2026, 6, 28, 12, 20)),
+    ("90 seconds",              dt.datetime(2026, 6, 28, 12, 1, 30)),
+    ("1 hour 30 minutes",       dt.datetime(2026, 6, 28, 13, 30)),  # summed
+    ("an hour",                 dt.datetime(2026, 6, 28, 13, 0)),   # word quantity
+    ("in an hour",              dt.datetime(2026, 6, 28, 13, 0)),
+    ("1.5 hours",               dt.datetime(2026, 6, 28, 13, 30)),  # fractional
 ])
 def test_parse_when_resolves(phrase, expected):
     assert reminder._parse_when(phrase, NOW) == expected
@@ -42,13 +52,20 @@ def test_parse_when_resolves(phrase, expected):
 @pytest.mark.parametrize("phrase", [
     "",            # empty
     "now",         # not a clock/date the tool resolves
-    "in an hour",  # relative durations are unsupported
     "Feb 30 at 9am",  # impossible calendar date
     "someday",     # gibberish
     "at 99:00",    # out-of-range time
 ])
 def test_parse_when_unreadable_returns_none(phrase):
     assert reminder._parse_when(phrase, NOW) is None
+
+
+def test_bare_timer_defaults_label(db):
+    """'set a 10 minute timer' carries no text — it should file a 'Timer' row, not refuse."""
+    out = reminder.execute("create", when="10 minutes")
+    assert out.startswith("Reminder #")
+    assert "Timer" in out
+    assert "Timer" in reminder.execute("list")
 
 
 def test_create_files_a_row_and_lists_it(db):
