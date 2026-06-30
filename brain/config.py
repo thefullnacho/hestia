@@ -31,6 +31,9 @@ SKILLS_DIR = BRAIN_DIR / "skills"
 
 DB_PATH = Path(os.environ.get("HESTIA_DB") or DATA_DIR / "hestia.db")
 PHOTO_DIR = Path(os.environ.get("HESTIA_PHOTO_DIR") or DATA_DIR / "photos")
+# The household recipe collection (one markdown file per recipe). Private household data,
+# so it lives under DATA_DIR (gitignored) — never the public tree, same posture as photos.
+RECIPES_DIR = Path(os.environ.get("HESTIA_RECIPES_DIR") or DATA_DIR / "recipes")
 # Proposals from the background note-taker await review here (one md per proposal).
 INBOX_DIR = Path(os.environ.get("HESTIA_INBOX_DIR") or MEMORY_DIR / "inbox")
 # Runtime state for the proactive garden-watch streak machine (XDG state dir by default).
