@@ -1,0 +1,32 @@
+[Unit]
+Description=Hestia — Wyoming TTS (Chatterbox-Turbo, streaming) on the 4060 Ti for HA Assist
+After=network.target
+
+[Service]
+Type=exec
+# The engine is a third-party repo (MIT) that lives OUTSIDE this repo. One-time setup:
+#   git clone https://github.com/unmotivatedgene/wyoming-chatterbox-streaming \
+#       %h/.local/share/hestia-voice/engines/wyoming-chatterbox-streaming
+#   cd %h/.local/share/hestia-voice/engines/wyoming-chatterbox-streaming
+#   uv venv --python 3.12 .venv && VIRTUAL_ENV=$PWD/.venv uv pip install -e .
+# (pulls chatterbox-tts + torch cu124; the first start downloads the model into HF_HOME.)
+WorkingDirectory=%h/.local/share/hestia-voice/engines/wyoming-chatterbox-streaming
+# Pin to the free 4060 Ti (index 1); the 5080 stays the brain's. Same GPU-order belt as whisper.
+# NOTE: no LD_LIBRARY_PATH here (unlike hestia-whisper) — the torch cu124 wheel bundles its own
+# CUDA runtime, so it doesn't need the system CUDA libdir.
+Environment=CUDA_DEVICE_ORDER=PCI_BUS_ID
+Environment=CUDA_VISIBLE_DEVICES=1
+Environment=HF_HOME=%h/.local/share/hestia-voice/chatterbox/hf
+# Bind to the Tailscale IP in production (shown here as 127.0.0.1): unauthenticated like the
+# brain/whisper, so the private mesh IS the access control. HA on hl-relay reaches it over the
+# tailnet. --http-port 0 disables the model's :5000 voice-cloning web UI (enable it if you want
+# to add a cloned voice by dropping a reference .wav in the data-dir prompts/).
+ExecStart=%h/.local/share/hestia-voice/engines/wyoming-chatterbox-streaming/.venv/bin/python \
+    -m wyoming_chatterbox \
+    --uri tcp://127.0.0.1:10202 --device cuda --http-port 0 \
+    --data-dir %h/.local/share/hestia-voice/chatterbox
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
