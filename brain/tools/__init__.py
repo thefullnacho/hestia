@@ -10,7 +10,7 @@ non-arbitrary. Do not reintroduce a general shell tool.
 """
 from __future__ import annotations
 
-from . import home, media, memory_tool, records, recipe, reminder, search, skill, status, weather
+from . import home, media, memory_tool, records, recipe, reminder, search, shopping, skill, status, weather
 
 # skill is NOT a model-facing tool — it's the deterministic router used by the brain to
 # inject the matching skill's knowledge into a request's system prompt before the loop.
@@ -22,6 +22,7 @@ _TOOLS = {
     "recipe": recipe,
     "reminder": reminder,
     "search": search,
+    "shopping": shopping,
     "status": status,
     "weather": weather,
 }

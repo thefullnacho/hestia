@@ -17,10 +17,11 @@ the long version; [MEMORY-DESIGN.md](MEMORY-DESIGN.md) covers the memory plan.)
 
 - **A brain** (`brain/`) — an OpenAI-compatible endpoint (`POST /v1/chat/completions`) wrapping a
   local LLM (Ollama, `qwen3:14b`) with an agent loop. Every client speaks one dialect.
-- **Nine scoped tools** — `home` (control Home Assistant), `media` (Plex + *arr), `memory`,
-  `records`, `recipe` (the household's recipe collection), `reminder`, `search`, `status`,
-  `weather`. There is deliberately **no shell tool**: the brain can act in your house but
-  cannot run arbitrary commands.
+- **Ten scoped tools** — `home` (control Home Assistant), `media` (Plex + *arr), `memory`,
+  `records`, `recipe` (the household's recipe collection), `reminder`, `search`, `shopping`
+  (the household shopping list, backed by HA's todo list), `status`, `weather`. There is
+  deliberately **no shell tool**: the brain can act in your house but cannot run arbitrary
+  commands.
 - **Memory that grows** — markdown soft-facts plus a SQLite record of the things in your life
   (pets, garden, wildlife, chores), and a background note-taker that *proposes* durable facts for
   you to approve rather than writing them silently.
@@ -47,7 +48,7 @@ Hestia is part of the **Forager / Homesteader Labs** constellation, alongside `f
 - **Phase 2 — House (Home Assistant)** ✅ — HA running; lights and devices reachable via the `home` tool.
 - **Phase 3 — Voice** ✅ — speak to Hestia through HA's Assist pipeline and a browser voice loop.
 - **Phase 4 — The seam (memory + tools)** ✅ *core in place, still growing* — the brain is a
-  tool-calling agent with the nine tools above plus deterministic skill injection, and **HA's
+  tool-calling agent with the ten tools above plus deterministic skill injection, and **HA's
   conversation agent points at Hestia**, so Assist and voice route through the brain (which can
   control HA back). It also gets smarter over time via the note-taker (see *Memory & learning*).
   Next: vision (Eyes).
