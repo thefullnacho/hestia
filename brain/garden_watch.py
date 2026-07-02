@@ -132,6 +132,14 @@ def build_alerts(persist: bool = False) -> list[str]:
         h = heavy[0]
         alerts.append(f"Heavy rain {weather._nice_date(h['date'])}: {h['rain']:.2f} in "
                       f"expected — you can skip watering.")
+
+    # Pest-emergence windows (GDD + soil-temp spine; see PEST_WATCH.md). Same persist
+    # discipline: only the real 7am run advances the season state / consumes an alert.
+    try:
+        import pest_watch
+        alerts.extend(pest_watch.build_alerts(persist=persist))
+    except Exception as e:  # noqa: BLE001 — a pest-data problem must not kill soil/frost alerts
+        print(f"garden-watch: pest watch failed: {e}", file=sys.stderr)
     return alerts
 
 

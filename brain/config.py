@@ -39,6 +39,11 @@ INBOX_DIR = Path(os.environ.get("HESTIA_INBOX_DIR") or MEMORY_DIR / "inbox")
 # Runtime state for the proactive garden-watch streak machine (XDG state dir by default).
 _STATE_HOME = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
 GARDEN_STATE = Path(os.environ.get("GARDEN_STATE") or _STATE_HOME / "hestia" / "garden_watch.json")
+# Pest-watch season state (biofix, cumulative GDD, per-season alert dedupe). Deliberately NOT
+# in the nightly backup: it's fully re-derivable — a fresh run re-finds the biofix and
+# back-fills GDD from the archive, and already-open windows re-mark silently.
+PEST_STATE = Path(os.environ.get("PEST_STATE") or DATA_DIR / "pest_state.json")
+PEST_DATA = Path(os.environ.get("PEST_DATA") or DATA_DIR / "pest-companions.json")
 
 # Guarantee sibling modules (memory_store, records_store, the tools package, ...) import
 # whether the brain is launched by uvicorn, a systemd script, or pytest — done once here

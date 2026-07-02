@@ -69,6 +69,28 @@ def forecast_days(days: int = 7) -> list[dict]:
     ]
 
 
+def history_days(start: str, end: str) -> list[dict]:
+    """Observed daily rows (same shape as forecast_days, minus pop) from the Open-Meteo
+    archive — used by pest-watch to back-fill GDD from the season's biofix. The archive
+    lags ~2 days behind realtime; rows with null temps (too recent) are dropped."""
+    params = {
+        "latitude": LAT, "longitude": LON,
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
+        "temperature_unit": "fahrenheit", "precipitation_unit": "inch",
+        "timezone": "auto", "start_date": start, "end_date": end,
+    }
+    r = httpx.get("https://archive-api.open-meteo.com/v1/archive", params=params,
+                  headers={"User-Agent": _UA}, timeout=30)
+    r.raise_for_status()
+    d = r.json()["daily"]
+    return [
+        {"date": d["time"][i], "hi": d["temperature_2m_max"][i], "lo": d["temperature_2m_min"][i],
+         "rain": d["precipitation_sum"][i] or 0.0}
+        for i in range(len(d["time"]))
+        if d["temperature_2m_max"][i] is not None and d["temperature_2m_min"][i] is not None
+    ]
+
+
 def active_alerts() -> list[dict]:
     """Active NWS alerts for the homestead's forecast zone (best-effort)."""
     h = {"User-Agent": _UA, "Accept": "application/geo+json"}
