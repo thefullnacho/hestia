@@ -1,7 +1,7 @@
 ---
 name: wildlife
 description: Use when the user is recalling or logging a wildlife sighting — "when did I last see a deer", "any fox sightings lately", or reporting "saw a turkey by the pond". Scopes the request to the records tool so the model fires it instead of drowning in the full tool list or reaching for search.
-triggers: sighting, sightings, spotted, sighted, wildlife, deer, fox, foxes, coyote, coyotes, bear, bears, turkey, turkeys, hawk, owl, owls, rabbit, rabbits, raccoon, raccoons, opossum, possum, snake, snakes, eagle, heron, bobcat, critter, tracks
+triggers: sighting, sightings, spotted, sighted, wildlife, deer, fox, foxes, coyote, coyotes, bear, bears, turkey, turkeys, hawk, owl, owls, rabbit, rabbits, raccoon, raccoons, opossum, possum, snake, snakes, eagle, heron, bobcat, critter, tracks, hummingbird, hummingbirds, oriole, orioles, woodpecker, woodpeckers, finch, finches, mole, moles, chickadee, chickadees, titmouse, titmice, blue jay, blue jays, robin, robins, catbird, catbirds, native bees
 tools: records
 metadata:
   domain: wildlife
