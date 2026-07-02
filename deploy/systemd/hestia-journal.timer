@@ -1,0 +1,10 @@
+[Unit]
+Description=Hestia nightly journal — 11:45pm daily (writes the day down, then refreshes the almanac)
+
+[Timer]
+OnCalendar=*-*-* 23:45:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
