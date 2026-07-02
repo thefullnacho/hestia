@@ -1,0 +1,10 @@
+[Unit]
+Description=Hestia morning briefing — daily 7:10am ET (always sends; garden-watch at 7:00 stays the actionable-only alert)
+
+[Timer]
+OnCalendar=*-*-* 07:10:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
