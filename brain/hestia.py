@@ -97,6 +97,18 @@ def _system_prompt(user_text: str) -> str:
     skill_block = tools.active_skill(user_text)
     if skill_block:
         parts += ["", skill_block]
+    # The almanac pages are nightly-regenerated files, not static skill knowledge, so the
+    # brain injects them live when the almanac skill owns the request (same move as the
+    # GARDEN blocks: put the real data in front of the model instead of hoping it fetches).
+    if matched and matched.get("name") == "almanac":
+        pages = _almanac_pages()
+        if pages:
+            parts += ["", "--- ALMANAC (authoritative season record) ---",
+                      "Answer season questions — frost dates, degree-days, the garden "
+                      "timeline, wildlife, year-over-year comparisons — strictly from the "
+                      "page(s) below. Everything historical is already written here; do NOT "
+                      "call a tool for it. Never invent a date or event that is not on a page.",
+                      pages]
     # Garden topic = the watering skill triggered OR the user named a real bed / zone /
     # plant that exists in records (data-driven, so we don't have to enumerate every plant
     # as a keyword). Places are kept out of roster() to avoid bloating every prompt.
@@ -129,6 +141,18 @@ def _system_prompt(user_text: str) -> str:
                   "(answer using these exact entries; do NOT use search for this) ---",
                   garden_focus]
     return "\n".join(parts)
+
+
+def _almanac_pages() -> str:
+    """This year's almanac page, preceded by last year's when it exists (so 'compared to
+    last year' has both in view). Current year goes last — recency grounds best."""
+    year = _dt.date.today().year
+    pages = []
+    for y in (year - 1, year):
+        p = config.ALMANAC_DIR / f"{y}.md"
+        if p.is_file():
+            pages.append(p.read_text(encoding="utf-8").rstrip())
+    return "\n\n".join(pages)
 
 
 async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dict:

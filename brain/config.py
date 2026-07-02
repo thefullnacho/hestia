@@ -44,6 +44,9 @@ GARDEN_STATE = Path(os.environ.get("GARDEN_STATE") or _STATE_HOME / "hestia" / "
 # back-fills GDD from the archive, and already-open windows re-mark silently.
 PEST_STATE = Path(os.environ.get("PEST_STATE") or DATA_DIR / "pest_state.json")
 PEST_DATA = Path(os.environ.get("PEST_DATA") or DATA_DIR / "pest-companions.json")
+# The household almanac pages (<year>.md + <year>.json), regenerated nightly by almanac.py
+# and injected into the prompt when the almanac skill matches a request.
+ALMANAC_DIR = DATA_DIR / "almanac"
 
 # Guarantee sibling modules (memory_store, records_store, the tools package, ...) import
 # whether the brain is launched by uvicorn, a systemd script, or pytest — done once here

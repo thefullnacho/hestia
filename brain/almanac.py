@@ -30,7 +30,7 @@ import records_store                   # noqa: E402
 from tools import weather              # noqa: E402
 
 ZONE = os.environ.get("HESTIA_USDA_ZONE", "7a")
-ALMANAC_DIR = config.DATA_DIR / "almanac"
+ALMANAC_DIR = config.ALMANAC_DIR
 FROST_ZONES = config.DATA_DIR / "frost-zones.json"
 
 # Event actions that belong on the garden timeline (records carries plenty else: health
