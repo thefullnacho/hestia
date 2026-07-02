@@ -16,7 +16,9 @@ REPO=$HOME/hestia
 SRC_DB="$REPO/data/hestia.db"
 SRC_MEM="$REPO/memory"
 
-REMOTE_USER="${HESTIA_BACKUP_USER:-youruser}"
+# Both required from the unit — a username default here would be a placeholder that the
+# public-repo scrub deploys silently (that exact failure ate three nights of backups once).
+REMOTE_USER="${HESTIA_BACKUP_USER:?set HESTIA_BACKUP_USER (hl-relay user) in the unit}"
 REMOTE_HOST="${HESTIA_BACKUP_HOST:?set HESTIA_BACKUP_HOST (hl-relay LAN IP) in the unit}"
 REMOTE_PORT="${HESTIA_BACKUP_PORT:-22}"
 REMOTE_DIR="${HESTIA_BACKUP_DIR:-hestia-backups}"

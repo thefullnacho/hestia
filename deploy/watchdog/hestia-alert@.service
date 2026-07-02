@@ -1,0 +1,10 @@
+[Unit]
+Description=Hestia — page the phone when unit %i fails
+
+# Hook any unit into this with:  OnFailure=hestia-alert@%n.service
+# Works installed as a system unit (the dedi) or a user unit (the GPU box).
+
+[Service]
+Type=oneshot
+Environment=HESTIA_NTFY_URL=https://ntfy.sh/CHANGE-ME-RANDOM-TOPIC
+ExecStart=/usr/bin/curl -fsS -m 10 --retry 3 -H "Title: Hestia: %i FAILED" -H "Priority: high" -H "Tags: warning" -d "systemd unit %i failed on %H — check its journal." ${HESTIA_NTFY_URL}

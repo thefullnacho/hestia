@@ -35,6 +35,14 @@ STAMP=$($SSH "$REMOTE" "ls -1 $REMOTE_BK/20*/hestia.db 2>/dev/null | sort | tail
 [ -n "$STAMP" ] || STAMP=$($SSH "$REMOTE" "ls -1d $REMOTE_BK/20*/ 2>/dev/null | sort | tail -1 | xargs -r -n1 basename")
 [ -n "$STAMP" ] || fail "no dated backup dir found on $REMOTE:$REMOTE_BK"
 
+# 1b) STALENESS GUARD: an old anchor means the home leg (GPU box -> hl-relay) has been
+#     failing — re-archiving it night after night would report "ok" while rot accumulates
+#     (this happened: a scrubbed username broke the push and this leg stayed green for days).
+MAX_AGE_DAYS="${HESTIA_MAX_STAMP_AGE_DAYS:-2}"
+age_days=$(( ( $(date +%s) - $(date -d "$STAMP" +%s) ) / 86400 ))
+[ "$age_days" -le "$MAX_AGE_DAYS" ] \
+  || fail "newest DB-bearing snapshot is $STAMP (${age_days}d old > ${MAX_AGE_DAYS}d) — home backup leg is broken"
+
 # 2) Fresh config snapshot written INTO that same dated dir (HA + *arr).
 $SSH "$REMOTE" "bash $REMOTE_SNAP '$STAMP'" || fail "remote config-snapshot failed"
 

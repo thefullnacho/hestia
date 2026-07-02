@@ -1,0 +1,11 @@
+[Unit]
+Description=Hestia — off-site watchdog (is the house alive?)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=youruser
+Environment=HESTIA_HEALTH_URL=http://BRAIN_TAILNET_IP:8730/health
+Environment=HESTIA_NTFY_URL=https://ntfy.sh/CHANGE-ME-RANDOM-TOPIC
+ExecStart=/home/youruser/hestia-offsite/hestia-watchdog.sh
