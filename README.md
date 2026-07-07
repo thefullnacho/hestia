@@ -27,7 +27,24 @@ the long version; [MEMORY-DESIGN.md](MEMORY-DESIGN.md) covers the memory plan.)
   you to approve rather than writing them silently.
 - **A media appliance** — Plex + the *arr stack + Bazarr subtitles + qBittorrent behind a
   fail-closed VPN kill-switch.
-- **Voice** — talk to it through Home Assistant's Assist pipeline or the browser.
+- **Voice** — a fully local pipeline: wake the kitchen satellite (HA Voice PE) or talk through
+  Assist or the browser; Whisper does STT on the second GPU, Chatterbox-Turbo does TTS (Piper as
+  CPU fallback), and the brain holds the conversation open when a follow-up is coming
+  (`continue_conversation`), so a recipe walks step by step without re-waking.
+
+**What it does day to day** (each of these is a timer or a tool, not a hope):
+
+- 7:10 — the morning briefing lands on the phone and the kitchen speaker: weather, what's due,
+  and anything the garden pest model flagged overnight (`brain/briefing.py`, `hestia-briefing.timer`;
+  a timer fires it, the model only narrates — and there's a fallback if the model is down)
+- "We're out of olive oil" by voice → the shopping list (HA `todo.shopping_list`), deduped
+- "Vaccinated the dogs today" / "got a new puppy, Biscuit, she's a corgi" → real entities and a
+  dated event log in SQLite
+- Growing-degree-day pest watch for the garden (`brain/pest_watch.py`, biofix observed in the field)
+- 23:45 — the nightly house journal writes itself from the day's records, and the household
+  almanac page regenerates (`brain/journal.py`, `brain/almanac.py`); "how late was the last
+  freeze this year?" is answerable by voice
+- "Grab the new season of X" → the media stack does the rest
 
 **What it isn't.** A cloud service, a wrapper around someone else's API, or anything you should put
 on the public internet. It runs rootless on your own box and never phones home.
@@ -46,12 +63,21 @@ Hestia is part of the **Forager / Homesteader Labs** constellation, alongside `f
   *arr automation layer (Prowlarr/Sonarr/Radarr + FlareSolverr + Bazarr subtitles). Full loop:
   search → download (via VPN) → hardlink → Plex.
 - **Phase 2 — House (Home Assistant)** ✅ — HA running; lights and devices reachable via the `home` tool.
-- **Phase 3 — Voice** ✅ — speak to Hestia through HA's Assist pipeline and a browser voice loop.
+- **Phase 3 — Voice** ✅ — the kitchen HA Voice PE satellite + browser voice loop, through HA's
+  Assist pipeline: Whisper STT (GPU) → brain → Chatterbox-Turbo TTS, Piper as CPU fallback. The
+  agent sets `continue_conversation` when it expects a follow-up, so multi-step exchanges
+  (recipes, especially) don't need re-waking.
 - **Phase 4 — The seam (memory + tools)** ✅ *core in place, still growing* — the brain is a
   tool-calling agent with the ten tools above plus deterministic skill injection, and **HA's
   conversation agent points at Hestia**, so Assist and voice route through the brain (which can
   control HA back). It also gets smarter over time via the note-taker (see *Memory & learning*).
   Next: vision (Eyes).
+- **Daily rhythm** ✅ — timer-fired, model-narrated: morning briefing (7:10, phone + kitchen
+  speaker), growing-degree-day pest watch, nightly house journal + almanac (23:45). True to the
+  design: the schedule belongs to systemd, the model only gets the last word.
+- **Ops** ✅ — nightly on-site snapshots + off-site restic pulls (3-2-1), an external watchdog
+  probing `/health` from off-site, and failure alerts via ntfy. It's expected to keep working
+  when nobody is looking at it.
 
 ---
 
@@ -75,7 +101,7 @@ Memory and tools land in Phase 4 behind this same URL.
 Both are **user** systemd services (no root), defined in `deploy/systemd/` and
 installed into `~/.config/systemd/user/`. Linger is enabled, so they survive
 logout/reboot. Ollama is pinned to the 5080 (`CUDA_VISIBLE_DEVICES`), leaving the
-4060 Ti free for Phase 3 (Whisper/Piper) per the benchmark verdict.
+4060 Ti free for the voice pipeline (Whisper STT + TTS) per the benchmark verdict.
 
 Model: **`qwen3:14b`** (resident, thinking off) — the current pick after the model eval
 (`brain/eval_models.py`; `qwen2.5:14b` kept on disk as a fallback). See `MODEL_EVAL.md`.
