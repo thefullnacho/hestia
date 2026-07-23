@@ -28,11 +28,13 @@ def test_duplicate_content_gets_distinct_ids(mem):
     assert (mem.MEMORY_DIR / f"{b}.md").exists()
 
 
-def test_unknown_type_coerces_to_preference(mem):
-    # documents current behavior: an out-of-whitelist type falls back rather than erroring
-    rid = mem.write("some fact", type="not_a_real_type")
-    record = next(r for r in mem._all() if r["id"] == rid)
-    assert record["meta"]["type"] == "preference"
+def test_unknown_type_raises(mem):
+    # audit nit closed 2026-07-22: an out-of-whitelist type errors loudly instead of
+    # silently coercing (lenient callers sanitize BEFORE calling, e.g. parse_proposals)
+    import pytest
+    with pytest.raises(ValueError, match="unknown memory type"):
+        mem.write("some fact", type="not_a_real_type")
+    assert not any(r["body"] == "some fact" for r in mem._all())
 
 
 def test_pinned_breaks_ties_toward_pinned(mem):

@@ -94,9 +94,11 @@ def _hdr(app):
 def _profile_and_root(app) -> tuple[int, str]:
     k = app["base"]
     if k not in _meta:
-        profs = httpx.get(f"{k}/api/v3/qualityprofile", headers=_hdr(app), timeout=10).json()
+        profs = httpx.get(f"{k}/api/v3/qualityprofile", headers=_hdr(app),
+                          timeout=10).raise_for_status().json()
         qp = next((p["id"] for p in profs if "1080" in p["name"]), profs[0]["id"])
-        roots = httpx.get(f"{k}/api/v3/rootfolder", headers=_hdr(app), timeout=10).json()
+        roots = httpx.get(f"{k}/api/v3/rootfolder", headers=_hdr(app),
+                          timeout=10).raise_for_status().json()
         _meta[k] = (qp, roots[0]["path"])
     return _meta[k]
 
@@ -104,7 +106,7 @@ def _profile_and_root(app) -> tuple[int, str]:
 def _lookup(app, query: str) -> list[dict]:
     r = httpx.get(f"{app['base']}{app['lookup']}", headers=_hdr(app),
                   params={"term": query}, timeout=20)
-    return r.json()
+    return r.raise_for_status().json()
 
 
 # ---------- movie release selection (size-aware) ----------
@@ -127,13 +129,14 @@ def _classify(rel: dict) -> dict:
 def _releases(app, movie_id: int) -> list[dict]:
     r = httpx.get(f"{app['base']}/api/v3/release", headers=_hdr(app),
                   params={"movieId": movie_id}, timeout=45)
-    cands = [_classify(x) for x in r.json()]
+    cands = [_classify(x) for x in r.raise_for_status().json()]
     return [c for c in cands if not c["junk"] and c["guid"]]
 
 
 def _grab(app, c: dict) -> None:
     httpx.post(f"{app['base']}/api/v3/release", headers=_hdr(app),
-               json={"guid": c["guid"], "indexerId": c["indexerId"]}, timeout=30)
+               json={"guid": c["guid"], "indexerId": c["indexerId"]},
+               timeout=30).raise_for_status()
 
 
 def _best(cands, key=lambda c: c["seed"]):
@@ -152,7 +155,7 @@ def _ensure_movie(app, m: dict) -> int:
         "addOptions": {"searchForMovie": False},
     }
     r = httpx.post(f"{app['base']}{app['add']}", headers=_hdr(app), json=payload, timeout=30)
-    return r.json()["id"]
+    return r.raise_for_status().json()["id"]
 
 
 def _select_release(rels: list[dict], quality: str | None) -> tuple[dict | None, str]:
@@ -249,11 +252,14 @@ def _lidarr_profiles() -> dict:
     root folder — all required (>0 / non-empty) to add an artist/album."""
     if not _lidarr_meta:
         b = LIDARR["base"]
-        qps = httpx.get(f"{b}/api/v1/qualityprofile", headers=_lidarr_hdr(), timeout=10).json()
+        qps = httpx.get(f"{b}/api/v1/qualityprofile", headers=_lidarr_hdr(),
+                        timeout=10).raise_for_status().json()
         qp = next((p["id"] for p in qps if p["name"].lower() == "any"), qps[0]["id"])
-        mps = httpx.get(f"{b}/api/v1/metadataprofile", headers=_lidarr_hdr(), timeout=10).json()
+        mps = httpx.get(f"{b}/api/v1/metadataprofile", headers=_lidarr_hdr(),
+                        timeout=10).raise_for_status().json()
         mp = next((p["id"] for p in mps if p["name"].lower() != "none"), mps[0]["id"])
-        root = httpx.get(f"{b}/api/v1/rootfolder", headers=_lidarr_hdr(), timeout=10).json()[0]["path"]
+        root = httpx.get(f"{b}/api/v1/rootfolder", headers=_lidarr_hdr(),
+                         timeout=10).raise_for_status().json()[0]["path"]
         _lidarr_meta.update(qp=qp, mp=mp, root=root)
     return _lidarr_meta
 
@@ -261,7 +267,7 @@ def _lidarr_profiles() -> dict:
 def _album_lookup(query: str) -> list[dict]:
     r = httpx.get(f"{LIDARR['base']}/api/v1/album/lookup", headers=_lidarr_hdr(),
                   params={"term": query}, timeout=20)
-    return r.json()
+    return r.raise_for_status().json()
 
 
 def _album_label(a: dict) -> str:
@@ -287,7 +293,8 @@ def _add_album(a: dict) -> str:
     artist_name = a.get("artist", {}).get("artistName", "?")
     if a.get("id"):  # already in the library — just re-search it
         httpx.post(f"{LIDARR['base']}/api/v1/command", headers=_lidarr_hdr(),
-                   json={"name": "AlbumSearch", "albumIds": [a["id"]]}, timeout=20)
+                   json={"name": "AlbumSearch", "albumIds": [a["id"]]},
+                   timeout=20).raise_for_status()
         return f"'{a['title']}' by {artist_name} is already in the library — kicked off a fresh search."
     m = _lidarr_profiles()
     ar = a["artist"]
@@ -310,14 +317,14 @@ def execute(action: str, kind: str | None = None, query: str | None = None,
             out = []
             for app in APPS.values():
                 q = httpx.get(f"{app['base']}/api/v3/queue", headers=_hdr(app),
-                              params={"pageSize": 50}, timeout=15).json()
+                              params={"pageSize": 50}, timeout=15).raise_for_status().json()
                 for rec in q.get("records", []):
                     left = rec.get("timeleft", "?")
                     out.append(f"  {rec.get('title', '?')} — {rec.get('status', '?')}/"
                                f"{rec.get('trackedDownloadState', '')} ({left})")
             try:  # music queue (Lidarr v1)
                 q = httpx.get(f"{LIDARR['base']}/api/v1/queue", headers=_lidarr_hdr(),
-                              params={"pageSize": 50}, timeout=15).json()
+                              params={"pageSize": 50}, timeout=15).raise_for_status().json()
                 for rec in q.get("records", []):
                     out.append(f"  {rec.get('title', '?')} — {rec.get('status', '?')}/"
                                f"{rec.get('trackedDownloadState', '')} ({rec.get('timeleft', '?')})")
@@ -364,7 +371,8 @@ def execute(action: str, kind: str | None = None, query: str | None = None,
             qp, root = _profile_and_root(app)
             if m.get("id"):
                 httpx.post(f"{app['base']}/api/v3/command", headers=_hdr(app),
-                           json={"name": "SeriesSearch", "seriesId": m["id"]}, timeout=20)
+                           json={"name": "SeriesSearch", "seriesId": m["id"]},
+                           timeout=20).raise_for_status()
                 return f"'{m.get('title')}' is already in the library — kicked off a fresh download search."
             payload = {
                 "title": m["title"], app["id_field"]: m[app["id_field"]],

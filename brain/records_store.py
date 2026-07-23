@@ -78,12 +78,22 @@ def _now() -> str:
     return dt.datetime.now().isoformat(timespec="seconds")
 
 
+_schema_ready: set[str] = set()  # DB paths initialized this process (keyed: tests swap DB_PATH)
+
+
 def _conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     new = not DB_PATH.exists()
     c = sqlite3.connect(DB_PATH)
     c.row_factory = sqlite3.Row
-    c.executescript(_SCHEMA)
+    c.execute("PRAGMA busy_timeout=5000")  # brain + timers share the file; wait out brief locks
+    if new or str(DB_PATH) not in _schema_ready:
+        # Once per process+path, not per connect (audit #10): re-running the DDL was wasted
+        # hot-path work, and WAL lets the timer processes read while the brain writes.
+        # journal_mode persists in the file; asserting it on first connect heals a restored copy.
+        c.executescript(_SCHEMA)
+        c.execute("PRAGMA journal_mode=WAL")
+        _schema_ready.add(str(DB_PATH))
     # The records DB holds people, pets, and locations — keep it owner-only (audit #9).
     # Enforce on creation and self-heal if a restore/copy ever widened the mode.
     if new or (DB_PATH.stat().st_mode & 0o777) != 0o600:

@@ -61,9 +61,14 @@ def _reindex() -> None:
 def write(content: str, type: str = "preference", source: str = "agent",
           confidence: float = 0.8, links: list[str] | None = None,
           pinned: bool = False) -> str:
-    """Write a durable memory record. Returns the record id."""
+    """Write a durable memory record. Returns the record id.
+
+    Raises ValueError on an unknown type (audit nit: silent coercion hid caller bugs).
+    Callers that want lenient behavior sanitize BEFORE calling (note_taker.parse_proposals)."""
+    if type not in TYPES:
+        raise ValueError(f"unknown memory type '{type}' — must be one of: {', '.join(sorted(TYPES))}")
     MEMORY_DIR.mkdir(parents=True, exist_ok=True)
-    mtype = type if type in TYPES else "preference"
+    mtype = type
     rid = _slug(content)
     # de-dupe ids
     if (MEMORY_DIR / f"{rid}.md").exists():

@@ -33,7 +33,10 @@ SCHEMA = {
 
 def execute(op: str, content: str, type: str | None = None) -> str:
     if op == "write":
-        rid = memory_store.write(content, type=type or "preference", source="agent")
+        try:
+            rid = memory_store.write(content, type=type or "preference", source="agent")
+        except ValueError as e:  # unknown type — tell the model instead of silently munging
+            return f"Error: {e}"
         return f"Remembered (id={rid})."
     if op == "recall":
         hits = memory_store.recall(content)
