@@ -138,3 +138,83 @@ OVERALL             33    77%       87%    +11%
 
 Brain decision is final: **Qwen2.5-14B on the single 5080, hardened prompt, code
 safety gate.** 4060 Ti reserved for STT/TTS + background memory note-taker.
+
+---
+
+# Held-out generalization — SFT'd 4B vs base 4B (2026-07-06)
+
+`brain/eval_heldout.py`: 63 cases against the withheld 'outside' room (never in
+training data; present in the live scoped prompt). Real production path
+(`hestia._system_prompt` + `_request_schemas`), temp 0.3, first-tool-call graded,
+no dispatch. Three measurement rounds today: a morning single pass, a 4-variant
+prompt ablation (base only), and a K=5 repeat run (315 samples/model).
+
+## The verdict: SFT collapsed the variance, base is a coin flip
+
+```
+K=5 (63 cases × 5 repeats = 315 samples each):
+model                  fired   action   entity   EXACT
+qwen3-4b-toolfire-v2   94.9%    88.6%    85.4%   85.4%   (269/315)
+qwen3:4b (base)        97.1%    89.5%    54.9%   54.9%   (173/315)
+```
+
+Every score the SFT'd model has ever produced on this probe: **85.7%**
+(2026-06-22, single pass), **85.7%** (this morning, single pass), **85.4%**
+(K=5). Total spread: 0.3pt over two weeks.
+
+Every score base `qwen3:4b` has produced: **84.1%** (June) → **60.3%** (this
+morning) → **79.4%** / **31.7%** / **60.3%** / **58.7%** (afternoon ablation,
+single passes) → **54.9%** (K=5 mean). Single-pass spread *within one day*:
+48 points.
+
+## The ablation (what the cause is NOT)
+
+The morning 60.3-vs-84.1 discrepancy was first suspected to be prompt drift
+(the live prompt gained ~480 chars since June: shopping tool line, Voice PE
+LED ring entity, catalog reordering). Ablation on base, single pass each:
+
+```
+variant                              EXACT   friendly-name-trap hits
+control (today's prompt, re-run)     79.4%    4
+exact June prompt (from SFT jsonl)   31.7%   21
+today minus shopping line            60.3%   16
+today minus LED ring line            58.7%   17
+```
+
+- **Prompt drift: ruled out.** Removing either drifted line did nothing, and
+  replaying the verbatim June prompt scored *worst of all* — if prompt content
+  were the cause it would have recovered June's 84.1%.
+- **Runtime: ruled out.** The Ollama binary (0.30.8) is unchanged since
+  June 11 — eleven days *before* the June run.
+- **What remains is sampling variance.** At temp 0.3 base is bistable on
+  entity binding: it flickers between copying the entity_id field and the
+  friendly-name field — which in this house *looks like* an entity id
+  (`light.light_outside_lights — light.outside_lights`). The control run
+  re-scored 79.4% two hours after the same config scored 60.3%. June's 84.1%
+  was a favorable draw, not a different regime.
+
+## Findings
+
+- **The K=5 gap is all entity binding.** Base fires *more* than SFT (97.1% vs
+  94.9%) and matches action verbs equally (89.5% vs 88.6%); the entire 30-pt
+  EXACT gap is `entity_id` (54.9% vs 85.4%). SFT taught "entity_id = first
+  catalog field" from the trained rooms and it transferred to the held-out room
+  as a near-deterministic behavior.
+- **SFT misses are still the June story**: the noun-elided phrasings ("kill
+  the outside", no light-noun) → `entity=None` or no fire. An ambiguity/data
+  artifact, not the agency cliff.
+- **The publishable claim** (replaces the retired "SFT ≈ base"): *scoping
+  unlocks actuation; SFT collapses variance* — +30pts over base's K=5 mean and
+  a 0.3pt spread across two weeks, vs base's 48-pt same-day spread.
+- **Meta-lesson for every eval in this repo:** a single pass at temp>0 is not
+  a measurement for an unstable model. June's 84.1% and this morning's 60.3%
+  were both "real" and both meaningless alone. K≥5 or temp 0 from now on.
+- Cheap production win regardless: give the HA light groups human-readable
+  friendly names ("Outside Lights") — the id-lookalike names are the wrong
+  basin base keeps falling into, and the same catalog feeds the resident 14B.
+
+## Raw output
+
+`heldout_2026-07-06.txt` (morning single pass, both models),
+`heldout_2026-07-06_ablation.txt` (4-variant ablation),
+`heldout_2026-07-06_k5.txt` (K=5, both models).

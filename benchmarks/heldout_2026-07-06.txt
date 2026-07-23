@@ -1,0 +1,50 @@
+
+========================================================================
+MODEL: qwen3-4b-toolfire-v2   (cases=63 × repeats=1)
+========================================================================
+  fired home :  61/63   96.8%   (∅/wrong-tool = the agency cliff)
+  action ok  :  55/63   87.3%
+  entity ok  :  54/63   85.7%
+  EXACT      :  54/63   85.7%   <- held-out generalization score
+  misses:
+    ~ shut off the outside                       got action=None entity=None
+    ~ switch off the outside                     got action=None entity=None
+    ~ kill the outside                           got action=turn_off entity=None
+    ~ turn off the outside                       got action=None entity=None
+    ✗ put on the outside                         -> ∅
+    ~ turn on the outside                        got action=on entity=None
+    ~ flip on the outside                        got action=None entity=None
+    ~ switch on the outside                      got action=None entity=None
+    ✗ cut the outside                            -> ∅
+  (220s)
+
+========================================================================
+MODEL: qwen3:4b   (cases=63 × repeats=1)
+========================================================================
+  fired home :  61/63   96.8%   (∅/wrong-tool = the agency cliff)
+  action ok  :  58/63   92.1%
+  entity ok  :  38/63   60.3%
+  EXACT      :  38/63   60.3%   <- held-out generalization score
+  misses:
+    ~ shut off the outside                       got action=turn_off entity=None
+    ~ turn off the outside light                 got action=turn_off entity=light.outside_lights
+    ~ cut the outside light                      got action=turn_off entity=light.outside_lights
+    ~ switch off the outside                     got action=turn_off entity=None
+    ~ kill the outside                           got action=turn off entity=None
+    ~ please put on the outside lights           got action=turn_on entity=light.outside_lights
+    ~ cut the lights in the outside              got action=turn_off entity=light.outside_lights
+    ~ go switch on the outside lights            got action=turn_on entity=light.outside_lights
+    ~ switch on the outside lights               got action=turn_on entity=light.outside_lights
+    ~ turn off the outside                       got action=turn off entity=None
+    ~ can you turn off the outside lights        got action=turn_off entity=light.outside_lights
+    ~ go put on the outside lights               got action=turn_on entity=light.outside_lights
+    ~ cut the outside lights                     got action=turn_off entity=light.outside_lights
+    ~ turn off the outside lights                got action=turn_off entity=light.outside_lights
+    ~ turn on the outside lights                 got action=turn_on entity=light.outside_lights
+    ~ go turn on the outside lights              got action=turn_on entity=light.outside_lights
+    ~ put on the outside                         got action=turn_on entity=None
+    ~ can you switch off the outside lights      got action=turn_off entity=light.outside_lights
+    ~ please shut off the outside lights         got action=turn_off entity=light.outside_lights
+    ~ please kill the outside lights             got action=turn_off entity=light.outside_lights
+    ... +5 more
+  (157s)

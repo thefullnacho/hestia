@@ -122,6 +122,17 @@ train "read the block, answer, stop" instead of re-querying.
   with no "light"/"lights"), where the model can't bind "the outside" to the outside *lights*
   and either stays in prose (∅) or grabs the wrong tool. That's an ambiguous-reference /
   dataset-design artifact, not a firing-disposition gap.
+
+- **⚠️ Re-measured 2026-07-06 (single pass + 4-variant prompt ablation + K=5; full
+  analysis in `benchmarks/RESULTS.md`, raw in `benchmarks/heldout_2026-07-06*.txt`):
+  the June single-pass numbers above are a sampling artifact — do not quote "SFT ≈
+  base".** At temp 0.3 base `qwen3:4b` is bistable on entity binding (it flickers
+  between the entity_id and the id-lookalike friendly-name field): single-pass EXACT
+  ranged **31.7–79.4% within one afternoon** (prompt drift and Ollama version both
+  ruled out by ablation), **K=5 mean 54.9%**. The SFT'd model scored **85.7 / 85.7 /
+  85.4%** across two weeks. Revised conclusion: **scoping unlocks actuation; SFT
+  collapses variance** (+30pts over base's true mean, ~zero spread). June's 84.1% was
+  a favorable draw. Eval-methodology lesson: K≥5 or temp 0 — never single-pass.
 - **Anti-goals:**
   - *Overfit to this house* → generic entities only; train the tool *shape*, not the garden.
   - *Forgetting / losing conversation* → LoRA + low LR + small + the negatives protect chat.

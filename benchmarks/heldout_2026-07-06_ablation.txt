@@ -1,0 +1,68 @@
+
+[control (today)]  fired 60/63  action 57/63  entity 50/63  EXACT 50/63 (79.4%)  friendly-name-trap hits: 4
+    ~ shut off the outside                       action=None entity=None
+    ~ switch off the outside                     action=turn_off entity=None
+    ~ kill the outside                           action=turn_off entity=None
+    ~ turn off the outside                       action=turn off entity=None
+    ~ can you kill the outside lights            action=turn_off entity=light.outside_lights
+    ✗ put on the outside                         -> ∅
+    ✗ turn on the outside                        -> ∅
+    ~ switch off the lights in the outside       action=turn_off entity=light.outside_lights
+    ✗ flip on the outside                        -> ∅
+    ~ shut off the outside light                 action=turn_off entity=light.outside_lights
+    ~ switch on the outside                      action=turn_on entity=None
+    ~ cut the outside                            action=cut_outside entity=None
+    ... +1 more
+
+[june prompt]  fired 48/63  action 43/63  entity 20/63  EXACT 20/63 (31.7%)  friendly-name-trap hits: 21
+    ~ shut off the outside                       action=turn off entity=None
+    ✗ switch on the lights in the outside        -> ∅
+    ✗ flip on the outside light                  -> ∅
+    ~ flip on the lights in the outside          action=turn_on entity=light.outside_lights
+    ~ put on the outside light                   action=turn_on entity=light.outside_lights
+    ~ please cut the outside lights              action=turn_off entity=light.outside_lights
+    ~ switch off the outside lights              action=turn_off entity=light.outside_lights
+    ~ can you cut the outside lights             action=turn_off entity=light.outside_lights
+    ✗ switch off the outside                     -> ∅
+    ~ switch off the outside light               action=turn_off entity=light.outside_lights
+    ✗ can you put on the outside lights          -> ∅
+    ~ kill the outside                           action=turn_off entity=None
+    ... +31 more
+
+[today - shopping line]  fired 61/63  action 56/63  entity 38/63  EXACT 38/63 (60.3%)  friendly-name-trap hits: 16
+    ~ shut off the outside                       action=turn off entity=None
+    ~ switch on the lights in the outside        action=turn_on entity=light.outside_lights
+    ~ kill the lights in the outside             action=turn_off entity=light.outside_lights
+    ~ switch off the outside                     action=turn off entity=None
+    ~ can you put on the outside lights          action=turn_on entity=light.outside_lights
+    ~ kill the outside                           action=turn_off entity=None
+    ~ go switch on the outside lights            action=turn_on entity=light.outside_lights
+    ~ switch on the outside lights               action=turn_on entity=light.outside_lights
+    ~ turn off the outside                       action=None entity=None
+    ~ can you turn off the outside lights        action=turn_off entity=light.outside_lights
+    ~ can you kill the outside lights            action=turn_off entity=light.outside_lights
+    ~ turn on the outside lights                 action=turn_on entity=light.outside_lights
+    ... +13 more
+
+[today - LED ring line]  fired 62/63  action 58/63  entity 37/63  EXACT 37/63 (58.7%)  friendly-name-trap hits: 17
+    ~ shut off the outside                       action=turn_off entity=None
+    ~ kill the lights in the outside             action=turn_off entity=light.outside_lights
+    ~ flip on the outside light                  action=turn_on entity=light.outside_lights
+    ~ can you cut the outside lights             action=turn_off entity=light.outside_lights
+    ~ switch off the outside                     action=turn_off entity=None
+    ~ kill the outside                           action=turn_off entity=None
+    ~ please put on the outside lights           action=turn_on entity=light.outside_lights
+    ~ can you switch on the outside lights       action=turn_on entity=light.outside_lights
+    ~ shut off the lights in the outside         action=turn_off entity=light.outside_lights
+    ~ turn off the outside                       action=turn off entity=None
+    ~ can you kill the outside lights            action=turn_off entity=light.outside_lights
+    ~ turn off the outside lights                action=turn_off entity=light.outside_lights
+    ... +14 more
+
+============================================================
+SUMMARY (base qwen3:4b, 63 cases, temp 0.3, single pass)
+June reference: 53/63 (84.1%) | This morning: 38/63 (60.3%)
+  control (today)          50/63  (79.4%)
+  june prompt              20/63  (31.7%)
+  today - shopping line    38/63  (60.3%)
+  today - LED ring line    37/63  (58.7%)

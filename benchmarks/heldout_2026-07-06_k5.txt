@@ -1,0 +1,62 @@
+
+========================================================================
+MODEL: qwen3-4b-toolfire-v2   (cases=63 × repeats=5)
+========================================================================
+  fired home : 299/315   94.9%   (∅/wrong-tool = the agency cliff)
+  action ok  : 279/315   88.6%
+  entity ok  : 269/315   85.4%
+  EXACT      : 269/315   85.4%   <- held-out generalization score
+  misses:
+    ✗ shut off the outside                       -> ∅
+    ~ shut off the outside                       got action=turn off entity=None
+    ~ shut off the outside                       got action=None entity=None
+    ✗ shut off the outside                       -> ∅
+    ~ shut off the outside                       got action=None entity=None
+    ✗ can you cut the outside lights             -> ∅
+    ✗ switch off the outside                     -> ∅
+    ~ switch off the outside                     got action=None entity=None
+    ~ switch off the outside                     got action=turn off entity=None
+    ~ switch off the outside                     got action=turn off entity=None
+    ~ switch off the outside                     got action=turn_off entity=None
+    ~ kill the outside                           got action=turn_off entity=None
+    ~ kill the outside                           got action=turn_off entity=None
+    ✗ kill the outside                           -> ∅
+    ~ kill the outside                           got action=turn off entity=None
+    ✗ kill the outside                           -> ∅
+    ✗ turn off the outside                       -> ∅
+    ~ turn off the outside                       got action=None entity=None
+    ~ turn off the outside                       got action=None entity=None
+    ~ turn off the outside                       got action=None entity=None
+    ... +26 more
+  (1106s)
+
+========================================================================
+MODEL: qwen3:4b   (cases=63 × repeats=5)
+========================================================================
+  fired home : 306/315   97.1%   (∅/wrong-tool = the agency cliff)
+  action ok  : 282/315   89.5%
+  entity ok  : 173/315   54.9%
+  EXACT      : 173/315   54.9%   <- held-out generalization score
+  misses:
+    ~ shut off the outside                       got action=off entity=None
+    ~ shut off the outside                       got action=off entity=None
+    ~ shut off the outside                       got action=turn off entity=None
+    ~ shut off the outside                       got action=None entity=None
+    ~ shut off the outside                       got action=None entity=None
+    ~ turn off the outside light                 got action=turn_off entity=light.outside_lights
+    ~ turn off the outside light                 got action=turn_off entity=light.outside_lights
+    ~ switch on the lights in the outside        got action=turn_on entity=light.outside_lights
+    ~ kill the lights in the outside             got action=turn_off entity=light.outside_lights
+    ~ flip on the outside light                  got action=turn_on entity=light.outside_lights
+    ~ flip on the outside light                  got action=turn_on entity=light.outside_lights
+    ~ flip on the lights in the outside          got action=turn_on entity=light.outside_lights
+    ~ cut the outside light                      got action=turn_off entity=light.outside_lights
+    ~ can you cut the outside lights             got action=turn_off entity=light.outside_lights
+    ~ can you cut the outside lights             got action=turn_off entity=light.outside_lights
+    ~ can you cut the outside lights             got action=turn_off entity=light.outside_lights
+    ~ switch off the outside                     got action=off entity=None
+    ~ switch off the outside                     got action=turn off entity=None
+    ~ switch off the outside                     got action=turn_off entity=None
+    ~ switch off the outside                     got action=turn_off entity=None
+    ... +122 more
+  (806s)

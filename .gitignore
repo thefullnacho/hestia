@@ -33,9 +33,13 @@ deploy/media/*/config/
 CONTENT-TAB.md
 # Private business/positioning strategy (concierge-tier thesis). Keep out of the public repo.
 STRATEGY-PRIVATE.md
+# Local-only engineering audit (personal notes; not part of the public project).
+AUDIT-PRIVATE.md
 # /brag launch-video output — rendered MP4s + node_modules + Hyperframes composition (heavy,
 # regenerable; the videos are deliverables, not source). See the forager-wiki brag-video playbook.
 brag-output/
 brag-output-reel/
 # Reddit launch drafts + demo media — private promo working material, not part of the project.
 reddit/
+# Grant/funding correspondence drafts (FUTO, NLnet, ...) — private, not part of the project.
+outreach/
