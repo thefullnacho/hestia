@@ -12,18 +12,20 @@ from __future__ import annotations
 import records_store as store  # shared _conn() (schema + perms) and _now()
 
 
-def add(due_at: str, text: str) -> int:
-    """File a reminder; returns its id. `due_at` is an ISO local timestamp."""
+def add(due_at: str, text: str, announce: bool = False) -> int:
+    """File a reminder; returns its id. `due_at` is an ISO local timestamp. Set `announce`
+    to also speak it aloud on the Assist satellites (the kitchen Voice PE) when it fires,
+    not just push it to the phone."""
     with store._conn() as c:
-        cur = c.execute("INSERT INTO reminders(due_at,text,created_at) VALUES(?,?,?)",
-                        (due_at, text, store._now()))
+        cur = c.execute("INSERT INTO reminders(due_at,text,created_at,announce) VALUES(?,?,?,?)",
+                        (due_at, text, store._now(), 1 if announce else 0))
         return cur.lastrowid
 
 
 def pending(limit: int = 50) -> list[dict]:
     """Not-yet-fired reminders, soonest first."""
     with store._conn() as c:
-        rows = c.execute("SELECT id,due_at,text FROM reminders WHERE fired_at IS NULL "
+        rows = c.execute("SELECT id,due_at,text,announce FROM reminders WHERE fired_at IS NULL "
                          "ORDER BY due_at LIMIT ?", (limit,)).fetchall()
     return [dict(r) for r in rows]
 
@@ -31,7 +33,7 @@ def pending(limit: int = 50) -> list[dict]:
 def due(now_iso: str) -> list[dict]:
     """Unfired reminders whose time has come (due_at <= now)."""
     with store._conn() as c:
-        rows = c.execute("SELECT id,due_at,text FROM reminders "
+        rows = c.execute("SELECT id,due_at,text,announce FROM reminders "
                          "WHERE fired_at IS NULL AND due_at<=? ORDER BY due_at",
                          (now_iso,)).fetchall()
     return [dict(r) for r in rows]

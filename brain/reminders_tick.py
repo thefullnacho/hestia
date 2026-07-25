@@ -17,6 +17,7 @@ import config  # puts brain/ on sys.path + owns paths
 
 config.load_secrets()
 
+import ha_announce  # noqa: E402  (after secrets load — reads HA_URL/HA_TOKEN)
 import reminders_store as store  # noqa: E402  (after secrets load)
 
 HA_URL = os.environ.get("HA_URL", "http://hl-relay:8124").rstrip("/")
@@ -38,8 +39,10 @@ def main() -> int:
     if not due:
         return 0
     for r in due:
+        speak = bool(r.get("announce"))
         if dry_run:
-            print(f"reminders (dry-run) would push #{r['id']}: {r['text']}")
+            print(f"reminders (dry-run) would push #{r['id']}"
+                  + (" + announce" if speak else "") + f": {r['text']}")
             continue
         try:
             push(r["text"])
@@ -47,6 +50,12 @@ def main() -> int:
             print(f"reminders: pushed #{r['id']}: {r['text']}")
         except Exception as e:  # noqa: BLE001 — leave it unfired; next tick retries
             print(f"reminders: push failed for #{r['id']}: {e}", file=sys.stderr)
+            continue  # don't speak a reminder we couldn't deliver to the phone
+        # Voice is a best-effort bonus AFTER the phone push has landed and the row is marked
+        # fired: an offline kitchen speaker (nobody home) must never cause a re-push next tick.
+        if speak:
+            spoke = ha_announce.announce(r["text"])
+            print(f"reminders: announced #{r['id']} on {spoke or 'none'}")
     return 0
 
 
