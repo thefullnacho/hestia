@@ -86,3 +86,35 @@ def test_window_opening_after_first_run_alerts_once(pw):
 def test_dry_run_consumes_nothing(pw):
     assert pw.build_alerts(persist=False) == []             # first-run marking, unpersisted
     assert not pw.STATE_PATH.exists()
+
+
+def test_alertable_false_never_opens_a_window(pw, tmp_path, monkeypatch):
+    """Aphids and nematodes have no emergence event, so no gate predicts them.
+
+    Before the table carried alertable:false these fell through to the
+    soil-temp fallback and sat open from spring onward. In 2026 that produced
+    seven aphid windows across the season while the lot saw no aphids at all.
+    """
+    table = [{
+        "cropId": "cabbage",
+        "pests": [
+            # Continuous pest: warm soil, no GDD gate. Must stay shut anyway.
+            {"name": "aphid", "soilTempThreshold": 55, "alertable": False,
+             "notAlertableReason": "continuous, multi-generational, no emergence event",
+             "companions": []},
+            # Same shape without the flag: still uses the soil-temp fallback.
+            {"name": "cabbage-worm", "soilTempThreshold": 55, "companions": []},
+        ],
+    }]
+    data = tmp_path / "table2.json"
+    data.write_text(json.dumps(table))
+    monkeypatch.setattr(pest_watch, "DATA_PATH", data)
+
+    warm = {"season": "2026", "biofix": "2026-06-29", "cumulative_gdd": 900.0,
+            "last_gdd_date": "2026-06-30", "recent_mean_temps": [75.0], "alerted": {}}
+    pw._save_state(warm)
+
+    alerts = pw.build_alerts(persist=True)
+    joined = " ".join(alerts)
+    assert "aphid" not in joined, "alertable:false pest opened a window"
+    assert "cabbage-worm" in joined, "soil-temp fallback should still work for others"

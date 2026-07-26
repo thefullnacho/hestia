@@ -98,6 +98,15 @@ def _crops() -> list[dict]:
 
 
 def _in_window(pest: dict, gdd: float, soil: float | None) -> bool:
+    # Some pests have no discrete emergence event to predict — aphids are
+    # continuous and multi-generational, nematodes are soil-resident. Neither a
+    # GDD nor a soil-temp gate carries information about them, so the table
+    # marks them alertable:false and we never open a window. Without this they
+    # fell through to the soil-temp fallback below and sat "open" from spring
+    # onward: in 2026 seven aphid windows opened across the season and no
+    # aphids appeared on the lot at all.
+    if pest.get("alertable") is False:
+        return False
     if soil is None or soil < pest["soilTempThreshold"]:
         return False
     return gdd >= pest["gddThreshold"] if "gddThreshold" in pest else True
