@@ -8,6 +8,13 @@ table (data/pest-companions.json) is vendored from the Homesteader Labs site —
 The spine is growing-degree-days accumulated from a biofix (the season's last spring
 frost, OBSERVED from the Open-Meteo archive — not a normals table), plus an estimated
 soil temperature (trailing-mean air temp; we have moisture probes, not soil-temp probes).
+
+DIVERGENCE (open, 2026-07-26): that last-frost biofix is *season GDD*. Published pest
+thresholds are *pest GDD* — base 50°F accumulated from Jan 1 — and the two are not
+interchangeable: at the lot on 2026-07-25 they read 1500 vs 1608, so comparing this
+accumulation against a Jan-1 threshold opens windows ~108 GDD late (days in July, weeks
+in spring). Season GDD stays for the almanac; alerting needs its own Jan-1 accumulation.
+Canonical convention + sourced thresholds: forager-wiki/entities/gdd-convention.md
 A crop's pest is "in window" when both thresholds are met; each pest alerts ONCE per
 season. On the very first run mid-season, windows that are already open are marked
 silently — those pests emerged weeks ago and a flood of stale alerts teaches the user
