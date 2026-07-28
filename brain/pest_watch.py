@@ -5,15 +5,21 @@ table (data/pest-companions.json) is vendored from the Homesteader Labs site —
     cp <site>/content/crops/pest-companions.json data/pest-companions.json
 (site = homesteader-labs-next-CLEAN; the site remains the source of truth).
 
-The spine is growing-degree-days accumulated from a biofix (the season's last spring
-frost, OBSERVED from the Open-Meteo archive — not a normals table), plus an estimated
-soil temperature (trailing-mean air temp; we have moisture probes, not soil-temp probes).
+The spine is growing-degree-days plus an estimated soil temperature (trailing-mean air
+temp; we have moisture probes, not soil-temp probes).
 
-DIVERGENCE (open, 2026-07-26): that last-frost biofix is *season GDD*. Published pest
-thresholds are *pest GDD* — base 50°F accumulated from Jan 1 — and the two are not
-interchangeable: at the lot on 2026-07-25 they read 1500 vs 1608, so comparing this
-accumulation against a Jan-1 threshold opens windows ~108 GDD late (days in July, weeks
-in spring). Season GDD stays for the almanac; alerting needs its own Jan-1 accumulation.
+TWO degree-day quantities live here and they are not interchangeable:
+
+  pest_gdd        base 50°F accumulated from Jan 1. What published thresholds are quoted
+                  against, so this and only this gates alerts.
+  cumulative_gdd  base 50°F accumulated from the observed biofix (the season's last spring
+                  frost, from the Open-Meteo archive, not a normals table). Season GDD:
+                  the growing-season line for the almanac and the journal stamp.
+
+RESOLVED 2026-07-28: they used to be one accumulator, run from the biofix and checked
+against Jan-1 thresholds. At the lot on 2026-07-25 the two quantities read 1500 and 1608,
+so windows opened ~108 GDD late: days in July, weeks in spring when accumulation runs at
+3-9 GDD/day rather than 24. Both are now accumulated in a single archive pass.
 Canonical convention + sourced thresholds: forager-wiki/entities/gdd-convention.md
 A crop's pest is "in window" when both thresholds are met; each pest alerts ONCE per
 season. On the very first run mid-season, windows that are already open are marked
@@ -69,24 +75,42 @@ def find_biofix(year: int, rows: list[dict] | None = None) -> str:
     return frosts[-1] if frosts else f"{year}-01-01"
 
 
+def _new_season(season: str, biofix: str, alerted: dict | None = None) -> dict:
+    return {"season": season, "biofix": biofix,
+            "pest_gdd": 0.0,        # from Jan 1 — gates alerts
+            "cumulative_gdd": 0.0,  # from the biofix — season GDD, almanac + journal
+            "last_gdd_date": None, "recent_mean_temps": [],
+            "alerted": dict(alerted or {}), "first_run_pending": True}
+
+
 def advance(state: dict, today: dt.date) -> dict:
-    """Bring cumulative GDD + soil-temp estimate up to date. Idempotent per calendar day.
-    First run of a season resets the accumulator from a fresh biofix."""
+    """Bring both GDD accumulators + the soil-temp estimate up to date. Idempotent per
+    calendar day. First run of a season resets from a fresh biofix."""
     season = str(today.year)
     if state.get("season") != season:
-        state = {"season": season, "biofix": find_biofix(today.year),
-                 "cumulative_gdd": 0.0, "last_gdd_date": None, "recent_mean_temps": [],
-                 "alerted": {}, "first_run_pending": True}
+        state = _new_season(season, find_biofix(today.year))
+    elif "pest_gdd" not in state:
+        # Pre-split state: only season GDD was ever accumulated, so there is no Jan-1
+        # figure to resume from. Replay the season to fill both. `alerted` carries over
+        # so nothing re-fires, and the quiet first-run path applies: the whole point of
+        # the fix is that these windows opened late, so anything it opens today emerged
+        # weeks ago and a flood of stale alerts teaches the user to ignore the real ones.
+        state = _new_season(season, state.get("biofix") or find_biofix(today.year),
+                            alerted=state.get("alerted"))
 
-    # Rows since the day after the last accumulated date (or the biofix), through yesterday.
-    # history_days drops not-yet-archived rows itself, so "through yesterday" self-clamps.
+    # Rows since the day after the last accumulated date, else from Jan 1 — the earlier
+    # of the two start dates, so one pass feeds both accumulators. history_days drops
+    # not-yet-archived rows itself, so "through yesterday" self-clamps.
     start = (dt.date.fromisoformat(state["last_gdd_date"]) + dt.timedelta(days=1)).isoformat() \
-        if state["last_gdd_date"] else state["biofix"]
+        if state["last_gdd_date"] else f"{season}-01-01"
     end = (today - dt.timedelta(days=1)).isoformat()
     if start <= end:
         rows = weather.history_days(start, end)
         for r in rows:
-            state["cumulative_gdd"] += _gdd(r)
+            gdd = _gdd(r)
+            state["pest_gdd"] += gdd
+            if r["date"] >= state["biofix"]:
+                state["cumulative_gdd"] += gdd
             state["recent_mean_temps"] = (state["recent_mean_temps"]
                                           + [(r["hi"] + r["lo"]) / 2])[-SOILTEMP_WINDOW:]
         if rows:
@@ -137,7 +161,9 @@ def build_alerts(persist: bool = False, today: dt.date | None = None) -> list[st
     the briefing) never advances state or consumes an alert."""
     today = today or dt.date.today()
     state = advance(dict(_load_state()), today)
-    gdd, soil = state["cumulative_gdd"], est_soil_temp(state)
+    # Thresholds are published against Jan-1 accumulation, so gate on pest_gdd. Season
+    # GDD (cumulative_gdd) is a different quantity and belongs to the almanac.
+    gdd, soil = state["pest_gdd"], est_soil_temp(state)
     first_run = state.pop("first_run_pending", False)
 
     alerts: list[str] = []
@@ -170,8 +196,9 @@ def main() -> int:
     alerts = build_alerts(persist=not dry)
     state = _load_state() if not dry else advance(dict(_load_state()), dt.date.today())
     print(f"pest-watch: season {state.get('season')} biofix {state.get('biofix')} "
-          f"gdd {state.get('cumulative_gdd', 0):.0f} soil~{est_soil_temp(state)}°F "
-          f"alerted {len(state.get('alerted', {}))}")
+          f"pest-gdd {state.get('pest_gdd', 0):.0f} (Jan 1) "
+          f"season-gdd {state.get('cumulative_gdd', 0):.0f} (biofix) "
+          f"soil~{est_soil_temp(state)}°F alerted {len(state.get('alerted', {}))}")
     for a in alerts:
         print("ALERT:", a)
     return 0

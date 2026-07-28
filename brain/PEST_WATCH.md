@@ -47,13 +47,21 @@ hit. (Small extension to `tools/weather.py`: a `history_days(start, end)` helper
 ## Algorithm (per daily run)
 
 1. Load `data/pest-companions.json` and the watched-crop list (config; default = all 10).
-2. Load state `{biofix, cumulative_gdd, last_run_date, est_soil_temp, alerted: {"crop:pest": season}}`.
+2. Load state `{biofix, pest_gdd, cumulative_gdd, last_run_date, est_soil_temp, alerted: {"crop:pest": season}}`.
+   **Two degree-day accumulators, base 50, not interchangeable:** `pest_gdd` runs from **Jan 1**,
+   which is what published thresholds are quoted against, so it alone gates alerts;
+   `cumulative_gdd` runs from the observed **biofix** and is *season GDD*, for the almanac line and
+   the journal stamp. State written before 2026-07-28 has only the latter and is replayed from
+   Jan 1 on first load, keeping `alerted` and taking the quiet first-run path. Convention:
+   `forager-wiki/entities/gdd-convention.md`.
 3. Advance GDD: if `last_run_date < yesterday`, back-fill the gap (archive); else add yesterday's
-   `gdd_day`. Update `est_soil_temp` = trailing 10-day mean air temp. Stamp `last_run_date` (advance
+   `gdd_day`. One archive pass feeds both accumulators (rows on/after the biofix count toward
+   both). Update `est_soil_temp` = trailing 10-day mean air temp. Stamp `last_run_date` (advance
    once per calendar day — idempotent, mirroring `garden_watch.saturated_alert`).
 4. For each watched crop × pest: it's **in window** when
-   `cumulative_gdd >= gddThreshold` (if the pest has one) **and** `est_soil_temp >= soilTempThreshold`.
+   `pest_gdd >= gddThreshold` (if the pest has one) **and** `est_soil_temp >= soilTempThreshold`.
    Pests with no `gddThreshold` fall back to the soil-temp gate alone (lower confidence — flag it).
+   Pests marked `alertable: false` never open a window at all.
 5. Emit an alert for each newly-in-window pest **not already in `alerted` this season**; mark it.
    Fire once per pest per season (no nagging).
 6. Push via HA notify (reuse `garden_watch`'s `_HDRS` / notify service), and log a `pest_alert`
