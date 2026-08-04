@@ -1,0 +1,26 @@
+# Glance — the Hestia dashboard. Runs on hl-relay (metal we own), NOT the dedi rental.
+#
+# Deployed to /opt/home/glance/ alongside the other hl-relay compose projects. Glance is a
+# single Go binary (~20MB resident), which is why it won over Homarr here: hl-relay has been
+# taken down once by swap thrash (see hestia-hl-relay-perf-incident) and a 150MB idle
+# dashboard is not worth the headroom.
+#
+# Every host address lives in glance.env (gitignored) — this repo is public, so no tailnet
+# IPs or hostnames land in tracked files. Copy glance.env.example to get started.
+services:
+  glance:
+    image: glanceapp/glance:v0.8.5
+    container_name: glance
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    env_file:
+      - glance.env
+    volumes:
+      - ./glance.yml:/app/config/glance.yml:ro
+      # Local time, so "3 days ago" on the memory queue matches the wall clock.
+      - /etc/localtime:/etc/localtime:ro
+    # The dashboard reads the brain over the tailnet; the default bridge already routes
+    # there (verified), so no host networking and no new exposure on the LAN.
+    networks:
+      - default

@@ -1,0 +1,264 @@
+# The Hestia dashboard.
+#
+# Glance is unforked on purpose. Its custom-api widget renders arbitrary JSON, and the brain
+# already serves the two feeds that matter — /status (whole-stack health) and /memory/inbox
+# (the note-taker queue) — so nothing here needs Glance's own service integrations. That is
+# also why Glance beat gethomepage: Homepage's 100+ native Sonarr/Radarr/Plex widgets solve a
+# problem status.snapshot() already solved in June, and Homepage has no RSS widget at all.
+#
+# The rule status.py set stands: ONE collector, many consumers. The voice answer, the chat
+# client's Status tab and these tiles all read the same snapshot, so they cannot disagree.
+
+server:
+  host: 0.0.0.0
+  port: 8082
+
+theme:
+  background-color: 225 14 12
+  primary-color: 96 40 60
+  contrast-multiplier: 1.1
+
+pages:
+  - name: Home
+    columns:
+      # ---------------------------------------------------------------- left
+      - size: small
+        widgets:
+          - type: custom-api
+            title: Brain
+            title-url: ${BRAIN}/app
+            cache: 1m
+            url: ${BRAIN}/status
+            template: |
+              {{ $up := .JSON.Bool "brain.ollama_up" }}
+              <div class="flex justify-between text-center">
+                <div>
+                  <div class="size-h3 {{ if $up }}color-positive{{ else }}color-negative{{ end }}">{{ if $up }}UP{{ else }}DOWN{{ end }}</div>
+                  <div class="size-h6">OLLAMA</div>
+                </div>
+                <div>
+                  <div class="size-h3 {{ if .JSON.Bool "brain.resident" }}color-positive{{ else }}color-subdue{{ end }}">{{ if .JSON.Bool "brain.resident" }}HOT{{ else }}COLD{{ end }}</div>
+                  <div class="size-h6">MODEL</div>
+                </div>
+                <div>
+                  <div class="size-h3 color-highlight">{{ .JSON.Int "downloads.active" }}</div>
+                  <div class="size-h6">GRABS</div>
+                </div>
+              </div>
+              <div class="size-h6 color-subdue margin-top-10 text-center">{{ .JSON.String "brain.model" }} &middot; ollama {{ .JSON.String "brain.version" }}</div>
+
+              {{ range .JSON.Array "gpus" }}
+              {{ $pct := div (mul (.Float "mem_used_gb") 100.0) (.Float "mem_total_gb") }}
+              <div class="margin-top-15">
+                <div class="flex justify-between size-h6">
+                  <span class="text-truncate">{{ .String "name" | replaceAll "NVIDIA GeForce " "" }}</span>
+                  <span class="color-subdue">{{ printf "%.1f" (.Float "mem_used_gb") }}/{{ printf "%.0f" (.Float "mem_total_gb") }}G &middot; {{ .Int "util_pct" }}% &middot; {{ .Int "temp_c" }}&deg;</span>
+                </div>
+                <div class="progress-bar margin-top-3">
+                  <div class="progress-value{{ if ge $pct 85.0 }} progress-value-notice{{ end }}" style="--percent: {{ printf "%.0f" $pct }}"></div>
+                </div>
+              </div>
+              {{ end }}
+
+              {{ $swap := .JSON.Int "system.swap_pct" }}
+              <div class="margin-top-15 size-h6 flex justify-between">
+                <span>load {{ printf "%.2f" (.JSON.Float "system.load1") }}/{{ .JSON.Int "system.cpus" }}</span>
+                <span>ram {{ .JSON.Int "system.mem_pct" }}%</span>
+                <span>disk {{ .JSON.Int "system.disk_pct" }}%</span>
+                <span class="{{ if ge $swap 85 }}color-negative{{ else }}color-subdue{{ end }}">swap {{ $swap }}%</span>
+              </div>
+
+          # Glanceable forecast. The garden-critical numbers live in the next widget, read
+          # from the same lat/lon the brain's weather tool uses.
+          - type: weather
+            location: ${WEATHER_LOCATION}
+            units: imperial
+            hour-format: 12h
+
+          - type: custom-api
+            title: Garden watch
+            cache: 30m
+            url: https://api.open-meteo.com/v1/forecast
+            parameters:
+              latitude: ${LAT}
+              longitude: ${LON}
+              daily: precipitation_sum,temperature_2m_min,temperature_2m_max
+              temperature_unit: fahrenheit
+              precipitation_unit: inch
+              timezone: America/New_York
+              forecast_days: "5"
+            template: |
+              {{ $j := .JSON }}
+              <ul class="list list-gap-4">
+              {{ range $i, $d := $j.Array "daily.time" }}
+                {{ $rain := $j.Float (printf "daily.precipitation_sum.%d" $i) }}
+                {{ $lo := $j.Float (printf "daily.temperature_2m_min.%d" $i) }}
+                {{ $hi := $j.Float (printf "daily.temperature_2m_max.%d" $i) }}
+                <li class="flex justify-between items-center size-h6">
+                  <span class="color-subdue">{{ ($d.String "") | parseTime "2006-01-02" | formatTime "Mon" }}</span>
+                  <span class="{{ if ge $rain 0.25 }}color-highlight{{ else }}color-subdue{{ end }}">{{ if gt $rain 0.0 }}{{ printf "%.2f" $rain }}"{{ else }}&mdash;{{ end }}</span>
+                  <span class="{{ if le $lo 36.0 }}color-negative{{ end }}">{{ printf "%.0f" $lo }}&deg;/{{ printf "%.0f" $hi }}&deg;</span>
+                </li>
+              {{ end }}
+              </ul>
+              <div class="size-h6 color-subdue margin-top-10">rain &ge;0.25&quot; highlighted &middot; lows &le;36&deg; flagged</div>
+
+      # ---------------------------------------------------------------- middle
+      - size: full
+        widgets:
+          # The hyperlinked service tiles. `monitor` does its own probing AND makes each tile
+          # a click-through — which /status can't, since the snapshot carries no URLs.
+          # Each tile PROBES check-url but LINKS to url. That split matters: the *arr index
+          # pages are heavy SPAs that took 1.5-3s to answer and tripped Glance's 3s default
+          # into a false "Timed Out", while their /ping endpoints answer in under 500ms. The
+          # tile now reports whether the service is alive, not how fast its UI renders.
+          - type: monitor
+            title: Services
+            cache: 2m
+            sites:
+              - title: Hestia
+                url: ${BRAIN}/app
+                check-url: ${BRAIN}/health
+                # Hestia's own artwork, served by the brain — the same icon the chat PWA
+                # installs to the phone home screen, so the two front doors look like one thing.
+                icon: ${BRAIN}/icon.png
+              - title: Home Assistant
+                url: ${RELAY}:8124
+                check-url: ${RELAY}:8124/manifest.json
+                icon: di:home-assistant
+              - title: Plex
+                url: ${RELAY}:32400/web
+                check-url: ${RELAY}:32400/identity
+                icon: di:plex
+              - title: Sonarr
+                url: ${RELAY}:8989
+                check-url: ${RELAY}:8989/ping
+                icon: di:sonarr
+              - title: Radarr
+                url: ${RELAY}:7878
+                check-url: ${RELAY}:7878/ping
+                icon: di:radarr
+              - title: Lidarr
+                url: ${RELAY}:8686
+                check-url: ${RELAY}:8686/ping
+                icon: di:lidarr
+              - title: Prowlarr
+                url: ${RELAY}:9696
+                check-url: ${RELAY}:9696/ping
+                icon: di:prowlarr
+              - title: Bazarr
+                url: ${RELAY}:6767
+                check-url: ${RELAY}:6767/api/system/ping
+                icon: di:bazarr
+              - title: qBittorrent
+                url: ${RELAY}:8090
+                icon: di:qbittorrent
+                # Behind gluetun's kill-switch. The API needs auth (403), so probe the root
+                # and accept the auth codes — a VPN blip reads as down, a login page doesn't.
+                alt-status-codes: [401, 403]
+              - title: slskd
+                url: ${RELAY}:5030
+                check-url: ${RELAY}:5030/health
+                # .png forced: dashboard-icons ships slskd as PNG only, and Glance's `di:`
+                # defaults to .svg, which 404s into a broken tile.
+                icon: di:slskd.png
+              - title: SearXNG
+                url: ${RELAY}:8095
+                check-url: ${RELAY}:8095/healthz
+                icon: di:searxng
+              - title: AdGuard
+                url: ${RELAY}:8089
+                icon: di:adguard-home
+
+          # What the brain wants to learn but hasn't been allowed to. Read-only by design:
+          # promoting a proposal into live memory stays a human act at the CLI
+          # (review_notes.py promote <id>), so this tile can surface the queue without
+          # becoming a way to nod it through.
+          - type: custom-api
+            title: Memory queue
+            cache: 5m
+            url: ${BRAIN}/memory/inbox
+            parameters:
+              limit: "6"
+            template: |
+              {{ $n := .JSON.Int "count" }}
+              {{ if eq $n 0 }}
+                <div class="flex items-center justify-center padding-block-5 color-subdue">
+                  Nothing waiting &mdash; the brain hasn't drafted anything new to learn.
+                </div>
+              {{ else }}
+              <div class="flex items-center justify-between margin-bottom-15">
+                <div class="size-h2 color-highlight">{{ $n }}<span class="size-h6 color-subdue"> pending</span></div>
+                <div class="size-h6 color-subdue">promote at the CLI: review_notes.py promote &lt;id&gt;</div>
+              </div>
+              <ul class="list list-gap-10 list-with-separator">
+              {{ range .JSON.Array "proposals" }}
+                <li>
+                  <p class="size-h5 color-primary">{{ .String "body" }}</p>
+                  <ul class="list-horizontal-text size-h6 color-subdue">
+                    <li>{{ .String "type" }}</li>
+                    <li>conf {{ printf "%.2f" (.Float "confidence") }}</li>
+                    <li>{{ $a := .Int "age_days" }}{{ if eq $a 0 }}today{{ else if eq $a 1 }}1 day old{{ else }}{{ $a }} days old{{ end }}</li>
+                  </ul>
+                  <p class="size-h6 color-subdue text-truncate">{{ .String "id" }}</p>
+                </li>
+              {{ end }}
+              </ul>
+              {{ end }}
+
+          - type: rss
+            title: Feeds
+            style: detailed-list
+            limit: 12
+            collapse-after: 5
+            cache: 3h
+            feeds:
+              # Swap these for your own — these are just the ones adjacent to what Hestia is.
+              - url: https://www.home-assistant.io/atom.xml
+                title: Home Assistant
+              - url: https://simonwillison.net/atom/everything/
+                title: Simon Willison
+              - url: https://blog.mozilla.org/en/feed/
+                title: Mozilla
+
+      # ---------------------------------------------------------------- right
+      - size: small
+        widgets:
+          - type: bookmarks
+            groups:
+              - title: Hestia
+                color: 96 40 60
+                links:
+                  - title: Chat
+                    url: ${BRAIN}/app
+                  - title: Status JSON
+                    url: ${BRAIN}/status
+                  - title: Memory queue JSON
+                    url: ${BRAIN}/memory/inbox
+              - title: House
+                links:
+                  - title: Home Assistant
+                    url: ${RELAY}:8124
+                  - title: Plex
+                    url: ${RELAY}:32400/web
+                  - title: AdGuard
+                    url: ${RELAY}:8089
+
+          # Upstreams worth knowing moved — Glance itself, the house brain's runtime, HA.
+          - type: releases
+            title: Upstream
+            cache: 6h
+            repositories:
+              - glanceapp/glance
+              - ollama/ollama
+              - home-assistant/core
+
+          - type: reddit
+            subreddit: selfhosted
+            limit: 6
+            cache: 2h
+
+          - type: reddit
+            subreddit: LocalLLaMA
+            limit: 6
+            cache: 2h

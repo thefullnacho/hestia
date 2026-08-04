@@ -27,6 +27,9 @@ deploy/ha/lovelace-*-backup-*.json
 # media stack runtime — slskd creds + per-app config dirs live on hl-relay, not in git
 # (slskd.env.example, the tracked template, is deliberately NOT ignored)
 deploy/media/slskd.env
+# Glance dashboard: real tailnet addresses stay off a public repo
+# (glance.env.example, the tracked template, is deliberately NOT ignored)
+deploy/glance/glance.env
 deploy/media/*/config/
 # Personal content tab — weekly post material/drafts for HomesteaderLabs discovery.
 # Private working doc, not part of the public project.
