@@ -60,6 +60,15 @@ pages:
               </div>
               {{ end }}
 
+              {{/* Anything on the cards that shouldn't be. Silent when all is well — the
+                   only reason this exists is that totals alone hid two orphaned benchmark
+                   containers for eleven days. */}}
+              {{ range .JSON.Array "gpu_processes" }}
+              {{ if not (.Bool "expected") }}
+              <div class="size-h6 color-negative margin-top-7">&#9888; {{ .String "label" }} &middot; {{ .Int "mem_mb" }} MB on GPU{{ .Int "gpu" }}{{ if .Bool "container" }} &middot; container{{ end }} &middot; pid {{ .Int "pid" }}</div>
+              {{ end }}
+              {{ end }}
+
               {{ $swap := .JSON.Int "system.swap_pct" }}
               <div class="margin-top-15 size-h6 flex justify-between">
                 <span>load {{ printf "%.2f" (.JSON.Float "system.load1") }}/{{ .JSON.Int "system.cpus" }}</span>

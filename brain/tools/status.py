@@ -41,9 +41,10 @@ SCHEMA = {
                         "everything ok/up/healthy?', 'is anything down?', 'how's the brain "
                         "box?'. Reports each service (Sonarr/Radarr/Lidarr/Plex/Home "
                         "Assistant/Ollama) up or down, whether the resident model is loaded, "
-                        "GPU memory/utilisation, the brain box's load/RAM/swap/disk, and how "
-                        "many downloads are active. section defaults to 'all'; pass one to "
-                        "narrow it."),
+                        "GPU memory/utilisation, WHICH processes are holding VRAM (flagging "
+                        "any that shouldn't be — answers 'is anything unexpected on the "
+                        "GPUs?'), the brain box's load/RAM/swap/disk, and how many downloads "
+                        "are active. section defaults to 'all'; pass one to narrow it."),
         "parameters": {
             "type": "object",
             "properties": {
@@ -130,30 +131,126 @@ def _brain() -> dict:
 
 # ---------- GPU (local nvidia-smi) ----------
 
-def _gpus() -> list:
-    """Per-GPU memory/util/temp via nvidia-smi. On the brain box GPU0 (5080) holds the
-    resident model and GPU1 (4060 Ti) is the free card — see hestia-gpu-box-ops."""
+# Processes that are SUPPOSED to hold VRAM on the brain box. Anything else gets flagged.
+#
+# Why this exists: on 2026-07-23 an unrelated agent session ran `docker run -d --gpus all`
+# for a benchmark and walked away. Two orphaned containers sat on 1.1 GB of VRAM (and 1.8 GB
+# of swap) for ELEVEN DAYS before anyone noticed, because a totals-only reading — "4060 Ti:
+# 5.2/16 GB" — looks completely healthy. Attribution is what makes an orphan visible.
+#
+# Matched against the full /proc cmdline, NOT nvidia-smi's `name`: for the python voice
+# services that field is just the interpreter path (".../.venv/bin/python"), which cannot
+# tell Chatterbox from a stray container. Override with HESTIA_VRAM_EXPECT (comma-separated).
+_VRAM_EXPECTED = tuple(s.strip().lower() for s in os.environ.get(
+    "HESTIA_VRAM_EXPECT",
+    "llama-server,ollama,wyoming_chatterbox,wyoming-chatterbox,wyoming_faster_whisper,piper",
+).split(",") if s.strip())
+
+
+def _proc_cmdline(pid: int) -> str:
+    """The process's full argv, space-joined. Empty when it has already exited (the PID list
+    and this read are not atomic) or when it belongs to another user."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            return f.read().replace(b"\0", b" ").decode("utf-8", "replace").strip()
+    except OSError:
+        return ""
+
+
+def _in_container(pid: int) -> bool:
+    """True if the PID lives in a container. An unexpected containerised VRAM holder is the
+    exact signature of the orphan case above, so it's worth carrying into the readout."""
+    try:
+        with open(f"/proc/{pid}/cgroup") as f:
+            blob = f.read()
+        return "docker" in blob or "containerd" in blob or "/libpod" in blob
+    except OSError:
+        return False
+
+
+def _vram_label(cmd: str, name: str) -> str:
+    """A human-readable name for a VRAM holder.
+
+    The executable is the right answer when it's a real binary (`llama-server`), and useless
+    when it's an interpreter — so only python processes fall through to the module (`-m
+    wyoming_chatterbox`) or script being run. Scanning args unconditionally would label
+    llama-server with the model blob it was passed."""
+    parts = cmd.split()
+    exe = os.path.basename(parts[0]) if parts else os.path.basename(name or "?")
+    if not exe.startswith("python"):
+        return exe or "?"
+    for i, p in enumerate(parts):
+        if p == "-m" and i + 1 < len(parts):
+            return parts[i + 1]
+    for p in parts[1:]:
+        if p.endswith(".py") or ("/" in p and not p.startswith("-")):
+            return os.path.basename(p)
+    return exe or "?"
+
+
+def _gpu_info() -> dict:
+    """Per-GPU memory/util/temp AND per-process VRAM attribution. One unit of work because
+    the process rows are joined to cards by UUID. On the brain box GPU0 (5080) holds the
+    resident model and GPU1 (4060 Ti) runs the voice engines — see hestia-gpu-box-ops."""
     try:
         raw = subprocess.run(
             ["nvidia-smi",
-             "--query-gpu=index,name,memory.used,memory.total,utilization.gpu,temperature.gpu",
+             "--query-gpu=index,name,memory.used,memory.total,utilization.gpu,temperature.gpu,uuid",
              "--format=csv,noheader,nounits"],
             capture_output=True, text=True, timeout=_TIMEOUT, check=True).stdout
     except Exception:  # noqa: BLE001 — no GPU / no nvidia-smi: just omit the section
-        return []
-    gpus = []
+        return {"gpus": [], "processes": []}
+
+    gpus, by_uuid = [], {}
     for line in raw.strip().splitlines():
         parts = [p.strip() for p in line.split(",")]
-        if len(parts) < 6:
+        if len(parts) < 7:
             continue
-        idx, name, used, total, util, temp = parts
+        idx, name, used, total, util, temp, uuid = parts[:7]
+        by_uuid[uuid] = int(idx)
         gpus.append({
             "index": int(idx), "name": name,
             "mem_used_gb": round(float(used) / 1024, 1),
             "mem_total_gb": round(float(total) / 1024, 1),
             "util_pct": int(float(util)), "temp_c": int(float(temp)),
         })
-    return gpus
+    return {"gpus": gpus, "processes": _gpu_processes(by_uuid)}
+
+
+def _gpu_processes(by_uuid: dict) -> list:
+    """Who is actually holding VRAM, biggest first, each marked expected or not."""
+    try:
+        raw = subprocess.run(
+            ["nvidia-smi", "--query-compute-apps=pid,used_memory,gpu_uuid,name",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=_TIMEOUT, check=True).stdout
+    except Exception:  # noqa: BLE001
+        return []
+    procs = []
+    for line in raw.strip().splitlines():
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 4:
+            continue
+        # An executable path may itself contain a comma, so only the first three fields are
+        # split off and the remainder is rejoined.
+        pid_s, mem_s, uuid, name = parts[0], parts[1], parts[2], ",".join(parts[3:])
+        try:
+            pid, mem_mb = int(pid_s), int(float(mem_s))
+        except ValueError:
+            continue
+        cmd = _proc_cmdline(pid)
+        haystack = f"{cmd} {name}".lower()
+        procs.append({
+            "pid": pid,
+            "gpu": by_uuid.get(uuid),
+            "mem_mb": mem_mb,
+            "label": _vram_label(cmd, name),
+            "expected": any(k in haystack for k in _VRAM_EXPECTED),
+            "container": _in_container(pid),
+            "cmd": cmd[:160],
+        })
+    procs.sort(key=lambda p: p["mem_mb"], reverse=True)
+    return procs
 
 
 # ---------- system (the brain box, straight from /proc — no psutil dependency) ----------
@@ -222,14 +319,18 @@ def snapshot() -> dict:
     with ThreadPoolExecutor(max_workers=max(1, len(checks) + 4)) as pool:
         services_f = [pool.submit(c) for c in checks]
         brain_f = pool.submit(_brain)
-        gpus_f = pool.submit(_gpus)
+        gpu_f = pool.submit(_gpu_info)
         system_f = pool.submit(_system)
         downloads_f = pool.submit(_downloads)
         services = [f.result() for f in services_f]
+        gpu = gpu_f.result()
         return {
             "services": services,
             "brain": brain_f.result(),
-            "gpus": gpus_f.result(),
+            "gpus": gpu["gpus"],
+            # Flat, alongside `gpus`, so a dashboard tile or a voice answer can ask "is
+            # anything unexpected on the cards?" without walking the per-card structure.
+            "gpu_processes": gpu["processes"],
             "system": system_f.result(),
             "downloads": downloads_f.result(),
         }
@@ -258,14 +359,24 @@ def _fmt_brain(b: dict) -> str:
     return f"Brain: {res} (ollama {b['version']})."
 
 
-def _fmt_gpu(gpus: list) -> str:
+def _fmt_gpu(gpus: list, procs: list | None = None) -> str:
     if not gpus:
         return "GPU: no readings."
     lines = ["GPU:"]
     for g in gpus:
         lines.append(f"  GPU{g['index']} {g['name']}: {g['mem_used_gb']}/{g['mem_total_gb']} GB, "
                      f"{g['util_pct']}% util, {g['temp_c']}C")
+    for p in _unexpected_vram(procs or []):
+        where = "container" if p["container"] else "process"
+        lines.append(f"  ⚠ unexpected {where} on GPU{p['gpu']}: {p['label']} "
+                     f"(pid {p['pid']}, {p['mem_mb']} MB) — not an expected VRAM holder")
     return "\n".join(lines)
+
+
+def _unexpected_vram(procs: list) -> list:
+    """VRAM holders that aren't on the expected list. Tiny helper, but it's what the headline,
+    the GPU section and the dashboard all key off — so the definition lives in one place."""
+    return [p for p in procs if not p["expected"]]
 
 
 def _fmt_system(s: dict) -> str:
@@ -289,7 +400,7 @@ def _fmt_downloads(d: dict) -> str:
 _FORMATTERS = {
     "services": lambda s: _fmt_services(s["services"]),
     "brain": lambda s: _fmt_brain(s["brain"]),
-    "gpu": lambda s: _fmt_gpu(s["gpus"]),
+    "gpu": lambda s: _fmt_gpu(s["gpus"], s.get("gpu_processes")),
     "system": lambda s: _fmt_system(s["system"]),
     "downloads": lambda s: _fmt_downloads(s["downloads"]),
 }
@@ -307,13 +418,24 @@ def execute(section: str = "all") -> str:
     down = [s["name"] for s in snap["services"] if not s["up"]]
     if not snap["brain"]["ollama_up"]:
         down.append("Ollama")
-    head = ("Hestia status: all systems nominal." if not down
-            else f"Hestia status: {len(down)} issue(s) — {', '.join(down)} down.")
+    # An unexpected VRAM holder is not "down", but it IS an answer to "is everything ok?" —
+    # the orphaned-container case reads as perfectly healthy on every other signal.
+    stray = _unexpected_vram(snap.get("gpu_processes", []))
+    if not down and not stray:
+        head = "Hestia status: all systems nominal."
+    else:
+        bits = []
+        if down:
+            bits.append(f"{len(down)} issue(s) — {', '.join(down)} down")
+        if stray:
+            bits.append(f"{len(stray)} unexpected GPU process(es) — "
+                        + ", ".join(f"{p['label']} ({p['mem_mb']} MB)" for p in stray))
+        head = "Hestia status: " + "; ".join(bits) + "."
     return "\n".join([
         head,
         _fmt_services(snap["services"]),
         _fmt_brain(snap["brain"]),
-        _fmt_gpu(snap["gpus"]),
+        _fmt_gpu(snap["gpus"], snap.get("gpu_processes")),
         _fmt_system(snap["system"]),
         _fmt_downloads(snap["downloads"]),
     ])
