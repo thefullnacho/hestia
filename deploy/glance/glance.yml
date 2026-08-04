@@ -221,18 +221,36 @@ pages:
             limit: 12
             collapse-after: 5
             cache: 3h
+            # Daily-volume news only. A weekly feed must NOT go in here: the rss widget pools
+            # every feed and sorts by date before applying `limit`, and these four alone fill
+            # the window in about 14 hours — so a slower feed silently never appears. Low
+            # -volume reads get their own widget (see "Reading" in the right column).
             feeds:
-              # Swap these for your own — these are just the ones adjacent to what Hestia is.
-              - url: https://www.home-assistant.io/atom.xml
-                title: Home Assistant
-              - url: https://simonwillison.net/atom/everything/
-                title: Simon Willison
-              - url: https://blog.mozilla.org/en/feed/
-                title: Mozilla
+              - url: https://hackaday.com/blog/feed/
+                title: Hackaday
+              - url: https://www.bleepingcomputer.com/feed/
+                title: Bleeping Computer
+              - url: https://news.mit.edu/rss/topic/artificial-intelligence2
+                title: MIT AI
+              - url: https://feeds.feedburner.com/TheHackersNews?format=xml
+                title: TheHackerNews
 
       # ---------------------------------------------------------------- right
       - size: small
         widgets:
+          # Top of the column on purpose: a new post should be seen, not scrolled to.
+          # Kept out of the main Feeds widget because it posts weekly and would be buried
+          # forever by the news firehose. cache is short for the same reason — commenting
+          # early is worth more than commenting late.
+          - type: rss
+            title: Reading
+            style: vertical-list
+            limit: 5
+            cache: 1h
+            feeds:
+              - url: https://theresetbylaco.substack.com/feed
+                title: The Reset by La Co
+
           - type: bookmarks
             groups:
               - title: Hestia
