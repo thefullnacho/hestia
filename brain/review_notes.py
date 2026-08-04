@@ -20,7 +20,10 @@ import memory_store
 INBOX_DIR = config.INBOX_DIR
 
 
-def _proposals() -> list[dict]:
+def proposals() -> list[dict]:
+    """Every pending proposal, oldest first. Public because the brain's GET /memory/inbox
+    serves this same list to the dashboard — the queue is read in one place, so the tile and
+    `review_notes.py list` can never disagree about what's waiting (cf. status.snapshot())."""
     if not INBOX_DIR.exists():
         return []
     return [memory_store._parse(p) for p in sorted(INBOX_DIR.glob("*.md"))]
@@ -32,7 +35,7 @@ def _find(rid: str):
 
 
 def cmd_list() -> int:
-    props = _proposals()
+    props = proposals()
     if not props:
         print("No pending proposals. The brain hasn't drafted anything new to learn.")
         return 0
@@ -48,7 +51,7 @@ def cmd_list() -> int:
 
 def _targets(args: list[str]) -> list[str]:
     if "--all" in args:
-        return [r["id"] for r in _proposals()]
+        return [r["id"] for r in proposals()]
     return args
 
 

@@ -42,6 +42,7 @@ import datetime as _dt  # noqa: E402
 import memory_store  # noqa: E402
 import note_taker  # noqa: E402
 import records_store  # noqa: E402
+import review_notes  # noqa: E402
 import tools  # noqa: E402
 from prompt import SYSTEM_PROMPT  # noqa: E402
 
@@ -336,6 +337,54 @@ async def status_snapshot():
     and the spoken answer can never disagree. Run off the event loop (the probes block)."""
     snap = await asyncio.to_thread(tools.status.snapshot)
     return JSONResponse(snap)
+
+
+@app.get("/memory/inbox")
+async def memory_inbox(limit: int = 0):
+    """The note-taker's pending proposals as JSON — what the brain wants to learn but hasn't
+    been allowed to yet. Read-only ON PURPOSE: promoting a fact into live memory stays a
+    human act at the CLI (review_notes.py), so a dashboard tile can surface the queue without
+    becoming a way to nod it through. Serves review_notes.proposals(), the same list the CLI
+    prints. Newest first (a dashboard shows the head, the CLI reviews the tail); ?limit=N caps
+    the rows returned while `count` stays the true depth of the queue."""
+    today = _dt.date.today()
+
+    def created_at(meta: dict) -> _dt.datetime | None:
+        """The proposal's timestamp. YAML resolves an unquoted `created: 2026-06-13T20:19:15`
+        to a real datetime, not a string, so accept both rather than assuming either."""
+        v = meta.get("created")
+        if isinstance(v, _dt.datetime):
+            return v
+        if isinstance(v, _dt.date):
+            return _dt.datetime.combine(v, _dt.time())
+        try:
+            return _dt.datetime.fromisoformat(str(v))
+        except (TypeError, ValueError):
+            return None
+
+    props = await asyncio.to_thread(review_notes.proposals)
+    # Undated proposals sort last rather than blowing up the comparison on mixed types.
+    props.sort(key=lambda r: created_at(r["meta"]) or _dt.datetime.min, reverse=True)
+    total = len(props)
+    if limit > 0:
+        props = props[:limit]
+
+    rows = []
+    for r in props:
+        m = r["meta"]
+        ts = created_at(m)
+        rows.append({
+            "id": r["id"], "body": r["body"],
+            "type": str(m.get("type", "unknown")),
+            "confidence": m.get("confidence"),
+            "source": str(m.get("source", "")),
+            # Serialised by hand: `created` may arrive as a datetime, and age_days is
+            # precomputed because Glance's template time helpers want an offset this naive
+            # local stamp doesn't carry — a plain int is one less thing for a tile to get wrong.
+            "created": ts.isoformat(timespec="seconds") if ts else "",
+            "age_days": (today - ts.date()).days if ts else None,
+        })
+    return JSONResponse({"count": total, "dir": str(review_notes.INBOX_DIR), "proposals": rows})
 
 
 @app.get("/health")
