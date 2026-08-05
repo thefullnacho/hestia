@@ -39,12 +39,22 @@ SCHEMA = {
                         "logs, 'entity' to look someone/something up, 'relate' to link two entities, "
                         "'birth' to record a newborn puppy (creates the pup as a pet, links dam/sire, "
                         "groups it into the litter, derives the litter size), "
+                        "'harvest' whenever the user says they picked/pulled/got produce from a bed "
+                        "('pulled four pounds of tomatoes from Bed 4', 'got a dozen cucumbers off "
+                        "Bed 2') — pass bed, crop, qty and unit; use this INSTEAD of a plain log so "
+                        "the amount is kept, 'yield' to answer 'how much X have we picked this "
+                        "year / how did the beds do', "
                         "'due' for overdue service reminders. Prefer this over plain memory whenever "
                         "the thing is an entity or a dated record, not just a loose preference."),
         "parameters": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["remember", "log", "birth", "recent", "entity", "relate", "due"]},
+                "action": {"type": "string", "enum": ["remember", "log", "birth", "harvest", "yield", "recent", "entity", "relate", "due"]},
+                "bed": {"type": "string", "description": "for harvest/yield: the bed or zone picked from, e.g. 'Bed 4', 'Carrots Round Bed'"},
+                "crop": {"type": "string", "description": "for harvest/yield: what was picked, e.g. 'Tomatoes'"},
+                "qty": {"type": "number", "description": "for harvest: how much — the number only"},
+                "unit": {"type": "string", "description": "for harvest: lb/oz/kg/g for weight, pint/quart for volume, or omit for a plain count"},
+                "year": {"type": "integer", "description": "for yield: season year (default this year)"},
                 "name": {"type": "string", "description": "entity name (remember/entity; the 'from' for relate; the puppy's name for birth)"},
                 "dam": {"type": "string", "description": "for birth: the mother's name"},
                 "sire": {"type": "string", "description": "for birth: the father's name"},
@@ -88,8 +98,43 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
             location: str | None = None, ts: str | None = None, rel: str | None = None,
             to: str | None = None, since: str | None = None, limit: int = 20,
             dam: str | None = None, sire: str | None = None, sex: str | None = None,
-            weight: str | None = None, color: str | None = None, litter: str | None = None) -> str:
+            weight: str | None = None, color: str | None = None, litter: str | None = None,
+            bed: str | None = None, crop: str | None = None, qty: float | None = None,
+            unit: str | None = None, year: int | None = None) -> str:
     try:
+        if action == "harvest":
+            if not bed or not crop or qty is None:
+                return "Error: harvest needs a bed, a crop, and a quantity (unit optional)."
+            r = store.log_harvest(bed, crop, qty, unit=unit, ts=ts, detail=detail)
+            cls, canon = store.normalize_unit(unit)
+            amount = f"{float(qty):g}" + (f" {canon}" if cls != "count" else "")
+            # A brand-new bed on a harvest is almost always a misheard name, not a new bed —
+            # say so rather than silently minting one (the photo-intake lesson).
+            warn = (f"  ⚠ '{bed}' wasn't a known bed — created it. Correct me if that's a mishear."
+                    if r.get("created") else "")
+            season = store.harvest_totals(crop=crop)
+            run = ""
+            if season:
+                s = season[0]
+                run = (f" Season total: {s['lb']} lb" if s["unit_class"] == "weight"
+                       else f" Season total: {s['qty']:g}")
+                run += f" of {s['crop']} across {s['pickings']} picking(s)."
+            return f"Logged {amount} of {crop} from {bed}.{run}{warn}"
+
+        if action == "yield":
+            rows = store.harvest_totals(year=year, crop=crop, bed=bed)
+            if not rows:
+                where = f" for {crop}" if crop else ""
+                return f"No harvests logged{where} in {year or 'this season'} yet."
+            head = f"Harvest {year or 'this season'}" + (f" — {bed}" if bed else "") + ":"
+            lines = []
+            for s in rows[:20]:
+                amt = f"{s['lb']} lb" if s["unit_class"] == "weight" else f"{s['qty']:g}"
+                beds = f" from {', '.join(s['beds'])}" if s["beds"] and not bed else ""
+                lines.append(f"  {s['crop']}: {amt} over {s['pickings']} picking(s)"
+                             f"{beds} ({s['first'][:10]} to {s['last'][:10]})")
+            return head + "\n" + "\n".join(lines)
+
         if action == "remember":
             if not name or not kind:
                 return "Error: remember needs a name and a kind (person/pet/place/species/asset)."

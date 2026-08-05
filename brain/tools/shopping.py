@@ -72,6 +72,32 @@ def _fmt(items: list[dict]) -> str:
     return (f"Shopping list ({len(open_items)}): " + ", ".join(open_items) + ".")
 
 
+def _recently_grown(added: list[str]) -> str:
+    """Mention anything just added to the list that we picked out of the garden lately.
+
+    Advisory only — the item still goes on the list. The point is that a house that knows
+    about Bed 4 shouldn't let you buy tomatoes the week you pulled four pounds of them. Never
+    raises and never blocks the add: a records hiccup must not break the shopping path."""
+    notes = []
+    try:
+        import records_store as store
+        for item in added:
+            hit = store.harvested_recently(item, days=10)
+            if not hit:
+                continue
+            amt = (f"{hit['total_lb']} lb" if hit["unit_class"] == "weight"
+                   else f"{hit['total_qty']:g}")
+            when = ("today" if hit["days_ago"] == 0 else
+                    "yesterday" if hit["days_ago"] == 1 else f"{hit['days_ago']} days ago")
+            where = f" from {hit['bed']}" if hit["bed"] else ""
+            notes.append(f"{item} — you picked {amt}{where} ({when})")
+    except Exception:  # noqa: BLE001 — a nicety, never a failure mode
+        return ""
+    if not notes:
+        return ""
+    return " Heads up: " + "; ".join(notes) + "."
+
+
 def execute(action: str, items: str | None = None) -> str:
     try:
         if action == "show":
@@ -97,7 +123,8 @@ def execute(action: str, items: str | None = None) -> str:
             msg = f"Added to the shopping list: {', '.join(added)}." if added else ""
             if dupes:
                 msg += f" Already on it: {', '.join(dupes)}."
-            return (msg.strip() or "Nothing to add.") + f" {_fmt(_items())}"
+            grown = _recently_grown(added)
+            return (msg.strip() or "Nothing to add.") + grown + f" {_fmt(_items())}"
 
         if action == "remove":
             if not items:

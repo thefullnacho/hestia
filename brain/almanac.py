@@ -94,6 +94,9 @@ def snapshot(year: int, today: dt.date) -> dict:
         "timeline": [{"date": e["ts"][:10], "subject": e["subject"],
                       "action": e["action"], "detail": e["detail"]} for e in timeline],
         "species_seen": {s: {"first": min(d), "sightings": len(d)} for s, d in sightings.items()},
+        # Yields are the season's hard numbers — the part of the page that makes the
+        # year-over-year section worth reading once there are two seasons on file.
+        "harvest": records_store.harvest_totals(year=year),
         "journal_days": len(journal_days),
         "journal_span": [journal_days[0], journal_days[-1]] if journal_days else None,
     }
@@ -141,6 +144,16 @@ def render(snap: dict) -> str:
     else:
         L.append("*(no garden events logged yet)*")
 
+    L += ["", "## Harvest"]
+    if snap.get("harvest"):
+        for h in snap["harvest"]:
+            amt = f"{h['lb']} lb" if h["unit_class"] == "weight" else f"{h['qty']:g}"
+            beds = f" — {', '.join(h['beds'])}" if h["beds"] else ""
+            L.append(f"- **{h['crop']}:** {amt} over {h['pickings']} picking(s), "
+                     f"{_fmt_day(h['first'])} → {_fmt_day(h['last'])}{beds}")
+    else:
+        L.append("*(no harvests logged yet)*")
+
     L += ["", "## Wildlife"]
     if snap["species_seen"]:
         L += [f"- **{s}** — first logged {_fmt_day(v['first'])}, {v['sightings']} sighting(s)"
@@ -167,6 +180,17 @@ def render(snap: dict) -> str:
                       if s in snap["species_seen"]}
             if firsts:
                 bits.append("returning species: " + ", ".join(sorted(firsts)))
+            # Same crop, same unit class, both seasons — the comparison the yields exist for.
+            now_h = {(h["crop"], h["unit_class"]): h for h in (snap.get("harvest") or [])}
+            for ph in (p.get("harvest") or []):
+                cur = now_h.get((ph["crop"], ph["unit_class"]))
+                if not cur:
+                    continue
+                was, is_ = (ph["lb"], cur["lb"]) if ph["unit_class"] == "weight" \
+                    else (ph["qty"], cur["qty"])
+                if was:
+                    bits.append(f"{ph['crop']} {was} → {is_} "
+                                f"({(is_ - was) / was * 100:+.0f}%)")
             L.append(f"- **{p['year']}:** " + ("; ".join(bits) if bits else "(snapshot on file)"))
     return "\n".join(L) + "\n"
 

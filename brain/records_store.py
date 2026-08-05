@@ -292,6 +292,135 @@ def add_birth(name: str, dam: str | None = None, sire: str | None = None,
         return {"pup": name, "litter": lrow["name"], "litter_size": cnt}
 
 
+# ----- harvest ---------------------------------------------------------------
+# A harvest is structured, not prose. "harvested the snow peas today" used to land as a
+# free-text note and the quantity was lost — which meant the beds had no track record and
+# the almanac had nothing to compare year over year. Crop and amount are now first-class.
+
+# Weight units, in grams. Counts and volumes are deliberately NOT converted to weight: a
+# zucchini has no honest gram value, so those totals stay in their own unit class instead of
+# inventing a number. Totals therefore read "12.4 lb of Tomatoes" AND "9 Zucchini", never a
+# fabricated single figure.
+_WEIGHT_G = {"g": 1.0, "gram": 1.0, "grams": 1.0,
+             "kg": 1000.0, "kilo": 1000.0, "kilos": 1000.0, "kilogram": 1000.0,
+             "kilograms": 1000.0,
+             "oz": 28.3495, "ounce": 28.3495, "ounces": 28.3495,
+             "lb": 453.592, "lbs": 453.592, "pound": 453.592, "pounds": 453.592}
+_COUNT_UNITS = {"", "each", "ea", "count", "ct", "piece", "pieces", "head", "heads",
+                "bunch", "bunches", "bulb", "bulbs", "stalk", "stalks", "ear", "ears"}
+_VOLUME_UNITS = {"pint": "pint", "pints": "pint", "quart": "quart", "quarts": "quart",
+                 "cup": "cup", "cups": "cup", "gallon": "gallon", "gallons": "gallon",
+                 "liter": "liter", "liters": "liter", "litre": "liter", "litres": "liter",
+                 "basket": "basket", "baskets": "basket"}
+# Display form for weight, so "pounds"/"lbs"/"lb" all total together and read the same.
+_WEIGHT_CANON = {"g": "g", "gram": "g", "grams": "g",
+                 "kg": "kg", "kilo": "kg", "kilos": "kg", "kilogram": "kg", "kilograms": "kg",
+                 "oz": "oz", "ounce": "oz", "ounces": "oz",
+                 "lb": "lb", "lbs": "lb", "pound": "lb", "pounds": "lb"}
+
+
+def normalize_unit(unit: str | None) -> tuple[str, str]:
+    """(unit_class, canonical_unit) for a spoken unit. Unknown units pass through as their
+    own class so an odd one still totals with itself rather than being silently dropped."""
+    u = (unit or "").strip().lower()
+    if u in _WEIGHT_G:
+        return "weight", _WEIGHT_CANON[u]
+    if u in _COUNT_UNITS:
+        return "count", "each"
+    if u in _VOLUME_UNITS:
+        return "volume", _VOLUME_UNITS[u]
+    return "other", u
+
+
+def log_harvest(bed: str, crop: str, qty: float, unit: str | None = None,
+                ts: str | None = None, detail: str | None = None) -> dict:
+    """Record picking `qty` `unit` of `crop` from `bed`. The bed is the event subject (a
+    `place`), so yields roll up per bed for the almanac's year-over-year comparison."""
+    qty = float(qty)
+    cls, canon = normalize_unit(unit)
+    grams = qty * _WEIGHT_G[(unit or "").strip().lower()] if cls == "weight" else None
+    amount = f"{qty:g} {canon}".strip() if cls != "count" else f"{qty:g}"
+    return log_event("harvest", subject=bed, action="harvested",
+                     detail=detail or f"{amount} {crop}".strip(),
+                     subject_kind="place", strict_subject=True,
+                     ts=ts, attrs={"crop": crop, "qty": qty, "unit": canon,
+                                   "unit_class": cls, "grams": grams})
+
+
+def harvest_totals(year: int | None = None, crop: str | None = None,
+                   bed: str | None = None) -> list[dict]:
+    """Season yields grouped by (crop, unit_class), biggest first. Weight totals come back in
+    grams AND pounds so callers don't each re-derive the conversion."""
+    year = year or int(_now()[:4])
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT e.attrs, e.ts, en.name AS bed FROM events e "
+            "LEFT JOIN entities en ON en.id=e.entity_id "
+            "WHERE e.kind='harvest' AND substr(e.ts,1,4)=?", (str(year),)).fetchall()
+    agg: dict = {}
+    for r in rows:
+        a = json.loads(r["attrs"] or "{}")
+        cname = a.get("crop") or "?"
+        if crop and _depluralize(crop.lower()) not in _depluralize(cname.lower()):
+            continue
+        if bed and (r["bed"] or "").lower() != bed.lower():
+            continue
+        key = (cname, a.get("unit_class", "count"))
+        e = agg.setdefault(key, {"crop": cname, "unit_class": key[1], "unit": a.get("unit"),
+                                 "qty": 0.0, "grams": 0.0, "pickings": 0,
+                                 "beds": set(), "first": r["ts"], "last": r["ts"]})
+        e["qty"] += float(a.get("qty") or 0)
+        e["grams"] += float(a.get("grams") or 0)
+        e["pickings"] += 1
+        if r["bed"]:
+            e["beds"].add(r["bed"])
+        e["first"] = min(e["first"], r["ts"])
+        e["last"] = max(e["last"], r["ts"])
+    out = []
+    for e in agg.values():
+        e["beds"] = sorted(e["beds"])
+        e["lb"] = round(e["grams"] / 453.592, 2) if e["unit_class"] == "weight" else None
+        e["qty"] = round(e["qty"], 2)
+        out.append(e)
+    out.sort(key=lambda e: (e["grams"] or 0, e["qty"]), reverse=True)
+    return out
+
+
+def harvested_recently(item: str, days: int = 10) -> dict | None:
+    """Have we picked `item` lately? Powers the shopping list's "you already grew this"
+    check. Matching is deliberately conservative — depluralised, and the names must contain
+    one another — so "tomato" hits "Tomatoes" but "corn" never hits "Corn Salad"."""
+    want = _depluralize((item or "").strip().lower())
+    if len(want) < 3:
+        return None
+    since = (dt.datetime.now() - dt.timedelta(days=max(1, days))).isoformat(timespec="seconds")
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT e.attrs, e.ts, en.name AS bed FROM events e "
+            "LEFT JOIN entities en ON en.id=e.entity_id "
+            "WHERE e.kind='harvest' AND e.ts>=? ORDER BY e.ts DESC", (since,)).fetchall()
+    hits = []
+    for r in rows:
+        a = json.loads(r["attrs"] or "{}")
+        have = _depluralize((a.get("crop") or "").lower())
+        if not have:
+            continue
+        if want in have or have in want:
+            hits.append((r, a))
+    if not hits:
+        return None
+    top_r, top_a = hits[0]
+    cls = top_a.get("unit_class", "count")
+    total = sum(float(a.get("grams") or 0) for _, a in hits) if cls == "weight" \
+        else sum(float(a.get("qty") or 0) for _, a in hits)
+    return {"crop": top_a.get("crop"), "bed": top_r["bed"], "ts": top_r["ts"],
+            "unit_class": cls, "unit": top_a.get("unit"),
+            "total_lb": round(total / 453.592, 2) if cls == "weight" else None,
+            "total_qty": round(total, 2) if cls != "weight" else None,
+            "pickings": len(hits),
+            "days_ago": (dt.datetime.now() - dt.datetime.fromisoformat(top_r["ts"])).days}
+
+
 def recent_events(kind: str | None = None, subject: str | None = None,
                   since: str | None = None, limit: int = 20) -> list[dict]:
     with _conn() as c:
