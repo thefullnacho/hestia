@@ -156,8 +156,16 @@ def render(snap: dict) -> str:
 
     L += ["", "## Wildlife"]
     if snap["species_seen"]:
-        L += [f"- **{s}** — first logged {_fmt_day(v['first'])}, {v['sightings']} sighting(s)"
-              for s, v in sorted(snap["species_seen"].items())]
+        # One inline run, not a bullet per species. The whole page is injected into the
+        # prompt when the almanac skill fires, and repeating "first logged … sighting(s)"
+        # once per species made this the least information-dense block on it — cost that
+        # grows with every new species. Name, first date and repeat count all survive.
+        seen = sorted(snap["species_seen"].items())
+        bits = [f"{s} ({_fmt_day(v['first'])}"
+                + (f" ×{v['sightings']}" if v["sightings"] > 1 else "") + ")"
+                for s, v in seen]
+        L.append(f"**{len(seen)} species:** " + ", ".join(bits))
+        L.append("*Date = first sighting this season; ×N = total sightings.*")
     else:
         L.append("*(no sightings logged yet)*")
 

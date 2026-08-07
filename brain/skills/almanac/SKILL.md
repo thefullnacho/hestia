@@ -38,8 +38,8 @@ The page renders two halves differently, and filing an observation in the wrong 
 loses it. This is not visible from the page itself.
 
 - **`sighting`** (subject = a species) feeds the **Wildlife** section, which renders
-  ONLY the species name, first-logged date, and a count. **The detail text is never
-  displayed.** Use it for the species record.
+  ONLY the species name, its first-logged date, and a repeat count. **The detail text is
+  never displayed.** Use it for the species record.
 - **`note`** (subject = a place: Backyard, Garden Zone, Pond Zone) feeds the **Garden
   timeline**, which renders the detail in full. Use it for the story.
 
@@ -49,11 +49,11 @@ the page. The canonical example is already in the record:
 
     Jul 2 — Backyard: observed — Earthworm population explosion this year, so many
             they attracted a mole that burrowed all over the lot.       (note)
-    Mole — first logged Jul 2, 1 sighting(s)                            (sighting)
+    Mole (Jul 2)                                                        (sighting)
 
 Filing the 2024 blue dasher irruption as a sighting alone reduced the most striking
-wildlife event on the property to "Dragonfly — first logged Jul 20, 1 sighting(s)".
-Corrected 2026-07-26 by adding the note.
+wildlife event on the property to "Dragonfly (Jul 20)". Corrected 2026-07-26 by
+adding the note.
 
 Three conventions the record already uses, worth keeping:
 
