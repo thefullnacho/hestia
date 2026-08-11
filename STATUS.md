@@ -51,20 +51,40 @@ withdrawn. Pointing both entries at the local resolver is still correct, but for
 reason of removing ambiguity. Note the vantage problem: the resolver cannot observe queries
 that never reach it, so this remains weakly evidenced in both directions.
 
+### Done same night: the watchdog gap
+
+The off-site watchdog now runs three independently-tracked probes instead of one, on the
+existing 5 minute timer and the existing ntfy channel:
+
+| Probe | Catches | Priority |
+|---|---|---|
+| `brain` | house dark, as before | urgent |
+| `dns` | resolver up but not resolving, the exact failure from tonight | urgent |
+| `dns-filtering` | resolution fine, blocklists silently not applied | high |
+
+Each keeps its own state, so one cannot mask another. The filtering check is skipped when
+resolution is down, because a dead resolver answers nothing for everything and would
+otherwise read as a false pass. Both failure and recovery transitions were fired against a
+throwaway ntfy topic and a scratch state directory before being trusted, so this is a tested
+alert rather than a written one.
+
+Also documented: `SECURITY.md` gained a threat model, and external exposure was measured
+rather than assumed. The home perimeter is fully closed; the off-site host exposes only the
+ports its firewall intends.
+
 ### In flight
 
-- The resolver is now a hard dependency for all household DNS with no fallback, by design,
-  and it is **not** in the watchdog probes. Tonight's outage is precisely what that probe
-  exists to catch, and it was found by hand instead.
-- DoH bypass unaddressed.
+- DoH bypass unaddressed. A client is using encrypted DNS to a third-party resolver, which
+  no amount of local filtering or logging can see.
 - Threat coverage still rests on a single aggregated feed.
+- Per-device DNS attribution still missing, so the new probes can say the house is broken
+  but not which device is misbehaving.
+- On the off-site host, the panel database listens on all interfaces and is not exposed only
+  because the firewall says so. It should bind to loopback.
 
 ### Next concrete action
 
-Add the resolver to the watchdog probes, alongside the existing brain `/health` check,
-firing into the ntfy topic already in use.
-
-Then, in order: a full-day query-volume comparison against the trailing baseline to settle
+A full-day query-volume comparison against the trailing baseline to settle
 the leak question properly `[non-production]`; local phishing and malware-distribution
 lists, added one at a time so false positives are attributable; and `dns-watch`, a
 timer-driven deterministic feed into the existing ntfy channel and `snapshot()`. `dns-watch`

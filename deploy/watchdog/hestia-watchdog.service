@@ -8,4 +8,11 @@ Type=oneshot
 User=youruser
 Environment=HESTIA_HEALTH_URL=http://BRAIN_TAILNET_IP:8730/health
 Environment=HESTIA_NTFY_URL=https://ntfy.sh/CHANGE-ME-RANDOM-TOPIC
+# DNS probe. Point at the household resolver's tailnet address, not its LAN address, since
+# this runs off-site. Leave HESTIA_DNS_SERVER unset to skip the DNS checks entirely.
+Environment=HESTIA_DNS_SERVER=RESOLVER_TAILNET_IP
+Environment=HESTIA_DNS_PROBE_NAME=github.com
+# A domain your blocklists are expected to block. Unset to skip the filtering check.
+# Pick one that is stable across list updates and that you do not mind querying every 5min.
+Environment=HESTIA_DNS_BLOCKED_NAME=CHANGE-ME-A-DOMAIN-YOUR-LISTS-BLOCK
 ExecStart=/home/youruser/hestia-offsite/hestia-watchdog.sh
