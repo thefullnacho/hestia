@@ -72,6 +72,34 @@ Also documented: `SECURITY.md` gained a threat model, and external exposure was 
 rather than assumed. The home perimeter is fully closed; the off-site host exposes only the
 ports its firewall intends.
 
+### The root blocker, found last
+
+Attempted to route tailnet DNS at the resolver to finally get per-device attribution. It
+does not work, and the reason explains an earlier dead end too.
+
+The resolver runs on a Docker **bridge** network. Queries arriving over the tailnet are
+source-NAT'd to the bridge gateway, so every tailnet device logs as one indistinguishable
+client. Proven by timing: the off-site watchdog fired at 00:32:56 UTC from its own tailnet
+address, and the resolver recorded that exact query pair as the gateway address. LAN queries
+are unaffected, because they arrive through published-port DNAT and keep their source.
+
+This is the same reason the resolver cannot act as a DHCP server. One change fixes both:
+host or macvlan networking, which first requires dealing with the host's stub resolver on
+port 53. That is the unlock, and it is a daylight job.
+
+What still works today: setting a LAN device's resolver manually. One device on the network
+has been doing this all evening and shows up correctly attributed, which is the proof.
+
+Two methodology notes, both of which cost real time tonight:
+
+- The on-disk query log buffers in memory and can sit byte-identical for an hour at low query
+  rates, while the web UI shows current data. Do not diagnose a stuck logger from the file.
+  Nearly restarted a healthy container over this.
+- `tailscale set --accept-dns=false` also disables MagicDNS. Applying it to the off-site box
+  silently broke hostname resolution for the nightly backup pull, which was compensated with
+  a static hosts entry. That entry is the better arrangement anyway, since it survives DNS
+  and coordination-server problems entirely.
+
 ### In flight
 
 - DoH bypass unaddressed. A client is using encrypted DNS to a third-party resolver, which
@@ -84,7 +112,12 @@ ports its firewall intends.
 
 ### Next concrete action
 
-A full-day query-volume comparison against the trailing baseline to settle
+Move the resolver to host networking. It is the single change that unlocks per-device
+attribution and the DHCP option together, and everything else on this list is worth less
+until it lands. Deal with the host stub resolver on port 53 first, recreate the container,
+verify resolution and filtering before walking away.
+
+Then: a full-day query-volume comparison against the trailing baseline to settle
 the leak question properly `[non-production]`; local phishing and malware-distribution
 lists, added one at a time so false positives are attributable; and `dns-watch`, a
 timer-driven deterministic feed into the existing ntfy channel and `snapshot()`. `dns-watch`
