@@ -7,6 +7,64 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-08-16 — Plex "library won't load" traced to dead remote access, not DNS
+
+Reported symptom: the TV would show the server but never populate the library. Suspicion was
+split between Plex and household DNS. It was neither.
+
+**The server was healthy throughout.** `/identity` answered in about a millisecond, the library
+mounts were all bound read-write and populated, and the scanner was actively generating chapter
+thumbnails while the TV was failing. The direct LAN path was verified end to end, including a TLS
+connection over the exact secure hostname a client is supposed to use, which returned 200.
+
+**Root cause: remote access has been dead since 2026-07-29.** Plex self-tests its own public
+address hourly and had failed 828 consecutive times, refusing immediately rather than timing out.
+The server was relying on an automatic UPnP port mapping that no longer exists, which is
+consistent with the fully-closed WAN verified in the 2026-08-11 exposure audit. The server keeps
+publishing that dead endpoint as a valid way in, so any client that reaches for it instead of the
+direct LAN route hangs and never loads the library.
+
+Deliberately **not** reopening the port. Invariant 5 and the closed-WAN posture win over a client
+sitting on the same LAN as the server. The fix belongs on the client side, plus turning off remote
+access so the dead endpoint stops being advertised at all.
+
+**Ruled out, recorded so none of it gets re-hunted.**
+
+1. *AdGuard is not blocking Plex.* The apex `plex.direct` record returns a null address from
+   Cloudflare and Google identically. That is Plex publishing it, not a filter rule. No blocklist
+   on the resolver contains the domain. Only a Plex telemetry host is genuinely blocked, which is
+   intentional and harmless.
+2. *DNS rebinding protection is not in play.* The per-server secure hostname, which encodes a
+   private address, resolves correctly through the household resolver, the router, and public
+   resolvers alike.
+3. *The GDM discovery errors in the Plex log are stale*, last seen 2026-07-29, zero in the
+   trailing two hours. The server is on host networking with the discovery ports listening.
+
+**Two side findings, both unresolved.**
+
+- *The relay host does not use its own DNS filter.* Its resolver is Tailscale MagicDNS, so the box
+  hosting AdGuard resolves around it. Plex logged 14 transient failures to resolve a public
+  hostname between 2026-08-01 and 2026-08-16, roughly one every day or two. Nothing watches this.
+- *The VPN sidecar is marked unhealthy* on its own internal resolver timing out, while the tunnel
+  itself is intact and the kill-switch verified (egress address still differs from the WAN
+  address). Torrent traffic is unaffected in practice, which is why it went unnoticed.
+
+**Two defects in `deploy/hestiactl`, found and not yet fixed.**
+
+1. The remote target falls back to a **placeholder** SSH user, so every remote subcommand fails
+   until the operator already knows the real one. Same failure family as the scrub-broke-backups
+   incident: a placeholder shipped as a default.
+2. The brain URL defaults to loopback while the brain correctly binds its private address per
+   invariant 3, so `hestiactl status` reports the brain unreachable **permanently** while it is up
+   and serving every tool. A status board that cries wolf every single time is worse than none,
+   because the one real outage gets skimmed past.
+
+**Next concrete action:** confirm which subnet the TV is on `[non-production]`, already queued.
+Then turn off Plex remote access so the dead endpoint stops being advertised, and fix the two
+`hestiactl` defaults.
+
+---
+
 ## 2026-08-11 — DNS layer audit and remediation
 
 Triggered by a question about AdGuard blocking traffic from a phone app. The answer was
