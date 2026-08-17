@@ -46,3 +46,6 @@ brag-output-reel/
 reddit/
 # Grant/funding correspondence drafts (FUTO, NLnet, ...) — private, not part of the project.
 outreach/
+# Working remediation plan from the tool-layer audit (2026-08-16). Local scratch: the
+# fixes it describes landed as commits, so the plan itself is not project source.
+REMEDIATION-PLAN.md
