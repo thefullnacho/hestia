@@ -73,7 +73,7 @@ SCHEMA = {
                 "rel": {"type": "string", "description": "for relate: relationship type, e.g. sire, dam, owns, parent"},
                 "to": {"type": "string", "description": "for relate: the other entity"},
                 "since": {"type": "string", "description": "for recent: ISO date lower bound"},
-                "limit": {"type": "integer", "description": "for recent: max rows (default 20)"},
+                "limit": {"type": "integer", "description": "for recent: max rows (default 20, max 100)"},
             },
             "required": ["action"],
         },
@@ -81,14 +81,20 @@ SCHEMA = {
 }
 
 
-def _as_dict(x) -> dict:
+def _as_dict(x) -> dict | None:
+    """Coerce model-supplied attrs to a dict. None means INVALID (a string that isn't a
+    JSON object, incl. valid JSON that isn't an object like '[1,2]') — callers must refuse
+    rather than silently drop the attributes and log the event without them."""
+    if x is None:
+        return {}
     if isinstance(x, dict):
         return x
     if isinstance(x, str):
         try:
-            return json.loads(x)
+            v = json.loads(x)
         except Exception:  # noqa: BLE001
-            return {}
+            return None
+        return v if isinstance(v, dict) else None
     return {}
 
 
@@ -102,12 +108,23 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
             bed: str | None = None, crop: str | None = None, qty: float | None = None,
             unit: str | None = None, year: int | None = None) -> str:
     try:
+        # attrs validation is shared by the three actions that take it; a malformed string
+        # is refused outright, never silently dropped (the log-kind defaulting lesson:
+        # silent munging hides the model's mistake instead of letting it fix the call).
+        if action in ("remember", "log", "birth"):
+            attrs = _as_dict(attrs)
+            if attrs is None:
+                return "Error: attrs wasn't a valid JSON object — nothing was recorded."
+
         if action == "harvest":
             if not bed or not crop or qty is None:
                 return "Error: harvest needs a bed, a crop, and a quantity (unit optional)."
-            r = store.log_harvest(bed, crop, qty, unit=unit, ts=ts, detail=detail)
+            q = float(qty)
+            if not q > 0:  # also rejects NaN, which compares False to everything
+                return "Error: quantity must be a positive number."
+            r = store.log_harvest(bed, crop, q, unit=unit, ts=ts, detail=detail)
             cls, canon = store.normalize_unit(unit)
-            amount = f"{float(qty):g}" + (f" {canon}" if cls != "count" else "")
+            amount = f"{q:g}" + (f" {canon}" if cls != "count" else "")
             # A brand-new bed on a harvest is almost always a misheard name, not a new bed —
             # say so rather than silently minting one (the photo-intake lesson).
             warn = (f"  ⚠ '{bed}' wasn't a known bed — created it. Correct me if that's a mishear."
@@ -138,7 +155,7 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
         if action == "remember":
             if not name or not kind:
                 return "Error: remember needs a name and a kind (person/pet/place/species/asset)."
-            e = store.upsert_entity(kind, name, aliases=aliases, attrs=_as_dict(attrs))
+            e = store.upsert_entity(kind, name, aliases=aliases, attrs=attrs)
             a = e["attrs"]
             extra = f" — {', '.join(f'{k}: {v}' for k, v in a.items())}" if a else ""
             return f"Remembered {e['name']} ({e['kind']}){extra}."
@@ -149,7 +166,7 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
             # the event instead of silently dropping it.
             kind = kind or "note"
             store.log_event(kind, subject=subject, action=did, detail=detail,
-                            location=location, ts=ts, attrs=_as_dict(attrs))
+                            location=location, ts=ts, attrs=attrs)
             bits = [f"Logged {kind}"]
             if subject:
                 bits.append(f"· {subject}")
@@ -162,7 +179,7 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
         if action == "birth":
             if not name:
                 return "Error: birth needs the puppy's name (and ideally dam + sire)."
-            battrs = {**_as_dict(attrs)}
+            battrs = {**attrs}
             for k, v in (("sex", sex), ("weight", weight), ("color", color)):
                 if v:
                     battrs[k] = v
@@ -174,6 +191,12 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
                     + f" in {res['litter']} — litter now {res['litter_size']} pup(s).")
 
         if action == "recent":
+            # Clamp the model-supplied limit: sqlite treats LIMIT -1 as 'no limit', so an
+            # unvalidated value can dump the entire event log into context.
+            try:
+                limit = max(1, min(100, int(limit)))
+            except (TypeError, ValueError):
+                limit = 20
             evs = store.recent_events(kind=kind, subject=subject, since=since, limit=limit)
             if not evs:
                 return "No matching records."
