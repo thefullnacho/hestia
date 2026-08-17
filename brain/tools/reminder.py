@@ -25,14 +25,15 @@ SCHEMA = {
                         "'9pm', 'tonight', 'tomorrow at 7', 'tomorrow morning'), or a date "
                         "('June 20', 'July 1, 2026 at 7:05 am'). The tool computes the actual time "
                         "itself; do NOT calculate or reformat it yourself (you get it wrong). An ISO "
-                        "8601 datetime is also accepted. Use this for any 'remind me to …' OR 'set a "
+                        "8601 datetime is also accepted (offsets are converted to local time). Use "
+                        "this for any 'remind me to …' OR 'set a "
                         "timer' request; never hold it yourself."),
         "parameters": {
             "type": "object",
             "properties": {
                 "action": {"type": "string", "enum": ["create", "list", "cancel"]},
                 "text": {"type": "string", "description": "for create: what to remind about, e.g. 'pot up the transplants'. Optional for a bare timer (defaults to 'Timer')."},
-                "when": {"type": "string", "description": "for create: the user's time phrase verbatim — a duration ('10 minutes', 'in 20 min', '1 hour 30 minutes', '90 seconds', 'an hour'), a clock time ('7am', '9pm', 'tomorrow at 7', 'tonight'), or a date ('June 20', 'July 1, 2026 at 7:05 am'). The tool figures out the time; don't reformat it. An ISO datetime is also accepted."},
+                "when": {"type": "string", "description": "for create: the user's time phrase verbatim — a duration ('10 minutes', 'in 20 min', '1 hour 30 minutes', '90 seconds', 'an hour'), a clock time ('7am', '9pm', 'tomorrow at 7', 'tonight'), or a date ('June 20', 'July 1, 2026 at 7:05 am'). The tool figures out the time; don't reformat it. An ISO datetime is also accepted (offsets are converted to local time)."},
                 "id": {"type": "integer", "description": "for cancel: the reminder id shown by 'list'"},
             },
             "required": ["action"],
@@ -159,10 +160,15 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     s = (when or "").strip().lower()
     if not s:
         return None
-    # 1) ISO datetime — a machine date the model or caller may pass directly.
+    # 1) ISO datetime — a machine date the model or caller may pass directly. Offsets
+    # (incl. Z) are converted to naive LOCAL wall time, since due_at rows are
+    # string-compared against naive local now by reminders_tick.
+    iso = s[:-1] + "+00:00" if s.endswith("z") else s
     try:
-        d = dt.datetime.fromisoformat(s.replace("z", "").strip())
+        d = dt.datetime.fromisoformat(iso)
         if d.year > 1900 and ("t" in s or " " in s or "-" in s):
+            if d.tzinfo is not None:
+                d = d.astimezone().replace(tzinfo=None)
             return d
     except ValueError:
         pass
