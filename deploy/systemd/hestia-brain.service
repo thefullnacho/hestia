@@ -13,9 +13,13 @@ Environment=HESTIA_THINK=0
 # Bound to the Tailscale IP (NOT 0.0.0.0) so the brain is reachable only over the private
 # mesh — phone, laptop, hl-relay/HA — and is physically absent from the LAN and docker
 # bridges. The brain is unauthenticated, so this network boundary IS the access control.
+# Substitute this box's tailnet address for TAILSCALE_IP before enabling the unit. No real
+# default on purpose: 127.0.0.1 starts cleanly and silently cuts off every remote client
+# (phone, HA, hl-relay, Voice PE), the same shape as the placeholder backup host that
+# failed at 3am.
 # If tailscaled isn't up yet at boot the bind fails and Restart=on-failure retries until the
 # tailscale0 address exists.
-ExecStart=%h/.local/bin/uv run --project %h/hestia/brain uvicorn hestia:app --host 127.0.0.1 --port 8730
+ExecStart=%h/.local/bin/uv run --project %h/hestia/brain uvicorn hestia:app --host TAILSCALE_IP --port 8730
 Restart=on-failure
 RestartSec=3
 

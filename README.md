@@ -96,7 +96,7 @@ Memory and tools land in Phase 4 behind this same URL.
 | Service | What | Bind | GPU |
 |---|---|---|---|
 | `hestia-ollama` | Ollama inference engine | `127.0.0.1:11434` (localhost only) | RTX 5080 only |
-| `hestia-brain`  | Hestia `/v1` proxy | `0.0.0.0:8730` (reachable over Tailscale) | — |
+| `hestia-brain`  | Hestia `/v1` proxy | `<tailnet-ip>:8730` (tailnet only, never `0.0.0.0`) | — |
 
 Both are **user** systemd services (no root), defined in `deploy/systemd/` and
 installed into `~/.config/systemd/user/`. Linger is enabled, so they survive
@@ -134,16 +134,21 @@ journalctl --user -u hestia-brain -f
 systemctl --user daemon-reload          # only if you edited a .service
 systemctl --user restart hestia-brain
 
-# health (Ollama up + model present?) — brain binds the Tailscale IP, not localhost
-curl -s 127.0.0.1:8730/health | jq
+# health (Ollama up + model present?). The brain binds this box's tailnet IP, not
+# localhost, so address it that way.
+BRAIN=$(tailscale ip -4):8730
+curl -s $BRAIN/health | jq
 
 # talk to it
-curl -s 127.0.0.1:8730/v1/chat/completions -H 'content-type: application/json' \
+curl -s $BRAIN/v1/chat/completions -H 'content-type: application/json' \
   -d '{"messages":[{"role":"user","content":"hello Hestia"}]}' | jq -r .choices[0].message.content
 ```
 
 If you edit a `deploy/systemd/*.service` file, re-copy it into
-`~/.config/systemd/user/` before `daemon-reload`.
+`~/.config/systemd/user/` before `daemon-reload`. `hestia-brain.service` ships with
+`TAILSCALE_IP` in place of a real bind address: substitute this box's tailnet IP when you
+install it. The unit fails to start until you do, which is deliberate, since a loopback
+default would start cleanly and silently cut off the phone, HA and the Voice PE.
 
 ### Reach it from the phone (Tailscale)
 
