@@ -211,6 +211,7 @@ def _short(args: dict) -> str:
 
 
 _TOO_SLOW = "Sorry — that took too long to pull together (a backend was slow). Try again in a moment?"
+_BACKEND_DOWN = "Sorry, my model backend is having trouble right now. Try again in a moment?"
 
 
 async def run_agent(messages: list[dict]) -> str:
@@ -243,6 +244,9 @@ async def run_agent(messages: list[dict]) -> str:
         except asyncio.TimeoutError:
             _log(f"model call exceeded remaining {remaining:.1f}s at step {step}")
             return _TOO_SLOW
+        except Exception as e:  # noqa: BLE001 — an Ollama restart must not 500 the client
+            _log(f"model call failed at step {step}: {type(e).__name__}: {e}")
+            return _BACKEND_DOWN
         calls = msg.get("tool_calls") or []
         if not calls:
             _log(f"answered in {step} step(s), {time.monotonic()-t0:.1f}s")
@@ -402,7 +406,7 @@ async def health():
 
 
 # Answers that are non-substantive (errors / give-ups) — never worth note-taking on.
-_NO_LEARN = {_TOO_SLOW,
+_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN,
              "I wasn't able to finish that in a reasonable number of steps — can you narrow it down?"}
 
 
