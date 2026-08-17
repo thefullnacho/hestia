@@ -45,6 +45,32 @@ def test_briefing_still_answers_when_nws_down(nws_down, monkeypatch):
     assert "unknown" in out.lower()      # and the alert half admits it doesn't know
 
 
+def test_points_url_is_rounded_and_follows_redirects(monkeypatch):
+    """NWS 301s coordinates longer than 4dp, and an unfollowed 301 raises out of
+    raise_for_status — which is exactly how the alert layer sat dead reporting all-clear."""
+    seen: list[tuple[str, dict]] = []
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"properties": {"forecastZone": "https://api.weather.gov/zones/forecast/CTZ012"},
+                    "features": []}
+
+    def fake_get(url, **kw):
+        seen.append((url, kw))
+        return _Resp()
+
+    monkeypatch.setattr(weather.httpx, "get", fake_get)
+    assert weather.active_alerts() == []
+    points_url, points_kw = seen[0]
+    assert f"/points/{weather.LAT:.4f},{weather.LON:.4f}" in points_url
+    assert len(points_url.split("/points/")[1].split(",")[0].split(".")[1]) == 4
+    assert points_kw["follow_redirects"] is True
+    assert all(kw["follow_redirects"] is True for _, kw in seen)
+
+
 def test_first_freeze_thresholds():
     assert weather.first_freeze([_row("2026-04-21", 40.0)]) is None
     frost = weather.first_freeze([_row("2026-04-21", weather.FROST_F)])

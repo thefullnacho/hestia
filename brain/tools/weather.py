@@ -103,12 +103,19 @@ def active_alerts() -> list[dict] | None:
     """
     h = {"User-Agent": _UA, "Accept": "application/geo+json"}
     try:
-        pt = httpx.get(f"https://api.weather.gov/points/{LAT},{LON}", headers=h, timeout=15)
+        # NWS accepts at most 4 decimal places and 301s anything longer. Unfollowed, that
+        # redirect raises out of here, which is how this whole layer sat dead while
+        # reporting "no active alerts" (2026-08-17). Round, and follow anyway: the host is
+        # fixed, so following is safe here in a way it is not for the model-directed
+        # `search` fetch.
+        pt = httpx.get(f"https://api.weather.gov/points/{LAT:.4f},{LON:.4f}",
+                       headers=h, timeout=15, follow_redirects=True)
         pt.raise_for_status()
         zone = pt.json()["properties"].get("forecastZone", "").rstrip("/").split("/")[-1]
         if not zone:
             return None  # no zone resolved is still "we don't know", not "all clear"
-        al = httpx.get(f"https://api.weather.gov/alerts/active?zone={zone}", headers=h, timeout=15)
+        al = httpx.get(f"https://api.weather.gov/alerts/active?zone={zone}",
+                       headers=h, timeout=15, follow_redirects=True)
         al.raise_for_status()
         out = []
         for f in al.json().get("features", []):
