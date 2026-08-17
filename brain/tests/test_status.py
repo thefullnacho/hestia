@@ -93,6 +93,37 @@ def test_no_nvidia_smi_degrades_to_empty_not_a_raise(monkeypatch):
     assert status._gpu_info() == {"gpus": [], "processes": []}
 
 
+def test_na_fields_degrade_to_unknown_not_a_raise(monkeypatch):
+    """nvidia-smi emits [N/A] for util/temp on some cards. One odd column must not cost
+    us the services, brain and system sections too."""
+    monkeypatch.setattr(status, "_gpu_processes", lambda by_uuid: [])
+    monkeypatch.setattr(status.subprocess, "run", _fake_smi(
+        "0, RTX 5080, 9520, 16384, [N/A], [N/A], GPU-aaa\n"))
+    info = status._gpu_info()
+    assert len(info["gpus"]) == 1
+    g = info["gpus"][0]
+    assert g["util_pct"] is None and g["temp_c"] is None
+    assert g["mem_used_gb"] == 9.3          # the readable fields still come through
+    assert g["index"] == 0 and g["name"] == "RTX 5080"
+
+
+def test_fmt_gpu_renders_unknown_fields():
+    gpus = [{"index": 0, "name": "RTX 5080", "mem_used_gb": 9.3,
+             "mem_total_gb": 16.0, "util_pct": None, "temp_c": None}]
+    out = status._fmt_gpu(gpus, [])
+    assert "RTX 5080" in out and "?" in out and "None" not in out
+
+
+def test_gpu_row_without_a_usable_index_is_skipped(monkeypatch):
+    """index is the join key for process attribution, so a row without one is unusable."""
+    monkeypatch.setattr(status, "_gpu_processes", lambda by_uuid: [])
+    monkeypatch.setattr(status.subprocess, "run", _fake_smi(
+        "[N/A], RTX 5080, 9520, 16384, 0, 34, GPU-aaa\n"
+        "1, RTX 4060 Ti, 2048, 16384, 12, 40, GPU-bbb\n"))
+    info = status._gpu_info()
+    assert [g["index"] for g in info["gpus"]] == [1]
+
+
 def _fake_smi(stdout: str):
     class R:
         pass

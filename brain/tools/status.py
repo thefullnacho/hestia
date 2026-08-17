@@ -188,6 +188,14 @@ def _vram_label(cmd: str, name: str) -> str:
     return exe or "?"
 
 
+def _f(x: str) -> float | None:
+    """A numeric nvidia-smi field, or None when the driver gave us [N/A]."""
+    try:
+        return float(x)
+    except ValueError:
+        return None
+
+
 def _gpu_info() -> dict:
     """Per-GPU memory/util/temp AND per-process VRAM attribution. One unit of work because
     the process rows are joined to cards by UUID. On the brain box GPU0 (5080) holds the
@@ -207,12 +215,22 @@ def _gpu_info() -> dict:
         if len(parts) < 7:
             continue
         idx, name, used, total, util, temp, uuid = parts[:7]
-        by_uuid[uuid] = int(idx)
+        try:
+            index = int(idx)
+        except ValueError:
+            continue  # index is the join key for process attribution: an unindexed row is unusable
+        by_uuid[uuid] = index
+        used_gb, total_gb = _f(used), _f(total)
+        util_pct, temp_c = _f(util), _f(temp)
         gpus.append({
-            "index": int(idx), "name": name,
-            "mem_used_gb": round(float(used) / 1024, 1),
-            "mem_total_gb": round(float(total) / 1024, 1),
-            "util_pct": int(float(util)), "temp_c": int(float(temp)),
+            "index": index, "name": name,
+            # nvidia-smi emits [N/A] per field on some cards and driver states. Keep the
+            # card visible with the fields it could read: one odd column must not take
+            # down services, brain and system health with it.
+            "mem_used_gb": None if used_gb is None else round(used_gb / 1024, 1),
+            "mem_total_gb": None if total_gb is None else round(total_gb / 1024, 1),
+            "util_pct": None if util_pct is None else int(util_pct),
+            "temp_c": None if temp_c is None else int(temp_c),
         })
     return {"gpus": gpus, "processes": _gpu_processes(by_uuid)}
 
@@ -364,8 +382,13 @@ def _fmt_gpu(gpus: list, procs: list | None = None) -> str:
         return "GPU: no readings."
     lines = ["GPU:"]
     for g in gpus:
-        lines.append(f"  GPU{g['index']} {g['name']}: {g['mem_used_gb']}/{g['mem_total_gb']} GB, "
-                     f"{g['util_pct']}% util, {g['temp_c']}C")
+        unknown = "?"
+        mem_used = unknown if g["mem_used_gb"] is None else g["mem_used_gb"]
+        mem_total = unknown if g["mem_total_gb"] is None else g["mem_total_gb"]
+        util = unknown if g["util_pct"] is None else f"{g['util_pct']}%"
+        temp = unknown if g["temp_c"] is None else f"{g['temp_c']}C"
+        lines.append(f"  GPU{g['index']} {g['name']}: {mem_used}/{mem_total} GB, "
+                     f"{util} util, {temp}")
     for p in _unexpected_vram(procs or []):
         where = "container" if p["container"] else "process"
         lines.append(f"  ⚠ unexpected {where} on GPU{p['gpu']}: {p['label']} "
