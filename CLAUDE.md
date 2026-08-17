@@ -64,10 +64,12 @@ because the service runs with `WorkingDirectory=brain`. Keep it that way.
 
 ## This repo is public
 
-`github.com/thefullnacho/hestia`. Several files are gitignored **on purpose**, and their content
-must never be moved, quoted, or summarized into a tracked file:
-`secrets/`, `.env`, `memory/*`, `data/`, `CONTENT-TAB.md`, `STRATEGY-PRIVATE.md`,
-`AUDIT-PRIVATE.md`, `outreach/`, `reddit/`, `deploy/media/slskd.env`, `deploy/glance/glance.env`.
+`github.com/thefullnacho/hestia`. Several paths are gitignored **on purpose**, and their content
+must never be moved, quoted, or summarized into a tracked file: `secrets/`, `.env`, `memory/*`,
+`data/`, `deploy/media/slskd.env`, `deploy/glance/glance.env`, and the operator's personal
+working documents. The ignore rules are the authority, not this list. Treat any untracked path
+as private by default: if git does not track it, do not copy it into something git does, and do
+not name it in a tracked file either.
 
 The matching `*.example` templates **are** tracked deliberately. When adding config, add the real
 file to `.gitignore` and commit an example alongside it.
