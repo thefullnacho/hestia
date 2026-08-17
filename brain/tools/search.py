@@ -4,12 +4,17 @@ Grounds questions about the world (and Hestia's own software) instead of guessin
 Backed by a self-hosted SearXNG meta-search on the appliance box, so the brain's
 queries never leave the user's hardware — no API keys, no third party in the loop.
 Two actions: `search` (results + snippets) and `fetch` (read one page as text).
-Both are read-only — no safety-gate concerns.
+Both are read-only — no safety-gate concerns. `fetch` is egress-restricted to public,
+globally-routable hosts and never follows redirects, so a prompt-injected page can't
+steer the model into reading loopback/LAN/tailnet services through it (see SECURITY.md).
 """
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
+import socket
+from urllib.parse import urlparse
 
 import httpx
 
@@ -42,6 +47,31 @@ _TAG = re.compile(r"<[^>]+>")
 _DROP = re.compile(r"<(script|style|noscript|svg)[^>]*>.*?</\1>", re.S | re.I)
 _WS = re.compile(r"[ \t]*\n\s*\n\s*", re.S)
 
+# Tailscale's CGNAT range. is_global already excludes loopback/RFC1918/link-local, but
+# 100.64/10 counts as global on older Pythons, so exclude it explicitly: an internal name
+# resolved over MagicDNS must never be fetchable.
+_CGNAT = ipaddress.ip_network("100.64.0.0/10")
+
+
+def _public_only(url: str) -> bool:
+    """True only if every address the URL's host resolves to is globally routable.
+
+    fetch is model-directed, and the box runs unauthenticated internal services by design
+    (Ollama, the brain's own endpoints, hl-relay). Without this guard a prompt-injected
+    page could steer the model into reading those and speaking the contents. Unresolvable
+    hosts (e.g. an internal name off-mesh) are refused too."""
+    host = urlparse(url).hostname or ""
+    if not host:
+        return False
+    try:
+        addrs = [ipaddress.ip_address(host)]
+    except ValueError:
+        try:
+            addrs = [ipaddress.ip_address(a[4][0]) for a in socket.getaddrinfo(host, None)]
+        except (OSError, ValueError):
+            return False
+    return bool(addrs) and all(a.is_global and a not in _CGNAT for a in addrs)
+
 
 def _search(query: str, n: int = 6) -> str:
     r = httpx.get(f"{SEARX_URL}/search", headers={"User-Agent": _UA},
@@ -62,7 +92,13 @@ def _search(query: str, n: int = 6) -> str:
 def _fetch(url: str, limit: int = 3500) -> str:
     if not re.match(r"^https?://", url):
         return "Error: fetch needs a full http(s) URL (get one from a search result first)."
-    r = httpx.get(url, headers={"User-Agent": _UA}, timeout=12, follow_redirects=True)
+    if not _public_only(url):
+        return "Error: fetch is limited to public web pages (that host is local or unresolvable)."
+    # Redirects are not followed: a public URL must not be able to bounce the brain to an
+    # internal one. The model can re-issue fetch with the redirect target if it's public.
+    r = httpx.get(url, headers={"User-Agent": _UA}, timeout=12, follow_redirects=False)
+    if r.is_redirect:
+        return f"Error: that page redirects (to {r.headers.get('location', '?')}); redirects are not followed."
     r.raise_for_status()
     html = r.text
     text = _DROP.sub(" ", html)

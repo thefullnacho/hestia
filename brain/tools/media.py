@@ -161,11 +161,15 @@ def _ensure_movie(app, m: dict) -> int:
 def _select_release(rels: list[dict], quality: str | None) -> tuple[dict | None, str]:
     """Pick the release to grab (or (None, reason)). Pure size-aware selection — HARD 1080p
     ceiling, prefer a sensible encode over a giant REMUX. No user interaction: the auto path
-    defaults to the smallest decent 1080p encode (caller runs async and can't ask)."""
+    defaults to the smallest decent 1080p encode (caller runs async and can't ask), and grabs
+    NOTHING when no decent encode exists — the movie stays monitored in Radarr rather than
+    taking a blind fallback to a giant REMUX or a sub-seed release. A release of unknown
+    size (indexer omitted it -> 0 GB) is never a candidate: unknown is not 'small'."""
     pool = [c for c in rels if not c["uhd"]]  # hard 1080p ceiling — drop 4K entirely
     if not pool:
         return None, "only 4K releases exist, which we don't grab"
-    enc1080 = [c for c in pool if c["is1080"] and not c["remux"] and c["seed"] >= MIN_SEED]
+    enc1080 = [c for c in pool
+               if c["is1080"] and not c["remux"] and c["seed"] >= MIN_SEED and c["size"] > 0]
     remux1080 = [c for c in pool if c["remux"] and c["seed"] >= MIN_SEED]
     if quality == "small":
         pick = _best([c for c in enc1080 if c["size"] <= ENCODE_MAX_GB] or enc1080,
@@ -177,9 +181,9 @@ def _select_release(rels: list[dict], quality: str | None) -> tuple[dict | None,
     if quality == "best":
         pick = _best(remux1080) or _best(enc1080)
         return (pick, pick["qname"]) if pick else (None, "no 1080p release found")
-    # auto -> the sensible small 1080p encode (no asking on the async path)
-    pick = _best([c for c in enc1080 if c["size"] <= ENCODE_MAX_GB]) or _best(enc1080) or _best(pool)
-    return (pick, pick["qname"]) if pick else (None, "no grabbable release found")
+    # auto -> the sensible small 1080p encode, or nothing (no asking on the async path)
+    pick = _best([c for c in enc1080 if c["size"] <= ENCODE_MAX_GB]) or _best(enc1080)
+    return (pick, pick["qname"]) if pick else (None, "no grabbable 1080p release found")
 
 
 def _search_and_grab(app, m: dict, movie_id: int, quality: str | None) -> None:
@@ -328,8 +332,8 @@ def execute(action: str, kind: str | None = None, query: str | None = None,
                 for rec in q.get("records", []):
                     out.append(f"  {rec.get('title', '?')} — {rec.get('status', '?')}/"
                                f"{rec.get('trackedDownloadState', '')} ({rec.get('timeleft', '?')})")
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as e:  # noqa: BLE001 — show the gap instead of silently omitting music
+                out.append(f"  (music queue unavailable: {type(e).__name__})")
             return "Downloading now:\n" + "\n".join(out) if out else "Nothing is downloading right now."
 
         # --- music (Lidarr, album-level) ---

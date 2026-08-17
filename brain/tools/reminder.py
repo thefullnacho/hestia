@@ -25,14 +25,15 @@ SCHEMA = {
                         "'9pm', 'tonight', 'tomorrow at 7', 'tomorrow morning'), or a date "
                         "('June 20', 'July 1, 2026 at 7:05 am'). The tool computes the actual time "
                         "itself; do NOT calculate or reformat it yourself (you get it wrong). An ISO "
-                        "8601 datetime is also accepted. Use this for any 'remind me to …' OR 'set a "
+                        "8601 datetime is also accepted (offsets are converted to local time). Use "
+                        "this for any 'remind me to …' OR 'set a "
                         "timer' request; never hold it yourself."),
         "parameters": {
             "type": "object",
             "properties": {
                 "action": {"type": "string", "enum": ["create", "list", "cancel"]},
                 "text": {"type": "string", "description": "for create: what to remind about, e.g. 'pot up the transplants'. Optional for a bare timer (defaults to 'Timer')."},
-                "when": {"type": "string", "description": "for create: the user's time phrase verbatim — a duration ('10 minutes', 'in 20 min', '1 hour 30 minutes', '90 seconds', 'an hour'), a clock time ('7am', '9pm', 'tomorrow at 7', 'tonight'), or a date ('June 20', 'July 1, 2026 at 7:05 am'). The tool figures out the time; don't reformat it. An ISO datetime is also accepted."},
+                "when": {"type": "string", "description": "for create: the user's time phrase verbatim — a duration ('10 minutes', 'in 20 min', '1 hour 30 minutes', '90 seconds', 'an hour'), a clock time ('7am', '9pm', 'tomorrow at 7', 'tonight'), or a date ('June 20', 'July 1, 2026 at 7:05 am'). The tool figures out the time; don't reformat it. An ISO datetime is also accepted (offsets are converted to local time)."},
                 "id": {"type": "integer", "description": "for cancel: the reminder id shown by 'list'"},
             },
             "required": ["action"],
@@ -87,6 +88,13 @@ def _duration(s: str, now: dt.datetime) -> dt.datetime | None:
     for unit in _DUR_WORD.findall(s):
         total += _DUR_UNIT[unit.lower()]
     return now + dt.timedelta(seconds=round(total)) if total > 0 else None
+
+
+def _has_meridiem(s: str) -> bool:
+    """True when the phrase carries an explicit am/pm — an explicit meridiem always wins
+    over the 'tonight' PM bias below."""
+    mt = _TIME_RE.match(s.strip())
+    return bool(mt and mt.group(3))
 
 
 def _clock(s: str) -> tuple[int, int] | None:
@@ -144,15 +152,23 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     All the date arithmetic lives here — never in the model, which is unreliable at it.
     Handles: a full ISO datetime; a named calendar date ('July 1, 2026 at 7:05 am',
     'June 20'); a bare clock time ('7:00', '9pm') -> next occurrence; an optional leading
-    'today/tonight/tomorrow'; and a fuzzy daypart ('tomorrow morning', 'this evening')."""
+    'today/tonight/tomorrow'; and a fuzzy daypart ('tomorrow morning', 'this evening').
+    A bare hour after 'tonight' ('tonight at 9') reads as PM for 4-11, since nobody says
+    'tonight at 9' meaning 9am; an explicit am/pm always wins, and 12/1-3 stay as-is
+    (the past-midnight roll already lands them right)."""
     now = now or dt.datetime.now()
     s = (when or "").strip().lower()
     if not s:
         return None
-    # 1) ISO datetime — a machine date the model or caller may pass directly.
+    # 1) ISO datetime — a machine date the model or caller may pass directly. Offsets
+    # (incl. Z) are converted to naive LOCAL wall time, since due_at rows are
+    # string-compared against naive local now by reminders_tick.
+    iso = s[:-1] + "+00:00" if s.endswith("z") else s
     try:
-        d = dt.datetime.fromisoformat(s.replace("z", "").strip())
+        d = dt.datetime.fromisoformat(iso)
         if d.year > 1900 and ("t" in s or " " in s or "-" in s):
+            if d.tzinfo is not None:
+                d = d.astimezone().replace(tzinfo=None)
             return d
     except ValueError:
         pass
@@ -167,10 +183,12 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     # 4) optional relative-day prefix -> a day offset + the remaining time phrase.
     s = s.replace("this ", "").strip()
     plus = 0
+    tonight = False
     m = _DAY_RE.match(s)
     if m:
         word, rest = m.group(1), m.group(2).strip()
         plus = 1 if word in ("tomorrow", "tmrw", "tom") else 0
+        tonight = word == "tonight"
         if word == "tonight" and not rest:
             rest = "night"
         s = rest
@@ -180,6 +198,8 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     if clk is None:
         return None
     hour, minute = clk
+    if tonight and 4 <= hour <= 11 and not _has_meridiem(s):
+        hour += 12
     cand = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + dt.timedelta(days=plus)
     if cand <= now:  # time already passed today and no explicit 'tomorrow' -> next day
         cand += dt.timedelta(days=1)

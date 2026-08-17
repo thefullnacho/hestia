@@ -8,6 +8,7 @@ import datetime as dt
 
 import pytest
 
+import reminders_store
 import tools.reminder as reminder
 
 # A fixed "now": Sun 2026-06-28 12:00, so "already passed today" and "no year, already
@@ -34,6 +35,13 @@ NOW = dt.datetime(2026, 6, 28, 12, 0)
     ("tomorrow at 7",           dt.datetime(2026, 6, 29, 7, 0)),
     ("tomorrow morning",        dt.datetime(2026, 6, 29, 9, 0)),
     ("tonight",                 dt.datetime(2026, 6, 28, 21, 0)),
+    # "tonight at <bare hour>" means evening: bare 4-11 after 'tonight' reads as PM.
+    ("tonight at 9",            dt.datetime(2026, 6, 28, 21, 0)),
+    ("tonight at 6:30",         dt.datetime(2026, 6, 28, 18, 30)),
+    ("tonight at 4",            dt.datetime(2026, 6, 28, 16, 0)),
+    ("tonight at 9pm",          dt.datetime(2026, 6, 28, 21, 0)),  # explicit pm, unchanged
+    ("tonight at 9am",          dt.datetime(2026, 6, 29, 9, 0)),   # explicit am stays literal
+    ("tonight at 1",            dt.datetime(2026, 6, 29, 1, 0)),   # small hours = after midnight
     # Relative durations — the kitchen-timer path (NOW = 12:00).
     ("10 minutes",              dt.datetime(2026, 6, 28, 12, 10)),
     ("10 minute timer",         dt.datetime(2026, 6, 28, 12, 10)),  # extra words ignored
@@ -80,3 +88,25 @@ def test_create_files_a_row_and_lists_it(db):
 def test_create_rejects_unreadable_time(db):
     out = reminder.execute("create", text="do a thing", when="someday")
     assert "couldn't read the time" in out
+
+
+def test_zulu_iso_is_converted_to_local():
+    """A Z-suffixed ISO time is UTC; the stored/fired time must be local wall time."""
+    expected = (dt.datetime(2026, 7, 1, 7, 5, tzinfo=dt.timezone.utc)
+                .astimezone().replace(tzinfo=None))
+    assert reminder._parse_when("2026-07-01T07:05:00Z") == expected
+
+
+def test_offset_iso_is_converted_to_local():
+    expected = (dt.datetime(2026, 7, 1, 7, 5, tzinfo=dt.timezone(dt.timedelta(hours=5)))
+                .astimezone().replace(tzinfo=None))
+    assert reminder._parse_when("2026-07-01T07:05:00+05:00") == expected
+
+
+def test_stored_row_is_naive_local(db):
+    """due_at rows are string-compared against naive local now in reminders_tick, so a
+    stored row must never carry an offset (aware vs naive compares wrong)."""
+    reminder.execute("create", text="tz check", when="2026-07-01T07:05:00+02:00")
+    row = [r for r in reminders_store.pending() if r["text"] == "tz check"][0]
+    assert "+" not in row["due_at"]
+    assert dt.datetime.fromisoformat(row["due_at"]).tzinfo is None

@@ -43,12 +43,21 @@ SCHEMA = {
 
 # "milk, eggs and dog food" -> ["milk", "eggs", "dog food"]. Split on commas and the word
 # "and" — item names with a real "and" in them ("salt and vinegar chips") are rare enough
-# that a comma-separated correction beats making the model do the splitting.
+# that a comma-separated correction beats making the model do the splitting. Deduped
+# case-insensitively (first occurrence's casing kept): 'have' is computed once per add, so
+# without this a repeated item in one request ('milk, milk') files two rows.
 _SPLIT_RE = re.compile(r",|\band\b", re.I)
 
 
 def _split(items: str) -> list[str]:
-    return [p.strip() for p in _SPLIT_RE.split(items) if p.strip()]
+    seen: set[str] = set()
+    out = []
+    for p in _SPLIT_RE.split(items):
+        p = p.strip()
+        if p and p.lower() not in seen:
+            seen.add(p.lower())
+            out.append(p)
+    return out
 
 
 def _svc(service: str, data: dict, response: bool = False) -> dict:

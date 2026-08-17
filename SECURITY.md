@@ -27,6 +27,12 @@ shopping, status, weather`) and nothing that runs free-form commands. The standi
 `brain/tools/__init__.py` is: **do not reintroduce a general shell tool.** If you fork and add one,
 you own that risk — and you should not run that fork anywhere reachable by an untrusted network.
 
+**The `search` tool's page fetch cannot read your network.** `fetch` is restricted to public,
+globally-routable hosts (loopback, LAN, link-local and tailnet addresses are refused) and never
+follows redirects. Without this, a prompt-injected web page could tell the model to fetch
+unauthenticated internal endpoints (Ollama, the brain's own inbox, media admin panels) and repeat
+the contents back.
+
 ## Tokens & secrets
 
 - All secrets live in `secrets/` (HA token, `*arr`/media creds, ingest token, service hosts).
