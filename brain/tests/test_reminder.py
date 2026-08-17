@@ -34,6 +34,13 @@ NOW = dt.datetime(2026, 6, 28, 12, 0)
     ("tomorrow at 7",           dt.datetime(2026, 6, 29, 7, 0)),
     ("tomorrow morning",        dt.datetime(2026, 6, 29, 9, 0)),
     ("tonight",                 dt.datetime(2026, 6, 28, 21, 0)),
+    # "tonight at <bare hour>" means evening: bare 4-11 after 'tonight' reads as PM.
+    ("tonight at 9",            dt.datetime(2026, 6, 28, 21, 0)),
+    ("tonight at 6:30",         dt.datetime(2026, 6, 28, 18, 30)),
+    ("tonight at 4",            dt.datetime(2026, 6, 28, 16, 0)),
+    ("tonight at 9pm",          dt.datetime(2026, 6, 28, 21, 0)),  # explicit pm, unchanged
+    ("tonight at 9am",          dt.datetime(2026, 6, 29, 9, 0)),   # explicit am stays literal
+    ("tonight at 1",            dt.datetime(2026, 6, 29, 1, 0)),   # small hours = after midnight
     # Relative durations — the kitchen-timer path (NOW = 12:00).
     ("10 minutes",              dt.datetime(2026, 6, 28, 12, 10)),
     ("10 minute timer",         dt.datetime(2026, 6, 28, 12, 10)),  # extra words ignored

@@ -89,6 +89,13 @@ def _duration(s: str, now: dt.datetime) -> dt.datetime | None:
     return now + dt.timedelta(seconds=round(total)) if total > 0 else None
 
 
+def _has_meridiem(s: str) -> bool:
+    """True when the phrase carries an explicit am/pm — an explicit meridiem always wins
+    over the 'tonight' PM bias below."""
+    mt = _TIME_RE.match(s.strip())
+    return bool(mt and mt.group(3))
+
+
 def _clock(s: str) -> tuple[int, int] | None:
     """A time phrase -> (hour, minute): a fuzzy daypart or an explicit clock time, else None."""
     s = s.strip()
@@ -144,7 +151,10 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     All the date arithmetic lives here — never in the model, which is unreliable at it.
     Handles: a full ISO datetime; a named calendar date ('July 1, 2026 at 7:05 am',
     'June 20'); a bare clock time ('7:00', '9pm') -> next occurrence; an optional leading
-    'today/tonight/tomorrow'; and a fuzzy daypart ('tomorrow morning', 'this evening')."""
+    'today/tonight/tomorrow'; and a fuzzy daypart ('tomorrow morning', 'this evening').
+    A bare hour after 'tonight' ('tonight at 9') reads as PM for 4-11, since nobody says
+    'tonight at 9' meaning 9am; an explicit am/pm always wins, and 12/1-3 stay as-is
+    (the past-midnight roll already lands them right)."""
     now = now or dt.datetime.now()
     s = (when or "").strip().lower()
     if not s:
@@ -167,10 +177,12 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     # 4) optional relative-day prefix -> a day offset + the remaining time phrase.
     s = s.replace("this ", "").strip()
     plus = 0
+    tonight = False
     m = _DAY_RE.match(s)
     if m:
         word, rest = m.group(1), m.group(2).strip()
         plus = 1 if word in ("tomorrow", "tmrw", "tom") else 0
+        tonight = word == "tonight"
         if word == "tonight" and not rest:
             rest = "night"
         s = rest
@@ -180,6 +192,8 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     if clk is None:
         return None
     hour, minute = clk
+    if tonight and 4 <= hour <= 11 and not _has_meridiem(s):
+        hour += 12
     cand = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + dt.timedelta(days=plus)
     if cand <= now:  # time already passed today and no explicit 'tomorrow' -> next day
         cand += dt.timedelta(days=1)
