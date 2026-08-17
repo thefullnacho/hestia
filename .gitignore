@@ -31,21 +31,14 @@ deploy/media/slskd.env
 # (glance.env.example, the tracked template, is deliberately NOT ignored)
 deploy/glance/glance.env
 deploy/media/*/config/
-# Personal content tab — weekly post material/drafts for HomesteaderLabs discovery.
-# Private working doc, not part of the public project.
-CONTENT-TAB.md
-# Private business/positioning strategy (concierge-tier thesis). Keep out of the public repo.
-STRATEGY-PRIVATE.md
-# Local-only engineering audit (personal notes; not part of the public project).
-AUDIT-PRIVATE.md
+# The operator's personal working documents. One directory on purpose: an ignore list is
+# public, so enumerating private files here would publish what they are called and what
+# they are about. Anything under here is out of scope for the project.
+private/
 # /brag launch-video output — rendered MP4s + node_modules + Hyperframes composition (heavy,
 # regenerable; the videos are deliverables, not source). See the forager-wiki brag-video playbook.
 brag-output/
 brag-output-reel/
-# Reddit launch drafts + demo media — private promo working material, not part of the project.
-reddit/
-# Grant/funding correspondence drafts (FUTO, NLnet, ...) — private, not part of the project.
-outreach/
 # Working remediation plan from the tool-layer audit (2026-08-16). Local scratch: the
 # fixes it describes landed as commits, so the plan itself is not project source.
 REMEDIATION-PLAN.md
