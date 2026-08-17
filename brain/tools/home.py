@@ -162,9 +162,13 @@ def execute(action: str, entity_id: str | None = None,
         r = httpx.post(f"{HA_URL}/api/services/light/{service}", headers=_HDRS, json=data, timeout=12)
         if r.status_code >= 400:
             return f"Home Assistant returned {r.status_code}: {r.text[:120]}"
-        # confirm new state
-        chk = httpx.get(f"{HA_URL}/api/states/{entity_id}", headers=_HDRS, timeout=8).json()
-        state = chk.get("state")
+        # confirm new state (a nicety — the command already landed, so a flaky read-back
+        # must not report the action itself as failed; that invites a state-flipping retry)
+        try:
+            chk = httpx.get(f"{HA_URL}/api/states/{entity_id}", headers=_HDRS, timeout=8).json()
+            state = chk.get("state")
+        except Exception:  # noqa: BLE001 — only the read-back failed
+            return f"Sent {action} to {entity_id}, but couldn't confirm the new state."
         if state == "unavailable":
             return f"Sent {action} to {entity_id}, but it's currently unavailable (bulb may be powered off at the switch)."
         return f"Done — {entity_id} is now {state}."
