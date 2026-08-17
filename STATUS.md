@@ -7,6 +7,87 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-08-17 — Tool-layer audit: eleven fixes, and an alert layer that had never once worked
+
+A full audit of `brain/tools/` against the design invariants, then every finding fixed
+test-first. Seventeen commits, and the suite went from 148 tests to 200. Work was split
+across two agents on file-disjoint sets and merged without a conflict.
+
+**Invariant 1 held cleanly.** Nothing in the tool layer hands scheduling, counting,
+thresholding or date math to the model. Reminder parsing, shopping splits, harvest totals,
+release selection and weather thresholds are all computed in code. The thesis is intact.
+
+**The headline: NWS alerts have been dead since the day they were written.**
+`api.weather.gov` accepts at most four decimal places and 301s anything longer. The
+configured lat/lon carries seven, and httpx raises on an unfollowed redirect, so the call
+failed every single time. The old code swallowed that and returned an empty list, which
+rendered as a confident "No active National Weather Service alerts", in the tool and in the
+7:10 briefing alike. The frost and freeze warning layer, the one safety-relevant readout in
+the whole tool, had been reporting all-clear while never reaching the service. It only
+became visible because the same session made outages announce themselves. Coordinates are
+now rounded and both weather.gov calls follow redirects; verified end to end against the
+live service, resolving zone CTZ012.
+
+**The other fixes, by shape.**
+
+*Failures that reported success.* Alerts as above. The `home` tool blamed a whole action
+when only its confirmation read-back flaked, so the model would apologise for a light that
+had in fact changed and might toggle it back. `media` hid a dead Lidarr behind a bare
+`except: pass` and just omitted music from the download list.
+
+*Failures that took down more than themselves.* `dispatch` caught only `TypeError`, so any
+store or filesystem error from `memory`, `recipe` or `reminder` escaped as a bare HTTP 500
+with no answer at all. One `[N/A]` column from `nvidia-smi` raised out of `snapshot()` and
+cost the entire health readout plus a 500 on `/status`. An Ollama restart 500'd the client
+because only `asyncio.TimeoutError` was guarded. All three now degrade to an answer.
+
+*A real security hole.* The `search` tool's fetch took any model-supplied URL with
+redirects followed and no host restriction, on a box that runs unauthenticated internal
+services by design. An injected page could have steered the model into reading loopback,
+LAN or tailnet endpoints and speaking the contents back. Fetch now resolves every address a
+host maps to and refuses anything not globally routable, including Tailscale's `100.64/10`,
+which Python's `is_global` would otherwise pass. Redirects are refused outright.
+
+*Wrong answers.* "Tonight at 9" fired at 9 the next morning, a twelve-hour miss delivered
+with a cheerful confirmation. Bare hours after "tonight" now read as PM across 4 to 11, with
+an explicit am/pm always winning. ISO input with `Z` or an offset was stored in the wrong
+timezone and then string-compared against naive rows; everything is naive local now.
+
+*Unvalidated model input.* `records` accepted any `qty`, so a negative harvest could poison
+permanent season totals, and silently dropped malformed `attrs` rather than refusing.
+`shopping` filed "milk, milk" twice.
+
+**Deploy correctness.** The tracked brain unit shipped `--host 127.0.0.1` beneath a comment
+describing a Tailscale bind. Deployed verbatim it starts cleanly and cuts off the phone, HA,
+hl-relay and the Voice PE, the same failure family as the placeholder backup host and as the
+two `hestiactl` defects recorded on 2026-08-16. It now carries a placeholder that fails
+loudly until substituted. README separately claimed the brain binds `0.0.0.0`, contradicting
+invariant 3 and SECURITY.md in the same public repo.
+
+**Invariant 5 got an honest exception.** The weather tool has always called Open-Meteo and
+api.weather.gov while the README claimed the brain never phones home. Both are keyless and
+take only a lat/lon, and a forecast cannot be computed locally. That is now stated in
+CLAUDE.md and README rather than quietly contradicted. `CLAUDE.md` is also tracked for the
+first time, so the invariants survive a clone.
+
+**One audit finding was wrong and is recorded as such.** The claim that `limit=-1` would
+dump the whole event log was false: `records_store.py` already clamps to `[1, 200]`, so the
+worst case was 200 rows. The `qty` and `attrs` halves of that finding were real.
+
+**In flight.**
+
+- The work sits on `fix/tool-layer-hardening`, merged to main and pushed as part of this
+  entry. The brain has been restarted onto it and verified.
+- `[non-production]` Now that `CLAUDE.md` is tracked on a public repo, it names the private
+  docs by filename. Contents are not exposed, only the names. Worth a decision.
+
+**Next concrete action.** Nothing here is load-bearing. The nearest useful follow-on is the
+class of bug this session kept finding: a component that fails silently and reports success.
+The watchdog already covers the brain being down, but nothing covers a subsystem that is up
+and lying, which is exactly what the alert layer did for months.
+
+---
+
 ## 2026-08-16 — Plex "library won't load" traced to dead remote access, not DNS
 
 Reported symptom: the TV would show the server but never populate the library. Suspicion was
