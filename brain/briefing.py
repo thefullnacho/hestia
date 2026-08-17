@@ -66,8 +66,12 @@ def _weather_facts() -> list[str]:
     if wet:
         facts.append("Rain ahead: " + "; ".join(
             f"{weather._nice_date(r['date'])} {r['rain']:.2f} in" for r in wet[:3]) + ".")
-    for a in weather.active_alerts():
-        facts.append(f"ALERT: NWS {a['event']} — {a['headline']}.")
+    alerts = weather.active_alerts()
+    if alerts is None:
+        facts.append("ALERT: NWS alerts unavailable, alert status unknown. Check a weather app.")
+    else:
+        for a in alerts:
+            facts.append(f"ALERT: NWS {a['event']} — {a['headline']}.")
     return facts
 
 

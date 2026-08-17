@@ -5,6 +5,9 @@ is the "how much rain" QPF and `temperature_2m_min` is the freeze signal. NWS
 `api.weather.gov` adds official active alerts (frost/freeze warnings, etc.). Defaults
 to the homestead lat/lon (from HA config). Read-only — no safety-gate concerns.
 
+An alerts outage is reported as unknown, never as an all-clear. Both upstreams are
+keyless public APIs, the sanctioned exception to "nothing phones home" (see CLAUDE.md).
+
 Ported from the user's homesteader-labs `weatherApi.ts` / `FrostGuardAlert.tsx`. The
 forecast helpers here are shared with the proactive garden-watch job.
 """
@@ -91,15 +94,20 @@ def history_days(start: str, end: str) -> list[dict]:
     ]
 
 
-def active_alerts() -> list[dict]:
-    """Active NWS alerts for the homestead's forecast zone (best-effort)."""
+def active_alerts() -> list[dict] | None:
+    """Active NWS alerts for the homestead's forecast zone.
+
+    Returns [] for "checked, nothing active" and None for "couldn't check". Callers must
+    keep those apart: this is the frost/freeze warning path, and reporting an outage as
+    an all-clear is the one failure here that can cost a crop.
+    """
     h = {"User-Agent": _UA, "Accept": "application/geo+json"}
     try:
         pt = httpx.get(f"https://api.weather.gov/points/{LAT},{LON}", headers=h, timeout=15)
         pt.raise_for_status()
         zone = pt.json()["properties"].get("forecastZone", "").rstrip("/").split("/")[-1]
         if not zone:
-            return []
+            return None  # no zone resolved is still "we don't know", not "all clear"
         al = httpx.get(f"https://api.weather.gov/alerts/active?zone={zone}", headers=h, timeout=15)
         al.raise_for_status()
         out = []
@@ -109,8 +117,8 @@ def active_alerts() -> list[dict]:
                         "headline": p.get("headline") or p.get("event", ""),
                         "severity": p.get("severity", "")})
         return out
-    except Exception:  # noqa: BLE001 — NWS flakes; alerts are a bonus layer
-        return []
+    except Exception:  # noqa: BLE001 — NWS flakes; report the gap, never a false all-clear
+        return None
 
 
 def first_freeze(rows: list[dict]) -> dict | None:
@@ -151,6 +159,9 @@ def _frost_text(rows: list[dict]) -> str:
 
 def _alerts_text() -> str:
     al = active_alerts()
+    if al is None:
+        return ("NWS alert check failed (api.weather.gov unreachable), so alert status is "
+                "unknown, not clear.")
     if not al:
         return "No active National Weather Service alerts."
     return "Active NWS alerts:\n" + "\n".join(f"  [{a['severity']}] {a['event']} — {a['headline']}" for a in al)
