@@ -1,0 +1,16 @@
+[Unit]
+Description=Hestia — weekly reality-vs-repo drift check (placeholders, pinned addresses, probe targets)
+# Page the phone if the check itself ever fails (install deploy/watchdog/hestia-alert@.service
+# as a USER unit on this box) — a broken drift check must not be silent either.
+OnFailure=hestia-alert@%n.service
+
+[Service]
+Type=oneshot
+Environment=HESTIA_NTFY_URL=https://ntfy.sh/CHANGE-ME-RANDOM-TOPIC
+# Voice-satellite check: an ssh target that can read HA's storage (the deploy user on the
+# relay), and the satellite's mDNS name as it resolves on the LAN. Leave either unset to
+# skip that check — the script says so loudly in the journal rather than passing quietly.
+Environment=HESTIA_DRIFT_RELAY=RELAY_USER@RELAY_LAN_IP
+Environment=HESTIA_DRIFT_VOICE_MDNS=home-assistant-voice-CHANGE-ME.local
+# Environment=HESTIA_DRIFT_HA_CONFIG=/opt/home/ha_config
+ExecStart=%h/hestia/deploy/watchdog/hestia-drift.sh

@@ -1,0 +1,10 @@
+[Unit]
+Description=Hestia weekly drift check — placeholders, pinned addresses, probe targets
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target
