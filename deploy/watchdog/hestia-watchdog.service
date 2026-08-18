@@ -15,4 +15,12 @@ Environment=HESTIA_DNS_PROBE_NAME=github.com
 # A domain your blocklists are expected to block. Unset to skip the filtering check.
 # Pick one that is stable across list updates and that you do not mind querying every 5min.
 Environment=HESTIA_DNS_BLOCKED_NAME=CHANGE-ME-A-DOMAIN-YOUR-LISTS-BLOCK
+# HA critical-entity probe: pages when a listed entity reads unavailable/unknown for
+# HESTIA_HA_BAD_RUNS consecutive runs (default 2, ~10min, so HA restarts stay silent), and
+# when the HA API itself stops answering. Deliberately opt-in: left commented, the script
+# skips it and says so in the journal — an unsubstituted placeholder here would page on a
+# house that is fine. Token is a long-lived HA access token; keep it out of the repo.
+#Environment=HESTIA_HA_URL=http://RELAY_TAILNET_IP:8124
+#Environment=HESTIA_HA_TOKEN=CHANGE-ME-LONG-LIVED-HA-TOKEN
+#Environment=HESTIA_HA_ENTITIES=assist_satellite.CHANGE_ME update.CHANGE_ME
 ExecStart=/home/youruser/hestia-offsite/hestia-watchdog.sh
