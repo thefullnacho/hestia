@@ -78,8 +78,9 @@ Hestia is part of the **Forager / Homesteader Labs** constellation, alongside `f
   speaker), growing-degree-day pest watch, nightly house journal + almanac (23:45). True to the
   design: the schedule belongs to systemd, the model only gets the last word.
 - **Ops** ✅ — nightly on-site snapshots + off-site restic pulls (3-2-1), an external watchdog
-  probing `/health` from off-site, and failure alerts via ntfy. It's expected to keep working
-  when nobody is looking at it.
+  probing `/health`, critical HA entity availability, and household DNS from off-site, a weekly
+  drift check (unsubstituted placeholders, pinned addresses vs. reality), and failure alerts
+  via ntfy. It's expected to keep working when nobody is looking at it.
 
 ---
 

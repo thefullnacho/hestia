@@ -7,6 +7,50 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-08-18 — Voice PE down two days: a stale pinned address, found by a person
+
+**The outage.** The kitchen Voice PE satellite went silent for two days while every service
+probe stayed green. Postmortem: Home Assistant on the relay had crashed on file-descriptor
+exhaustion (`Errno 24`, fatal event-loop shutdown) and restarted; in the same window the
+satellite took a new DHCP lease. HA's ESPHome entry stores a *pinned* host address, and HA
+runs in a docker bridge network, so its mDNS view never learned the new one. HA retried the
+dead address for two days while the device sat healthy on the LAN, port 6053 open. Brain,
+Whisper, Piper and Ollama were fine the whole time — the break was purely HA → device. Fixed
+by rewriting the pinned host in HA's storage (stop container, edit from a throwaway container
+— the file is root-owned and the deploy user has no sudo — start). Satellite back to `idle`,
+all entities available, verified through the HA API.
+
+**The lesson was already named.** Fourth instance of the placeholder/pinned-address family:
+the placeholder backup host, hestiactl's placeholder remote, the brain unit's bind
+contradicting its own comment, and now this. The family's signature is that nothing crashes —
+reality just drifts from what a config file claims. Two new observability layers, both built
+on the existing watchdog patterns, now cover it:
+
+*Critical-entity probe (off-site watchdog).* The dedi now also checks, over the tailnet, that
+the HA API answers and that an allowlist of critical entities does not read
+`unavailable`/`unknown`. An entity must read bad on two consecutive runs (~10 min) before it
+counts, so routine HA restarts stay silent; one page per transition, same as the other probes.
+An unreachable HA pages urgent once and mutes the entity checks, so one outage cannot page as
+many. All four paths (up, down, recovery, HA-down) were tested live against the real house
+before shipping. This probe alone would have paged on Sunday night.
+
+*Weekly drift check (GPU box).* `hestia-drift.sh` + `hestia-drift.timer`: sweeps installed
+units and hestiactl for unsubstituted placeholders, compares the brain's bind address against
+what hestiactl probes, and compares the satellite's pinned host in HA against its live mDNS
+address. Alerting is edge-triggered on the *set* of findings — one page when the set changes,
+silence while it persists. Its first live run caught two real findings immediately: hestiactl
+still on the placeholder remote (remote status/logs broken), and the brain binding the
+tailnet address while hestiactl probes localhost — so `hestiactl status` shows red on a
+healthy brain, training the operator to ignore red. Both still open at this writing.
+
+**Still open.** A DHCP reservation for the satellite on the router (AdGuard's DHCP is off, so
+the router owns leases — without a reservation the pinned address will drift again); the
+fd-exhaustion root cause on the HA container (nofile limit, plus LIFX entries throwing setup
+errors in the log); the end-to-end voice canary and the backup dead-man's switch remain
+unbuilt. README's ops bullet now reflects the two new layers.
+
+---
+
 ## 2026-08-17 — Tool-layer audit: eleven fixes, and an alert layer that had never once worked
 
 A full audit of `brain/tools/` against the design invariants, then every finding fixed
