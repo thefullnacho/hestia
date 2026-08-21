@@ -22,8 +22,10 @@ import config  # puts brain/ on sys.path + owns paths
 
 config.load_secrets()
 import garden_watch                    # noqa: E402 — reuse soil_beds + build_alerts
+import ha_announce                     # noqa: E402 — one Assist-satellite delivery path
 import records_store                   # noqa: E402
 import reminders_store                 # noqa: E402
+import daily_facts                     # noqa: E402 — shared scheduled-workflow collectors
 from tools import weather              # noqa: E402
 
 HA_URL = os.environ.get("HA_URL", "http://hl-relay:8124").rstrip("/")
@@ -107,31 +109,7 @@ def _reminder_facts(now: dt.datetime) -> list[str]:
 
 def _media_facts(now: dt.datetime) -> list[str]:
     """Titles the *arr stack imported in the last MEDIA_WINDOW_H hours — i.e. new on Plex."""
-    from tools import media
-    since = (now - dt.timedelta(hours=MEDIA_WINDOW_H)).astimezone().isoformat()
-    titles: list[str] = []
-    for kind, api in (("tv", "v3"), ("movie", "v3")):
-        app = media.APPS[kind]
-        if not app["key"]:
-            continue
-        try:
-            hist = httpx.get(f"{app['base']}/api/{api}/history/since",
-                             headers={"X-Api-Key": app["key"]},
-                             params={"date": since}, timeout=15).json()
-        except Exception as e:  # noqa: BLE001 — one arr down shouldn't kill the briefing
-            print(f"briefing: {kind} history failed: {e}", file=sys.stderr)
-            continue
-        for h in hist:
-            if h.get("eventType") != "downloadFolderImported":
-                continue
-            if kind == "tv":
-                ep = h.get("episode") or {}
-                s, e_ = ep.get("seasonNumber"), ep.get("episodeNumber")
-                t = (h.get("series") or {}).get("title", "?")
-                titles.append(f"{t} S{s:02d}E{e_:02d}" if s is not None else t)
-            else:
-                titles.append((h.get("movie") or {}).get("title", "?"))
-    titles = sorted(set(titles))
+    titles = daily_facts.media_arrivals(now, MEDIA_WINDOW_H)
     if not titles:
         return []
     shown = ", ".join(titles[:5]) + (f" and {len(titles) - 5} more" if len(titles) > 5 else "")
@@ -184,28 +162,6 @@ def push(message: str) -> None:
                timeout=15).raise_for_status()
 
 
-def satellites() -> list[str]:
-    """Assist satellites currently reachable (the kitchen Voice PE, and any added later)."""
-    r = httpx.get(f"{HA_URL}/api/states", headers=_HDRS, timeout=15)
-    r.raise_for_status()
-    return [s["entity_id"] for s in r.json()
-            if s["entity_id"].startswith("assist_satellite.")
-            and s["state"] not in ("unavailable", "unknown")]
-
-
-def announce(message: str) -> list[str]:
-    done = []
-    for ent in satellites():
-        try:
-            httpx.post(f"{HA_URL}/api/services/assist_satellite/announce", headers=_HDRS,
-                       json={"entity_id": ent, "message": message},
-                       timeout=120).raise_for_status()  # HA blocks until playback ends
-            done.append(ent)
-        except Exception as e:  # noqa: BLE001
-            print(f"briefing: announce on {ent} failed: {e}", file=sys.stderr)
-    return done
-
-
 def main() -> int:
     dry_run = "--dry-run" in sys.argv
     raw = "--raw" in sys.argv
@@ -228,7 +184,7 @@ def main() -> int:
         return 0
     if do_push:
         push(text)
-    spoke = announce(text) if do_announce else []
+    spoke = ha_announce.announce(text) if do_announce else []
     print(f"briefing: sent (push={do_push}, spoke on {spoke or 'none'}):\n{text}")
     return 0
 

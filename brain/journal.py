@@ -25,6 +25,7 @@ config.load_secrets()
 import pest_watch                      # noqa: E402 — season GDD for the daily stamp
 import records_store                   # noqa: E402
 import garden_watch                    # noqa: E402
+import daily_facts                     # noqa: E402 — shared scheduled-workflow collectors
 from tools import weather              # noqa: E402
 
 OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
@@ -80,8 +81,11 @@ def _garden_today() -> list[str]:
 
 
 def _media_today(now: dt.datetime) -> list[str]:
-    import briefing
-    return [f.replace("New on Plex overnight", "new on Plex") for f in briefing._media_facts(now)]
+    titles = daily_facts.media_arrivals(now)
+    if not titles:
+        return []
+    shown = ", ".join(titles[:5]) + (f" and {len(titles) - 5} more" if len(titles) > 5 else "")
+    return [f"New on Plex: {shown}."]
 
 
 def build_facts(now: dt.datetime | None = None) -> list[str]:
