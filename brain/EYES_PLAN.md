@@ -89,6 +89,89 @@ attrs, confidence, model tier that produced it), promoted via a `review_notes.py
 VL judge does the language work here; the classifier only gates whether it fires. Nothing in
 the Eyes lane ever calls `records_store` write paths directly.
 
+## Product priority — frictionless field capture
+
+The highest-value use is not species ID; it is making hands-busy real life easy to log. A heavy
+harvest morning, a litter of newborn puppies, equipment maintenance, and an inventory intake
+all share the same shape: identify the real-world thing, take a measurement/photo/note, then
+review a set of structured records once. Repeating eight individual voice commands such as
+“Nabu, three pounds of tomatoes” turns record-keeping into another chore, so this lane must
+make a **single batch review** the normal path.
+
+### Physical context: NFC tags
+
+NFC is the physical front door to a capture session: **tap the real-world object → Hestia
+already knows the context**. The tag carries only a stable entity reference or private Hestia
+URL/shortcut; it never writes a record itself and never contains mutable facts such as a crop
+list or maintenance state.
+
+- Bed/zone tag → harvest, planting, treatment, watering, or inspection draft scoped to that
+  place.
+- Equipment tag → use, fuel/refill, maintenance, repair, or photo draft scoped to that asset.
+- Whelping-area/litter tag → one newborn-batch session inheriting dam/sire/litter context.
+- Scale or harvest-basket tag → starts a measured intake session before the first item is put
+  down.
+
+Each physical tag is an aid to fast context selection, not an authorization token. The capture
+and review gate remain human-controlled.
+
+**Hardware purchased (2026-08-21):** 50 standard NTAG213 adhesive tags for $13 (about $0.26
+each), plus separate outdoor/on-metal tags and general stick-anywhere tags. Start with a small
+trial set—one garden bed, the scale, a harvest basket, one maintenance-heavy asset, the
+whelping area, and one temporary-project tag—before encoding the wider estate. Use the
+outdoor/on-metal tags for exposed beds, tools, and metal equipment; use adhesive tags for bins,
+jars, baskets, seed trays, and indoor supplies.
+
+### The intended flow
+
+1. Tap an NFC tag (or open the capture screen) to start a timestamped session with the right
+   place, asset, or litter context already filled in. Take one or several photos: produce on
+   the scale, a tray/colander, labels, a newborn puppy, or the equipment itself. A shortcut can
+   add a short optional note or voice transcript, but must not require a typed subject for each
+   item.
+2. Eyes groups the session into a **batch proposal** and suggests one or more structured
+   actions. Harvest is the first template, for example:
+
+   ```text
+   Harvest batch, Aug 21
+   - Tomatoes — Bed 4 — 3 lb
+   - Cucumbers — Bed 2 — 1 lb
+   - Beets — Beets Round Bed — 18 count
+   ```
+
+   A whelping template instead proposes a newborn row with litter/parent context, sex/name if
+   supplied, birth weight, and first photo. Each row carries its source photo(s), candidate
+   entity match, confidence, and any uncertainty (for example, “weight unreadable — enter
+   amount”). Photos make the later conversation concrete; a scale/label can be read when
+   visible, but the model must never invent a quantity from appearance.
+3. The existing propose/review posture is the commit gate: edit, remove, or add rows to the
+   batch, then approve all or selected rows once. Approval calls the existing
+   `records_store.log_harvest()` path for each confirmed harvest row (or the existing birth/photo
+   paths for a whelping row); no Eyes model writes the database directly. The photo event and
+   resulting domain event share a batch ID, so the almanac can remain structured while the human
+   evidence stays attached.
+4. The follow-up is conversational rather than command-shaped: “add another pound of peppers,”
+   “those tomatoes were from Bed 1, not Bed 4,” or “save this batch.” The assistant updates the
+   pending proposal, not the records DB, until approval.
+
+### Design rules
+
+- **Batch first:** one review screen/inbox item can contain many rows; never make the user
+  approve or wake the assistant once per crop, puppy, or maintenance action.
+- **Template-specific records stay canonical:** harvest proposals use the existing `harvest`
+  schema (bed, crop, quantity, unit, timestamp); whelping proposals use the existing
+  birth/photo/lineage paths. The shared capture session is temporary—there is no parallel
+  harvest or breeding store.
+- **Uncertainty is useful:** identify likely crops/beds from the roster and images, but leave a
+  missing/unclear weight visibly unresolved instead of fabricating precision.
+- **Proof, not surveillance:** this is an intentional capture flow from a phone, not a garden
+  camera pipeline. Keep the image path and batch provenance auditable and retain no hidden
+  background analysis.
+
+This is the best first user experience for Eyes: NFC identifies the thing in front of you, a
+photo/scale/short note is the low-friction capture, batch review is where collaboration happens,
+and the database changes only after the household agrees the structured record is right.
+
 ## Phase 3 — voice hook
 
 "Hestia, what bird was that?" after a photo lands: the almanac-skill pattern (deterministic
