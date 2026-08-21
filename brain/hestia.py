@@ -21,6 +21,7 @@ import re
 import time
 import uuid
 import wave
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 from fastapi import FastAPI, File, Form, Request, UploadFile
@@ -51,9 +52,11 @@ MODEL = os.environ.get("HESTIA_MODEL", "qwen3:14b")
 MAX_STEPS = int(os.environ.get("HESTIA_MAX_STEPS", "6"))
 # Wall-clock guards so a slow/hung backend can't hang a whole request (2026-06-11: a hung
 # SearXNG made one turn run ~5 min). TURN_BUDGET bounds the entire request; TOOL_BUDGET caps
-# any single tool call (the orphaned worker thread finishes harmlessly in the background).
+# any single tool call. Blocking tool work cannot be safely killed in Python, so the bounded
+# pool below also prevents timed-out workers from multiplying until they starve the service.
 TURN_BUDGET = float(os.environ.get("HESTIA_TURN_BUDGET", "45"))
 TOOL_BUDGET = float(os.environ.get("HESTIA_TOOL_BUDGET", "20"))
+TOOL_WORKERS = max(1, int(os.environ.get("HESTIA_TOOL_WORKERS", "8")))
 # qwen3 thinking mode: off by default (fast, no eval gain). HESTIA_THINK=1 to enable.
 THINK = os.environ.get("HESTIA_THINK", "0") not in ("0", "", "false", "False")
 
@@ -71,6 +74,10 @@ STT_RATE = 16000  # faster-whisper wants 16 kHz mono s16le; ffmpeg resamples wha
 
 app = FastAPI(title="Hestia", version="0.4-phase4")
 client = httpx.AsyncClient(base_url=OLLAMA, timeout=httpx.Timeout(300.0, connect=10.0))
+# Keep potentially blocking sync tools out of asyncio's shared default executor. A slot is
+# released only when the underlying function actually ends, not when its caller times out.
+_tool_executor = ThreadPoolExecutor(max_workers=TOOL_WORKERS, thread_name_prefix="hestia-tool")
+_tool_slots = asyncio.BoundedSemaphore(TOOL_WORKERS)
 
 # Photo intake (iOS Shortcuts / Telegram): images land on disk under HESTIA_PHOTO_DIR and a
 # `photo` event is logged against the named entity (see records_store.attach_photo). Token auth.
@@ -80,11 +87,39 @@ _PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif"}
 _MAX_PHOTO_BYTES = 25 * 1024 * 1024  # 25 MB — a phone photo is a few MB; reject the absurd
 
 
-def _system_prompt(user_text: str) -> str:
+_LIGHT_CONTEXT = ("light", "lights", "lamp", "lamps", "bulb", "bulbs", "lighting",
+                  "dim", "brighten", "brightness", "light strip", "lamppost")
+
+
+def _context_plan(user_text: str) -> dict:
+    """Classify the dynamic context a turn needs using only local data.
+
+    This runs in a worker thread because skill discovery and garden lookup read disk/SQLite.
+    It lets ordinary conversation skip Home Assistant instead of fetching every light and soil
+    sensor before every model call.
+    """
+    matched = tools.skill.match(user_text)
+    garden_focus = records_store.garden_lookup(user_text)
+    garden_topic = bool(garden_focus) or bool(matched and matched.get("name") == "garden_bed")
+    text = user_text.lower()
+    return {"matched": matched, "garden_focus": garden_focus, "garden_topic": garden_topic,
+            "lights": bool(matched and matched.get("name") == "home_control")
+            or any(re.search(rf"\b{re.escape(term)}\b", text) for term in _LIGHT_CONTEXT),
+            # The garden skill's procedure relies on live readings, including broad bed questions.
+            # Keep that behavior, but do not load soil for unrelated turns.
+            "soil": garden_topic}
+
+
+def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: str = "") -> str:
+    """Assemble the prompt from already-selected context.
+
+    Callers run this off the event loop after the small async HA fetch. Keeping prompt wording
+    here preserves grounding behavior while making I/O ownership explicit.
+    """
     now = _dt.datetime.now().strftime("%A %B %d %Y, %H:%M")
-    parts = [SYSTEM_PROMPT, "", f"Current date/time: {now}.",
-             "", "--- LIGHT CATALOG ---", tools.light_catalog()]
-    soil = tools.soil_catalog()
+    parts = [SYSTEM_PROMPT, "", f"Current date/time: {now}."]
+    if light_catalog:
+        parts += ["", "--- LIGHT CATALOG ---", light_catalog]
     if soil:
         parts += ["", "--- GARDEN SOIL MOISTURE (live readings — the COMPLETE sensor list) ---",
                   "These are ALL the soil-moisture sensors and their current % readings. To answer "
@@ -94,7 +129,7 @@ def _system_prompt(user_text: str) -> str:
                   "tool for this, and never name a bed or sensor that is not written here. For a "
                   "broad request, give every reading.",
                   soil]
-    matched = tools.skill.match(user_text)
+    matched = plan["matched"]
     skill_block = tools.active_skill(user_text)
     if skill_block:
         parts += ["", skill_block]
@@ -113,8 +148,8 @@ def _system_prompt(user_text: str) -> str:
     # Garden topic = the watering skill triggered OR the user named a real bed / zone /
     # plant that exists in records (data-driven, so we don't have to enumerate every plant
     # as a keyword). Places are kept out of roster() to avoid bloating every prompt.
-    garden_focus = records_store.garden_lookup(user_text)
-    garden_topic = bool(garden_focus) or bool(matched and matched.get("name") == "garden_bed")
+    garden_focus = plan["garden_focus"]
+    garden_topic = plan["garden_topic"]
     if garden_topic:
         garden = records_store.garden_overview()
         if garden:
@@ -142,6 +177,13 @@ def _system_prompt(user_text: str) -> str:
                   "(answer using these exact entries; do NOT use search for this) ---",
                   garden_focus]
     return "\n".join(parts)
+
+
+async def _build_system_prompt(user_text: str) -> str:
+    """Collect only context relevant to this turn, without blocking the request event loop."""
+    plan = await asyncio.to_thread(_context_plan, user_text)
+    light_catalog, soil = await tools.home.context_catalogs(lights=plan["lights"], soil=plan["soil"])
+    return await asyncio.to_thread(_system_prompt, user_text, plan, light_catalog, soil)
 
 
 def _almanac_pages() -> str:
@@ -214,17 +256,51 @@ _TOO_SLOW = "Sorry — that took too long to pull together (a backend was slow).
 _BACKEND_DOWN = "Sorry, my model backend is having trouble right now. Try again in a moment?"
 
 
+async def _run_tool(name: str, args: dict, budget: float) -> tuple[str, str]:
+    """Run one synchronous tool within the shared bounded worker pool.
+
+    ``wait_for(asyncio.to_thread(...))`` returns on timeout but leaves the thread running,
+    allowing repeated slow calls to consume the global default executor. Here a slot stays held
+    until the real worker exits; later calls wait only within their own budget and fail cleanly
+    when capacity is exhausted. A hung backend can therefore degrade tool replies, but cannot
+    turn into unbounded thread growth or block unrelated FastAPI work.
+    """
+    started = time.monotonic()
+    try:
+        await asyncio.wait_for(_tool_slots.acquire(), timeout=budget)
+    except asyncio.TimeoutError:
+        return (f"Error: {name} could not start before the tool-worker budget expired "
+                "(other backends are still busy).", "capacity")
+
+    try:
+        work = asyncio.get_running_loop().run_in_executor(_tool_executor, tools.dispatch, name, args)
+    except Exception:
+        _tool_slots.release()
+        raise
+    # The callback runs on this event loop. Shielding prevents a caller timeout from cancelling
+    # the wrapper Future; the real work remains observable and owns its slot until it completes.
+    work.add_done_callback(lambda _: _tool_slots.release())
+    remaining = budget - (time.monotonic() - started)
+    if remaining <= 0:
+        return f"Error: {name} timed out before it could run.", "timeout"
+    try:
+        return str(await asyncio.wait_for(asyncio.shield(work), timeout=remaining)), "ok"
+    except asyncio.TimeoutError:
+        return f"Error: {name} timed out after {budget:.0f}s (backend slow/unreachable).", "timeout"
+
+
 async def run_agent(messages: list[dict]) -> str:
     """Recall memory, then loop tool-calls against Ollama until a final answer.
 
     Hard-bounded so a hung backend can't hang the request (2026-06-11: a stuck SearXNG made one
     turn run ~5 min). The whole request must finish within TURN_BUDGET; any single tool call is
-    capped at TOOL_BUDGET (a timed-out worker thread finishes harmlessly in the background).
-    Every step is traced to the journal so a misfire is one `journalctl` away.
+    capped at TOOL_BUDGET. Timed-out workers remain contained in a fixed-size pool until they
+    finish, so a slow backend cannot exhaust asyncio's shared executor. Every step is traced to
+    the journal so a misfire is one `journalctl` away.
     """
     user_text = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
     convo = [m for m in messages if m.get("role") != "system"]
-    convo = [{"role": "system", "content": _system_prompt(user_text)}, *convo]
+    convo = [{"role": "system", "content": await _build_system_prompt(user_text)}, *convo]
     schemas = _request_schemas(user_text)
 
     t0 = time.monotonic()
@@ -279,11 +355,16 @@ async def run_agent(messages: list[dict]) -> str:
             budget = min(TOOL_BUDGET, max(0.1, deadline - time.monotonic()))
             ts = time.monotonic()
             try:
-                result = await asyncio.wait_for(asyncio.to_thread(tools.dispatch, name, args), timeout=budget)
-                _log(f"step {step} tool={name} args={_short(args)} ok {time.monotonic()-ts:.1f}s")
-            except asyncio.TimeoutError:
-                result = f"Error: {name} timed out after {budget:.0f}s (backend slow/unreachable)."
-                _log(f"step {step} tool={name} args={_short(args)} TIMEOUT {budget:.0f}s")
+                result, outcome = await _run_tool(name, args, budget)
+                if outcome == "ok":
+                    _log(f"step {step} tool={name} args={_short(args)} ok {time.monotonic()-ts:.1f}s")
+                elif outcome == "capacity":
+                    _log(f"step {step} tool={name} args={_short(args)} CAPACITY {budget:.0f}s")
+                else:
+                    _log(f"step {step} tool={name} args={_short(args)} TIMEOUT {budget:.0f}s")
+            except Exception as e:  # noqa: BLE001 — executor failures still become tool results
+                result = f"Error: {name} failed before it could run: {e}"
+                _log(f"step {step} tool={name} args={_short(args)} EXECUTOR ERROR {type(e).__name__}")
             seen[sig] = str(result)
             last_result = str(result)
             convo.append({"role": "tool", "tool_name": name, "content": str(result)})

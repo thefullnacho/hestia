@@ -58,16 +58,13 @@ def _line(s: dict) -> str:
     return f"  {s['entity_id']} — {s['attributes'].get('friendly_name', '?')} [{s['state']}{unit}]"
 
 
-def _refresh() -> str | None:
-    """Fetch HA once and (re)build both the light catalog and the soil block. Returns an
-    error string if HA is unreachable, else None. Both blocks share one 60s cache so a
-    moisture question and a light question don't each hit HA."""
-    if time.time() - _cache["t"] < 60 and (_cache["catalog"] or _cache["soil"]):
-        return None
-    try:
-        states = httpx.get(f"{HA_URL}/api/states", headers=_HDRS, timeout=8).json()
-    except Exception as e:  # noqa: BLE001
-        return f"(home catalog unavailable: {e})"
+def _cache_states(states: list[dict]) -> None:
+    """Build the two model-facing HA context blocks from one /api/states response.
+
+    Both the synchronous tool path and the asynchronous prompt builder use this helper so
+    light and soil grounding can never drift. Keeping the cache here means one HA read
+    serves either (or both) blocks for 60 seconds.
+    """
     lights = [s for s in states if s["entity_id"].startswith("light.")]
     groups = [s for s in lights if s["entity_id"].startswith("light.light_")]
     singles = [s for s in lights if not s["entity_id"].startswith("light.light_")]
@@ -75,9 +72,42 @@ def _refresh() -> str | None:
     out += [_line(s) for s in groups]
     out += ["Individual lights:"] + [_line(s) for s in singles]
     soil = _soil(states)
-    soil_block = "\n".join(_line(s) for s in soil) if soil else ""
-    _cache.update(t=time.time(), catalog="\n".join(out), soil=soil_block)
+    _cache.update(t=time.time(), catalog="\n".join(out),
+                  soil="\n".join(_line(s) for s in soil) if soil else "")
+
+
+def _refresh() -> str | None:
+    """Fetch HA once and (re)build both the light catalog and the soil block. Returns an
+    error string if HA is unreachable, else None. Both blocks share one 60s cache so a
+    moisture question and a light question don't each hit HA."""
+    if time.time() - _cache["t"] < 60 and (_cache["catalog"] or _cache["soil"]):
+        return None
+    try:
+        states = httpx.get(f"{HA_URL}/api/states", headers=_HDRS, timeout=8).raise_for_status().json()
+    except Exception as e:  # noqa: BLE001
+        return f"(home catalog unavailable: {e})"
+    _cache_states(states)
     return None
+
+
+async def context_catalogs(lights: bool = False, soil: bool = False) -> tuple[str, str]:
+    """Return only requested live context blocks without blocking FastAPI's event loop.
+
+    Most turns need neither Home Assistant block, so they make no HA request at all; a cache
+    miss uses async HTTP. The synchronous catalog functions remain for tools and CLI callers.
+    """
+    if not lights and not soil:
+        return "", ""
+    if time.time() - _cache["t"] >= 60 or not (_cache["catalog"] or _cache["soil"]):
+        try:
+            async with httpx.AsyncClient(timeout=8) as client:
+                response = await client.get(f"{HA_URL}/api/states", headers=_HDRS)
+                response.raise_for_status()
+                _cache_states(response.json())
+        except Exception as e:  # noqa: BLE001 — a context miss must not fail a chat turn
+            err = f"(home catalog unavailable: {e})"
+            return (err if lights else "", err if soil else "")
+    return (_cache["catalog"] if lights else "", _cache["soil"] if soil else "")
 
 
 def catalog() -> str:

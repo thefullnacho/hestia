@@ -5,6 +5,8 @@ answer. Neither may reach the client as an HTTP 500."""
 from __future__ import annotations
 
 import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
@@ -14,8 +16,10 @@ import hestia
 
 @pytest.fixture(autouse=True)
 def no_system_prompt(monkeypatch):
-    """The real prompt builder calls Home Assistant for the light/soil catalog."""
-    monkeypatch.setattr(hestia, "_system_prompt", lambda t: "")
+    """Keep loop failure tests independent of prompt-context construction."""
+    async def empty_prompt(_: str) -> str:
+        return ""
+    monkeypatch.setattr(hestia, "_build_system_prompt", empty_prompt)
 
 
 def _run(text: str = "hi") -> str:
@@ -62,3 +66,41 @@ def test_malformed_tool_args_are_refused_not_run(monkeypatch):
     out = _run("log something")
     assert out == "All set."
     assert called == []           # the refusal path must not execute the tool
+
+
+def test_timed_out_tool_holds_its_worker_slot_until_it_really_finishes(monkeypatch):
+    """A timeout returns to the user but cannot create an unbounded queue of live workers."""
+    started, release, finished = threading.Event(), threading.Event(), threading.Event()
+    calls = []
+
+    def slow_then_fast(name, args):
+        calls.append((name, args))
+        if len(calls) == 1:
+            started.set()
+            release.wait(timeout=1)
+            finished.set()
+        return "done"
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    monkeypatch.setattr(hestia, "_tool_executor", pool)
+    monkeypatch.setattr(hestia, "_tool_slots", asyncio.BoundedSemaphore(1))
+    monkeypatch.setattr(hestia.tools, "dispatch", slow_then_fast)
+
+    async def scenario():
+        first = asyncio.create_task(hestia._run_tool("search", {}, 0.02))
+        await asyncio.to_thread(started.wait, 0.2)
+        assert await first == ("Error: search timed out after 0s (backend slow/unreachable).", "timeout")
+        # The first worker is still live, so another tool cannot queue behind it.
+        _, outcome = await hestia._run_tool("weather", {}, 0.02)
+        assert outcome == "capacity"
+        assert len(calls) == 1
+        release.set()
+        await asyncio.to_thread(finished.wait, 0.2)
+        await asyncio.sleep(0)  # let the executor completion callback release the slot
+        assert await hestia._run_tool("weather", {}, 0.2) == ("done", "ok")
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        release.set()
+        pool.shutdown(wait=True)
