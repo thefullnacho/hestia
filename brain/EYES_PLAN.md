@@ -150,10 +150,11 @@ and never tracked because there was no counter to hang it on.
 
 **Prerequisite: FIXED 2026-08-24.** `due_assets()` (`records_store.py:475`) found an asset's
 *last logged event of any kind* and compared its age to `attrs.interval_days`. The query had no
-filter on `kind`, so any event reset the maintenance clock. This was already live, not just a
-hazard waiting on use-taps: the photo intake's `asset` domain files a `photo` event against the
-asset itself, so photographing the mower marked it maintained and it went quiet in the morning
-briefing. Now only `_SERVICE_KINDS` (`chore`, `service`) restart the clock, as an allowlist, so
+filter on `kind`, so any event reset the maintenance clock. The path was reachable in shipped
+code, not only by future use-taps: the photo intake's `asset` domain files a `photo` event against
+the asset itself, so photographing the mower would have marked it maintained and it would have gone
+quiet in the morning briefing. No live asset carries `interval_days` yet, so the fix is ahead of the
+first one that will. Now only `_SERVICE_KINDS` (`chore`, `service`) restart the clock, as an allowlist, so
 a future NFC use-tap fails safe by leaving the asset visibly due. Regression test:
 `test_only_service_events_reset_the_clock`.
 

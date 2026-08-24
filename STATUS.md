@@ -35,10 +35,12 @@ which is worse than a bad read. Same posture as the note-taker's inbox, and it m
 to trust a read is a number rather than a feeling.
 
 **The bug that was already live.** `due_assets()` found an asset's last logged event **of any
-kind** and compared its age to `interval_days`. No filter on kind. This was not a hazard waiting on
-future use-taps: the photo intake's `asset` domain files a `photo` event against the asset itself,
-so photographing the mower already marked it maintained and dropped it out of the morning briefing
-silently. Fixed today with an allowlist (`chore`, `service`), deliberately not a denylist, because
+kind** and compared its age to `interval_days`. No filter on kind. The path was reachable in
+shipped code rather than only by future use-taps: the photo intake's `asset` domain files a `photo`
+event against the asset itself, so photographing the mower would have marked it maintained and
+dropped it out of the morning briefing silently. Checked the live DB afterwards: no asset carries
+`interval_days` yet, so nothing was actually lost, and the fix lands before the first one does.
+Fixed today with an allowlist (`chore`, `service`), deliberately not a denylist, because
 the failure directions are not symmetric. An unlisted kind leaves an asset visibly due, which is
 annoying. A kind wrongly counted as service makes it disappear and never come back. The module
 docstring had described the correct behaviour all along; the query never implemented it.
