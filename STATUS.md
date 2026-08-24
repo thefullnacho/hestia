@@ -7,6 +7,78 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-08-24 — Eyes gets an OCR lane, and a maintenance clock that anything could reset
+
+**Where this started.** Looking for notes on "giving Hestia eyes" in the context of photo-logging
+friction. They existed and were three days old: `brain/EYES_PLAN.md`, the NFC-assisted field
+capture section. The gap on re-reading was that **OCR was never actually in the plan**. The only
+line touching it said a scale or label "can be read when visible", with the read assumed to fall
+out of the VL judge, no accuracy expectation, no test, and no way to find out when it was wrong.
+
+**The OCR lane, now specified.** It is a tier of its own, and it returns digits plus unit plus
+confidence, or `unreadable`. Never an estimate. A quantity may only come from pixels of a display
+or a printed label, because a pile of tomatoes does not imply three pounds. Printed labels are
+ordinary OCR on CPU, so the Ti VRAM budget is untouched. Seven-segment scale displays are written
+down as a genuinely separate and harder problem rather than assumed to work, to be vetted against
+photos of the actual scales before an engine is picked.
+
+The part that makes the whole capture cheap is not vision at all: the NFC tag gives the bed, and
+**the bed's `plantings` attr gives the crop shortlist**. The classifier is never asked what plant
+this is over all of botany, only which of the two or three things actually planted there. A
+confident answer from outside that list becomes a flag rather than a result.
+
+**Trust is earned per surface.** Log the harvest by hand as usual, let Eyes read the same photo,
+and reconcile rather than insert: match on the capture batch ID or on (bed, crop) in a short
+window, count agreements, and keep disagreements as labelled failures with the display crop
+attached. Duplicate harvest rows would poison the season totals and the year-over-year deltas,
+which is worse than a bad read. Same posture as the note-taker's inbox, and it means the decision
+to trust a read is a number rather than a feeling.
+
+**The bug that was already live.** `due_assets()` found an asset's last logged event **of any
+kind** and compared its age to `interval_days`. No filter on kind. This was not a hazard waiting on
+future use-taps: the photo intake's `asset` domain files a `photo` event against the asset itself,
+so photographing the mower already marked it maintained and dropped it out of the morning briefing
+silently. Fixed today with an allowlist (`chore`, `service`), deliberately not a denylist, because
+the failure directions are not symmetric. An unlisted kind leaves an asset visibly due, which is
+annoying. A kind wrongly counted as service makes it disappear and never come back. The module
+docstring had described the correct behaviour all along; the query never implemented it.
+Regression test proves it: it fails against the old query, passes against the new one. Full suite
+green, 209 tests.
+
+### In flight
+
+- **Accumulator and reset tags**, written into the spec and explicitly not decided. One tag per
+  action rather than one per object: the washer's lid counts loads, the filter door records the
+  drain and zeroes the count. Nothing needs disambiguating because the meaning was chosen by which
+  tag got touched. The washing-machine filter at roughly 20 washes is the motivating case, and the
+  reason it was never tracked is that there was no counter to hang it on.
+- **Usage may add urgency, never remove it.** Taps undercount, because a forgotten tap leaves no
+  trace and nothing corrects it. So a use threshold can only be a floor ORed with the existing
+  calendar ceiling: 20 uses or 56 days, whichever trips first. Sequenced after the decision above,
+  and it is records-and-briefing work with no model in it.
+- **A connected scale would bypass OCR entirely.** Prefer a number to a picture of a number. Worth
+  knowing which scales in the house already talk before any investment in the seven-segment read.
+- **Wildlife into the almanac** is the shortest unbuilt path in the lane. `sighting` events, the
+  wildlife skill's routing, and the almanac's wildlife section all already exist; only the capture
+  step is missing. The gain is the species you cannot name out loud, plus photo evidence attached
+  to a first-of-season date that year-over-year comparisons will lean on.
+
+### Next concrete action
+
+Read `EYES_PLAN.md` end to end with the accumulator/reset context fresh and settle the one open
+decision `[non-production]`. The prerequisite that would have made use-taps dangerous is already
+cleared, so the build behind it is small: `interval_uses` ORed against `interval_days`, a
+`COUNT(*)` since the last reset event, and a tap endpoint. Everything else in the lane is
+downstream of choosing which objects get tagged first.
+
+### Non-production, queued
+
+- `[non-production]` Read the spec fresh and decide on accumulator/reset tags.
+- `[non-production]` Check whether either house scale is Bluetooth or WiFi, which decides whether
+  the seven-segment OCR work is worth doing at all.
+
+---
+
 ## 2026-08-18 — Voice PE down two days: a stale pinned address, found by a person
 
 **The outage.** The kitchen Voice PE satellite went silent for two days while every service
