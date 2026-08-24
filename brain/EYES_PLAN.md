@@ -3,16 +3,20 @@
 Vision for Hestia, scoped to what it's actually for right now: **identify things in photos
 and propose entity updates to records**. Not a camera pipeline — there are no cameras worth
 wiring (the old Arlos barely trigger; see "Parked: Frigate" below). The lane rides the
-existing [`/ingest/photo`](hestia.py) flow and inherits its posture wholesale: vision
-**PROPOSES, records DISPOSE** — the model never writes an entity or attr without a human
-confirm, same as the note-taker's review inbox and the ingest endpoint's ⚠️new-entity warning.
+existing [`/ingest/photo`](hestia.py) flow. Posture, refined 2026-08-24: **the model never mints
+an entity or writes durable memory without a human confirm** (invariant #4, the ⚠️new-entity
+warning, the note-taker's inbox), while *events* in the field-capture lane are written at capture
+time and corrected in the morning briefing. Entities are expensive to retrofit; events are cheap
+and correctable. See "Why capture commits, and correction happens later".
 
 Decision history (2026-07-22): classifier-first tiering + photo-ID scope set by Alex; VRAM
 split and on-demand VL design adapted from a Kimi K3 analysis (conductor-pattern dispatch);
 Frigate camera phases from that analysis parked until real cameras exist.
 Added 2026-08-21: NFC-assisted field capture. Added 2026-08-24: the OCR tier and its
 per-surface calibration gate (decided), plus accumulator/reset tags and the landing-site
-survey (written down for review, not decided).
+survey (written down for review, not decided). Revised later the same day: the batch-review commit
+gate is replaced by write-on-capture plus correction in the morning briefing, after the note-taker
+inbox showed 29 pending against 4 promoted over 71 days.
 
 ## What it replaces
 
@@ -81,8 +85,10 @@ time-slicing is fine).
 4. Low-confidence / no-roster-match → the proposal says so and (Phase 2) escalates to the VL
    judge for a better guess + description. Escalation result is still just a proposal.
 
-**Never**: auto-file on high confidence. The confirm tap stays. (Revisit only after months of
-boring accuracy, and even then per-domain.)
+**Never**: mint a new entity on the model's say-so. The confirm tap stays for anything that
+creates a roster entry, because entities are the expensive-to-retrofit half of the substrate.
+Filing an *event* against an entity that already exists is a different risk and, for the field
+capture lane, is written immediately and corrected later. See "Why capture commits" below.
 
 ## Phase 2 — entity-update proposals
 
@@ -176,30 +182,29 @@ that is actually vision.
    the scale, a tray/colander, labels, a newborn puppy, or the equipment itself. A shortcut can
    add a short optional note or voice transcript, but must not require a typed subject for each
    item.
-2. Eyes groups the session into a **batch proposal** and suggests one or more structured
-   actions. Harvest is the first template, for example:
+2. Eyes turns the session into structured rows and **writes them**, each flagged `unverified`
+   with its source photo, confidence, and the tier that produced it. Harvest is the first
+   template, for example:
 
    ```text
-   Harvest batch, Aug 21
+   Harvest batch, Aug 21   (unverified)
    - Tomatoes — Bed 4 — 3 lb
    - Cucumbers — Bed 2 — 1 lb
    - Beets — Beets Round Bed — 18 count
    ```
 
-   A whelping template instead proposes a newborn row with litter/parent context, sex/name if
-   supplied, birth weight, and first photo. Each row carries its source photo(s), candidate
-   entity match, confidence, and any uncertainty (for example, “weight unreadable — enter
-   amount”). Photos make the later conversation concrete; a scale/label can be read when
-   visible, but the model must never invent a quantity from appearance.
-3. The existing propose/review posture is the commit gate: edit, remove, or add rows to the
-   batch, then approve all or selected rows once. Approval calls the existing
-   `records_store.log_harvest()` path for each confirmed harvest row (or the existing birth/photo
-   paths for a whelping row); no Eyes model writes the database directly. The photo event and
-   resulting domain event share a batch ID, so the almanac can remain structured while the human
-   evidence stays attached.
-4. The follow-up is conversational rather than command-shaped: “add another pound of peppers,”
-   “those tomatoes were from Bed 1, not Bed 4,” or “save this batch.” The assistant updates the
-   pending proposal, not the records DB, until approval.
+   A whelping template instead writes a newborn row with litter/parent context, sex/name if
+   supplied, birth weight, and first photo. The rows call the existing
+   `records_store.log_harvest()` path (or the birth/photo paths), so there is no parallel store
+   and the almanac sees them immediately. The photo event and the domain event share a batch ID,
+   so the human evidence stays attached to the structured record.
+3. **The next morning's briefing carries the unverified rows**, because it is a habit that
+   already exists and is already read at 7:10. Correcting one is a reply: "those tomatoes were
+   Bed 1, not Bed 4", "make that 3.2". A row nobody corrects simply stays, and clears its
+   `unverified` flag after a set time so the briefing does not accumulate.
+4. A row that cannot be filled stays visibly incomplete rather than being invented. An
+   unreadable weight writes the harvest with a null quantity and says so in the briefing, which
+   is a prompt to fix a real row rather than a proposal waiting to become one.
 
 ### Reading the scale: the OCR lane
 
@@ -228,8 +233,8 @@ which mode it used.
 OCR is a third tier next to the classifier and the VL judge, and it has exactly two possible
 outputs: a digit string with a unit and a confidence, or `unreadable`. There is no third
 option, and in particular there is no estimate from appearance. A pile of tomatoes does not
-imply three pounds. If the display is glared out, the row goes to review with the weight
-blank and the photo attached, which is already the rule in "Uncertainty is useful" and now
+imply three pounds. If the display is glared out, the row is written with the weight
+blank and the photo attached, and the briefing asks for the number, which is already the rule in "Uncertainty is useful" and now
 has teeth: **a quantity may only come from pixels of a display or a printed label.**
 
 - **Printed labels** (seed packets, feed bags, part numbers, expiry dates) are ordinary OCR:
@@ -266,43 +271,58 @@ or an arithmetic check, and each one flags rather than corrects:
   the display exposes a stability indicator, read it; otherwise prefer a capture taken after
   the reading holds, and treat a session's two frames disagreeing as unresolved.
 - **Range check against history:** `harvest_totals()` already knows what this crop has weighed
-  all season. A read far outside that range is marked "unusual for this crop" in the proposal.
-  It is a flag on a row a human is already reading. It never rewrites the number.
+  all season. A read far outside that range is written through but called out as "unusual for
+  this crop" in the briefing, which is the one place a human is already reading. It never
+  rewrites the number.
 
-#### The verification lane: log it yourself, then check Hestia's read
+#### Why capture commits, and correction happens later
 
-The way to earn trust in an OCR number is to have the truth already written down next to it.
-So for the first stretch, log the harvest yourself as you do today, and let Eyes read the same
-photo independently. Review is then a **comparison**, which is the same posture as the
-note-taker's inbox and `review_notes.py`: the model proposes in the open, you dispose, and
-nothing enters records without you.
+**Decided 2026-08-24, and it reverses the earlier design in this document.** The first version of
+this lane ended in a batch review: nothing entered records until a human approved the rows. That
+is the right shape for an operator with reliable admin discipline. It is the wrong shape for this
+household, and there was already evidence in the house saying so. The note-taker's review inbox,
+the same propose-then-promote mechanism, had been running since mid-June and stood at **29 pending
+proposals against 4 promoted, the oldest 71 days old**. A commit gate that depends on coming back
+later is a gate that stays shut.
 
-The rule that makes this safe:
+So the posture for field capture inverts, on one asymmetry:
 
-- **Never two rows.** An Eyes read is reconciled against your own entry, not inserted beside
-  it. Match on the capture session's batch ID when the entry came from the same NFC session,
-  otherwise on (bed, crop) inside a short time window. Duplicate harvest rows would poison the
-  season totals and the almanac's year-over-year deltas, which is a worse failure than a bad
-  read.
-- **Three outcomes.** *Agree*: the proposal is discarded, nothing is written, the agreement is
-  counted. *Disagree*: your number stands, and the disagreement is kept with the display crop.
-  *Eyes-only*: you did not log it, so it behaves as a normal proposal you approve or edit,
-  exactly as in "The intended flow".
-- **Disagreements are the product of this phase.** Each one is a labelled example of a read
-  that failed, tagged with the surface it came from, which is what tells you whether the
-  problem is the engine, the glare, or that particular scale.
-- **The calibration record** lives at `data/eyes-ocr-calibration.jsonl` (under the gitignored
-  `data/`, same as the eyes inbox): one line per read with the surface, raw read, confirmed
-  truth, confidence, and engine. It is provenance for a model, not a domain record, so it does
-  not go anywhere near `records_store`. Agreement rate per surface is the number that decides
-  anything.
-- **Shadow first, graduate on evidence.** OCR ships proposing only. It gets to pre-fill a
-  weight in a batch proposal after a real agreement rate per surface says it earns it, and even
-  then the confirm tap stays. Auto-filing a weight without review is not on the roadmap.
+> **A missing entry costs more than a wrong one.** A weight recorded as 32 lb instead of 3.2 lb is
+> visible, editable, and recoverable at any time. A harvest that was never logged never existed,
+> and no year-over-year comparison can reconstruct it. The failure mode being designed against is
+> omission, not error.
 
-`review_eyes.py` mirrors `review_notes.py` (`list` / `promote` / `discard`) and adds a
-`calibration` subcommand that prints agreement rate per surface, so the decision to trust a
-read is a number you can look at rather than a feeling about how it has been going.
+**This does not violate design invariant #4** ("the note-taker proposes, it does not write"), and
+the line it draws is worth stating precisely, because it is the same line the records substrate
+already draws:
+
+- **Events are cheap and correctable, so capture writes them.** A tap is not a model proposal at
+  all; the human resolved the meaning by choosing which tag to touch. A photographed harvest row
+  is a deliberate physical act with a model filling in two fields.
+- **Entities are expensive to retrofit, so minting still gates.** A junk or misspelled entity
+  pollutes the roster permanently and quietly corrupts every rollup keyed on it. The ⚠️new-entity
+  path keeps its confirm, and an out-of-roster ID still asks before it mints. Invariant #4 protects
+  exactly this, and it is untouched.
+- **Durable memory still proposes.** Nothing here changes the note-taker or `review_notes.py`.
+
+**Calibration comes free from corrections.** The earlier design asked for the harvest to be logged
+by hand *and* Eyes' read reviewed against it, which is double logging at the moment the habit is
+most fragile. Delete it. Every correction made in the briefing is already a labelled OCR failure,
+tagged with the surface it came from, captured passively at the moment the human was going to look
+anyway. `data/eyes-ocr-calibration.jsonl` gets the same rows it would have got: raw read, corrected
+truth, confidence, surface, engine. Uncorrected reads count as agreements after their flag clears.
+The accuracy record per surface is identical and costs nobody a step.
+
+**What this buys, stated plainly:** capture and commit become one action, which is why the NFC tap
+is the model for the whole lane and not just its front door. There is no queue that can silently
+stop being serviced, and with two people sharing the system there is no review step for each to
+assume the other did.
+
+**The one real cost** is that wrong rows exist in records for a while, and some are never
+corrected. That is accepted deliberately: an uncorrected 3 lb is a season total slightly off, while
+an unlogged harvest is a hole in the record that YoY comparisons cannot see around. Corrections
+remain possible forever, and the `unverified` flag plus the stored display crop means an audit
+later can always tell which numbers a model produced.
 
 ### Where this lane lands
 
@@ -335,24 +355,27 @@ the seven-segment read. (Noted 2026-08-24, not chased yet.)
 
 ### Design rules
 
-- **Batch first:** one review screen/inbox item can contain many rows; never make the user
-  approve or wake the assistant once per crop, puppy, or maintenance action.
+- **Capture commits, the briefing corrects:** rows are written at capture time flagged
+  `unverified`, and the next morning's briefing is where they get fixed. Never build a queue that
+  has to be visited, and never make the user approve or wake the assistant once per crop, puppy,
+  or maintenance action. See "Why capture commits" above for the evidence behind this.
 - **Template-specific records stay canonical:** harvest proposals use the existing `harvest`
   schema (bed, crop, quantity, unit, timestamp); whelping proposals use the existing
   birth/photo/lineage paths. The shared capture session is temporary—there is no parallel
   harvest or breeding store.
 - **Uncertainty is useful:** identify likely crops/beds from the roster and images, but leave a
   missing/unclear weight visibly unresolved instead of fabricating precision.
-- **Trust is earned per surface:** a read is only allowed to pre-fill a field after the
-  calibration record shows it agreeing with hand-logged truth on that surface. Until then
-  Eyes proposes and the human's own entry is canonical.
+- **Trust is measured per surface, not waited for:** every correction in the briefing is a
+  labelled failure for that surface, so the accuracy record builds itself from work already being
+  done. A surface that reads badly shows up as a correction rate, which is a number to act on
+  rather than a reason to withhold the feature.
 - **Proof, not surveillance:** this is an intentional capture flow from a phone, not a garden
   camera pipeline. Keep the image path and batch provenance auditable and retain no hidden
   background analysis.
 
 This is the best first user experience for Eyes: NFC identifies the thing in front of you, a
-photo/scale/short note is the low-friction capture, batch review is where collaboration happens,
-and the database changes only after the household agrees the structured record is right.
+photo/scale/short note is the low-friction capture, the record exists from the moment it is
+captured, and the morning briefing is where the household corrects what the machine got wrong.
 
 ## Phase 3 — voice hook
 
@@ -363,16 +386,16 @@ router) injects the latest eyes proposal into the prompt. Cheap, no new model wo
 
 | Failure | Mitigation |
 |---|---|
-| Classifier confidently wrong (lookalike species) | confirm tap is the backstop; roster constraint limits damage to plausible-local mistakes; confidence stored in the event attrs for later audit |
+| Classifier confidently wrong (lookalike species) | roster constraint limits damage to plausible-local mistakes; the row is written `unverified` and surfaced in the next briefing, where a correction is a reply; confidence stored in the event attrs for later audit |
 | Out-of-roster true positive (genuinely new species) | that's a feature — ⚠️new-entity proposal with the species guess pre-filled |
 | VL judge hallucinates on escalation | temp 0, "say 'uncertain' if unsure" prompt, propose-only; judge output never auto-files |
 | VL load OOMs against a TTS burst | single-flight + keep_alive 0 (seconds-long window); eyes Ollama dies → Restart=on-failure; voice tenants unaffected (already resident) |
 | Eyes service down | ingest endpoint degrades to today's manual-subject flow — identify mode returns "eyes offline, name it yourself" |
 | Vulkan regression binds eyes Ollama to the 5080 | env belt above + post-start nvidia-smi assertion before the unit reports ready |
 | OCR misreads the decimal (3.2 lb read as 32 lb) | low-confidence decimal is flagged ambiguous with both candidates shown, never rounded; range check against `harvest_totals()` marks it unusual; the display crop rides along so review is a glance |
-| Model invents a weight the display never showed | quantity may only come from pixels of a display or label; the tier returns `unreadable` rather than an estimate, and the row reaches review blank |
-| Eyes proposal duplicates a harvest the human already logged | reconcile, never insert beside: match on the capture batch ID, else on (bed, crop) in a short window; agreement discards the proposal instead of writing a second row |
-| OCR trusted on a surface it was never good at | calibration is per surface, not global; `review_eyes.py calibration` prints agreement rate per scale/label type and pre-fill graduates per surface |
+| Model invents a weight the display never showed | quantity may only come from pixels of a display or label; the tier returns `unreadable` rather than an estimate, and the row is written with a null quantity that the briefing asks about |
+| Eyes row duplicates a harvest the human logged by voice | capture writes once and the human is not asked to log it twice, which removes most of the overlap; a same-day (bed, crop) collision is flagged in the briefing as a possible double rather than silently merged |
+| OCR trusted on a surface it was never good at | calibration is per surface, not global, and is built from briefing corrections; a surface whose correction rate stays high gets its reads written blank-with-a-prompt instead of filled |
 
 ## Parked: Frigate / live cameras
 

@@ -65,6 +65,18 @@ green, 209 tests.
   step is missing. The gain is the species you cannot name out loud, plus photo evidence attached
   to a first-of-season date that year-over-year comparisons will lean on.
 
+**Reversed the commit gate, same day.** The spec had field capture ending in a batch review:
+nothing enters records until a human approves the rows. Checked the note-taker's inbox, which is
+the identical propose-then-promote mechanism running since mid-June: **29 pending against 4
+promoted, oldest 71 days**. A gate that depends on coming back later is a gate that stays shut, and
+the calibration lane was worse still, asking for the harvest to be logged by hand *and* the machine
+read reviewed against it. The asymmetry that settles it: a wrong weight is visible and editable
+forever, an unlogged harvest never existed. So capture writes immediately flagged `unverified`, and
+the 7:10 briefing (an existing habit, already read) is where corrections happen by reply.
+Calibration then costs nothing, because every correction is a labelled failure captured at a moment
+the human was already looking. Invariant #4 holds: entities still gate on a confirm because they
+are expensive to retrofit, events do not because they are cheap and correctable.
+
 ### Next concrete action
 
 Read `EYES_PLAN.md` end to end with the accumulator/reset context fresh and settle the one open
