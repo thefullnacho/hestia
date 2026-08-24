@@ -10,6 +10,9 @@ confirm, same as the note-taker's review inbox and the ingest endpoint's ⚠️n
 Decision history (2026-07-22): classifier-first tiering + photo-ID scope set by Alex; VRAM
 split and on-demand VL design adapted from a Kimi K3 analysis (conductor-pattern dispatch);
 Frigate camera phases from that analysis parked until real cameras exist.
+Added 2026-08-21: NFC-assisted field capture. Added 2026-08-24: the OCR tier and its
+per-surface calibration gate (decided), plus accumulator/reset tags and the landing-site
+survey (written down for review, not decided).
 
 ## What it replaces
 
@@ -123,6 +126,46 @@ whelping area, and one temporary-project tag—before encoding the wider estate.
 outdoor/on-metal tags for exposed beds, tools, and metal equipment; use adhesive tags for bins,
 jars, baskets, seed trays, and indoor supplies.
 
+### Accumulator and reset tags (proposed 2026-08-24, not decided)
+
+A tap is a bare session marker: it says something happened to this object, not what. The way
+out is not to make the tap descriptive, it is to **let the tag carry the meaning**. One tag per
+action, not one tag per object. At $0.26 a tag this is the cheap side of the trade.
+
+Give an object as many tags as it has actions worth counting, which in practice is two: the
+action that **accumulates**, and the action that **resets** the counter.
+
+| Object | Accumulator tag | Reset tag |
+|---|---|---|
+| Washing machine | lid: "washed a load" | filter door: "drained the filter" |
+| Mower | handle: "used it" | oil cap: "changed the oil" |
+| Chainsaw | case: "used it" | bar: "sharpened / re-tensioned" |
+
+Nothing needs disambiguating, because the human resolved the meaning by choosing which tag to
+touch. No menu, no session state, no model. The reset tap is simultaneously the service record
+and the zeroing of the count, so there is only ever one thing to remember to do.
+
+The motivating case is the washing machine filter: about every 20 washes, reliably forgotten,
+and never tracked because there was no counter to hang it on.
+
+**Prerequisite, and it is a real bug.** `due_assets()` (`records_store.py:475`) finds an
+asset's *last logged event of any kind* and compares its age to `attrs.interval_days`. The
+query has no filter on `kind`. The moment use-taps start landing as events, every use resets
+the maintenance clock, the asset goes quiet in the morning briefing, and the failure is
+silent and in the dangerous direction. The kind filter has to land **before** use events
+exist, not after, along with a decision about what existing rows count as service.
+
+**Usage may add urgency, never remove it.** Taps undercount, because a forgotten tap is a use
+that never gets recorded and there is no correcting signal. So a use threshold can only ever be
+a floor, ORed with the existing calendar ceiling: `interval_uses: 20` OR `interval_days: 56`,
+whichever trips first, and the briefing says which one did.
+
+**Where this would be built:** `due_assets()` plus `briefing.py` plus a tap endpoint. It is a
+counter and a threshold, which is a `COUNT(*)` since the last reset event, so it is records and
+timers work and none of it belongs to the eyes service or the model. It is written down here
+only because NFC is the shared front door. The hour-meter read below is the sole piece of it
+that is actually vision.
+
 ### The intended flow
 
 1. Tap an NFC tag (or open the capture screen) to start a timestamped session with the right
@@ -196,6 +239,9 @@ has teeth: **a quantity may only come from pixels of a display or a printed labe
   the VL judge. **Vet these on real photos of the actual kitchen and hanging scales before
   picking one.** This is a measurement, not a preference, and the tier design survives the
   engine swapping.
+- **A connected scale beats all of this.** Where the hardware can hand over the number
+  directly (Bluetooth/WiFi), take the number and skip the read entirely. See "Where this
+  lane lands" below.
 - The VRAM budget above is unchanged: the OCR tier runs on CPU inside `hestia-eyes.service`.
   Only a VL escalation costs GPU, and it stays on-demand and single-flight.
 - Every read stores **the cropped display region** alongside the number. Review shows the
@@ -254,6 +300,35 @@ The rule that makes this safe:
 `review_eyes.py` mirrors `review_notes.py` (`list` / `promote` / `discard`) and adds a
 `calibration` subcommand that prints agreement rate per surface, so the decision to trust a
 read is a number you can look at rather than a feeling about how it has been going.
+
+### Where this lane lands
+
+The lane is worth more than harvest logging, and most of its landing sites already exist as
+records paths. What is missing in each case is only the capture step.
+
+- **Harvest** (first template): classifier picks the crop from the bed's plantings, OCR reads
+  the scale, `log_harvest()` files it. Feeds the almanac's Harvest section and the YoY deltas.
+- **Whelping**: a newborn batch inheriting dam/sire/litter context from the whelping-area tag,
+  proposing birth weight and first photo per pup.
+- **Wildlife into the almanac** (the long-discussed piece, and the shortest path of the lot):
+  send a photo, the classifier proposes a species against the records roster, confirming it
+  logs a `sighting` event exactly as the wildlife skill's voice path already does. The almanac
+  already keys its wildlife section off those events (first sighting this season, ×N total,
+  `almanac.py:73`), so a confirmed photo ID lands in the season page with no new plumbing.
+  The gain over voice logging is not speed, it is the species you cannot name out loud, plus
+  a photo attached as evidence to a first-of-season date that YoY comparisons will lean on.
+- **Maintenance meters**: photograph a mower or generator hour meter and OCR the reading, so a
+  usage threshold runs on real hours instead of tap count. See the accumulator/reset tags above.
+- **Inventory and labels**: seed packets, feed bags, part numbers, expiry dates. Ordinary
+  printed-text OCR, the easy half of the tier.
+
+**Connected hardware beats reading a display.** A Bluetooth or WiFi scale would hand over an
+exact number with no read to verify and no calibration lane to run, and where that hardware
+exists it should be preferred outright: prefer a number to a picture of a number. That keeps
+OCR aimed at the surfaces that will never be connected, which is most of them. The mower's
+hour meter, the seed packet, the old kitchen scale, and the neighbour's borrowed tool are not
+getting firmware. Worth checking which scales in the house already talk before investing in
+the seven-segment read. (Noted 2026-08-24, not chased yet.)
 
 ### Design rules
 
