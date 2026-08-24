@@ -148,12 +148,14 @@ and the zeroing of the count, so there is only ever one thing to remember to do.
 The motivating case is the washing machine filter: about every 20 washes, reliably forgotten,
 and never tracked because there was no counter to hang it on.
 
-**Prerequisite, and it is a real bug.** `due_assets()` (`records_store.py:475`) finds an
-asset's *last logged event of any kind* and compares its age to `attrs.interval_days`. The
-query has no filter on `kind`. The moment use-taps start landing as events, every use resets
-the maintenance clock, the asset goes quiet in the morning briefing, and the failure is
-silent and in the dangerous direction. The kind filter has to land **before** use events
-exist, not after, along with a decision about what existing rows count as service.
+**Prerequisite: FIXED 2026-08-24.** `due_assets()` (`records_store.py:475`) found an asset's
+*last logged event of any kind* and compared its age to `attrs.interval_days`. The query had no
+filter on `kind`, so any event reset the maintenance clock. This was already live, not just a
+hazard waiting on use-taps: the photo intake's `asset` domain files a `photo` event against the
+asset itself, so photographing the mower marked it maintained and it went quiet in the morning
+briefing. Now only `_SERVICE_KINDS` (`chore`, `service`) restart the clock, as an allowlist, so
+a future NFC use-tap fails safe by leaving the asset visibly due. Regression test:
+`test_only_service_events_reset_the_clock`.
 
 **Usage may add urgency, never remove it.** Taps undercount, because a forgotten tap is a use
 that never gets recorded and there is no correcting signal. So a use threshold can only ever be

@@ -30,6 +30,13 @@ DB_PATH = config.DB_PATH
 # default entity kind to mint when a log's subject doesn't exist yet, per event kind
 _SUBJECT_KIND = {"sighting": "species", "chore": "asset", "health": "pet"}
 
+# Event kinds that mean "this asset was serviced" and so restart its interval clock, read by
+# due_assets(). An allowlist, not a denylist, because the failure directions are not symmetric:
+# an unlisted kind leaves the asset showing as due (visible, annoying, safe), while a kind that
+# wrongly counts as service makes it go quiet in the briefing and never come back. A photo of
+# the mower is not an oil change, and neither is an NFC use-tap.
+_SERVICE_KINDS = ("chore", "service")
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS entities (
   id INTEGER PRIMARY KEY,
@@ -473,7 +480,10 @@ def entity_profile(name: str) -> dict | None:
 
 
 def due_assets() -> list[dict]:
-    """Assets with attrs.interval_days whose last logged event is older than the interval."""
+    """Assets with attrs.interval_days whose last SERVICE event is older than the interval.
+    Only `_SERVICE_KINDS` count: the clock measures time since the asset was last worked on,
+    not since anything at all happened to it. Photographing the mower (a `photo` event, which
+    the asset-domain photo intake files against the asset itself) must not mark it maintained."""
     now = dt.datetime.now()
     out = []
     with _conn() as c:
@@ -482,8 +492,10 @@ def due_assets() -> list[dict]:
             interval = attrs.get("interval_days")
             if not interval:
                 continue
-            last = c.execute("SELECT ts FROM events WHERE entity_id=? ORDER BY ts DESC LIMIT 1",
-                             (r["id"],)).fetchone()
+            last = c.execute(
+                "SELECT ts FROM events WHERE entity_id=? AND kind IN "
+                f"({','.join('?' * len(_SERVICE_KINDS))}) ORDER BY ts DESC LIMIT 1",
+                (r["id"], *_SERVICE_KINDS)).fetchone()
             if last:
                 age = (now - dt.datetime.fromisoformat(last["ts"])).days
                 last_str = last["ts"][:10]

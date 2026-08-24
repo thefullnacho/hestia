@@ -92,6 +92,20 @@ def test_due_assets_flags_overdue_only(db):
     assert "Furnace Filter" in due and "Smoke Alarm" not in due
 
 
+def test_only_service_events_reset_the_clock(db):
+    """A photo is not an oil change. The asset-domain photo intake files a `photo` event against
+    the asset itself, so counting any event as service would let photographing the mower mark it
+    maintained — and the same for an NFC use-tap, which is the whole point of tracking uses."""
+    db.upsert_entity("asset", "Mower", attrs={"interval_days": 30})
+    old = (dt.datetime.now() - dt.timedelta(days=40)).isoformat(timespec="seconds")
+    db.log_event("chore", subject="Mower", action="changed the oil", ts=old)
+    db.attach_photo("Mower", "/photos/asset/mower/today.jpg", domain="asset")
+    db.log_event("note", subject="Mower", action="noted", detail="starts on the second pull")
+    due = {d["name"]: d for d in db.due_assets()}
+    assert "Mower" in due, "a photo and a note must not count as servicing the mower"
+    assert due["Mower"]["days_since"] == 40   # the clock still reads from the oil change
+
+
 def test_asset_never_serviced_is_due(db):
     db.upsert_entity("asset", "Gutters", attrs={"interval_days": 180})
     due = {d["name"]: d for d in db.due_assets()}
