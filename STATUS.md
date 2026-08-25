@@ -77,6 +77,15 @@ Calibration then costs nothing, because every correction is a labelled failure c
 the human was already looking. Invariant #4 holds: entities still gate on a confirm because they
 are expensive to retrofit, events do not because they are cheap and correctable.
 
+**Flag expiry specced in the same pass**, because the briefing is now load-bearing and could
+become the next unread inbox. Two briefings then the flag clears for good, the row keeps its number
+either way, and the list is capped with the remainder counted so a heavy harvest morning cannot
+produce a wall. It is a predicate rather than a process: an `unverified_until` stamp in the event
+attrs, so there is no sweep job that can fail silently. The nastier catch it also closes is that
+free calibration depends on reading silence as agreement, which is only true if somebody looked;
+without engagement in the window a row is `unreviewed` and excluded from the rate, since a
+believable wrong accuracy number is worse than no number.
+
 ### Next concrete action
 
 Read `EYES_PLAN.md` end to end with the accumulator/reset context fresh and settle the one open
