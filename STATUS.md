@@ -27,7 +27,8 @@ The part that makes the whole capture cheap is not vision at all: the NFC tag gi
 this is over all of botany, only which of the two or three things actually planted there. A
 confident answer from outside that list becomes a flag rather than a result.
 
-**Trust is earned per surface.** Log the harvest by hand as usual, let Eyes read the same photo,
+**Trust is earned per surface** (superseded later the same day, see "Reversed the commit gate"
+below; kept because the reasoning is why the reversal happened). Log the harvest by hand as usual, let Eyes read the same photo,
 and reconcile rather than insert: match on the capture batch ID or on (bed, crop) in a short
 window, count agreements, and keep disagreements as labelled failures with the display crop
 attached. Duplicate harvest rows would poison the season totals and the year-over-year deltas,
@@ -99,6 +100,9 @@ downstream of choosing which objects get tagged first.
 - `[non-production]` Read the spec fresh and decide on accumulator/reset tags.
 - `[non-production]` Check whether either house scale is Bluetooth or WiFi, which decides whether
   the seven-segment OCR work is worth doing at all.
+- `[non-production]` Decide what happens to the 29 stale note-taker proposals. Recommendation is
+  bulk discard rather than a review session: the oldest is 71 days, most are moot, and the fix
+  was the mechanism, not the backlog.
 
 ---
 
