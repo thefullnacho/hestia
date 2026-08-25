@@ -201,7 +201,8 @@ that is actually vision.
 3. **The next morning's briefing carries the unverified rows**, because it is a habit that
    already exists and is already read at 7:10. Correcting one is a reply: "those tomatoes were
    Bed 1, not Bed 4", "make that 3.2". A row nobody corrects simply stays, and clears its
-   `unverified` flag after a set time so the briefing does not accumulate.
+   `unverified` flag after a set time so the briefing does not accumulate. See "The unverified
+   flag, and when it expires".
 4. A row that cannot be filled stays visibly incomplete rather than being invented. An
    unreadable weight writes the harvest with a null quantity and says so in the briefing, which
    is a prompt to fix a real row rather than a proposal waiting to become one.
@@ -324,6 +325,52 @@ an unlogged harvest is a hole in the record that YoY comparisons cannot see arou
 remain possible forever, and the `unverified` flag plus the stored display crop means an audit
 later can always tell which numbers a model produced.
 
+#### The unverified flag, and when it expires
+
+The flag needs an expiry from the first commit, not added later. Without one the briefing grows a
+tail of old rows nobody corrected, and then the briefing itself becomes the thing that stops being
+read. That is the same failure this whole section is designed against, moved up one layer, and it
+would be easy to ship without noticing.
+
+**Expiry means the flag clears, not that anything changes.** The row keeps its number, its photo,
+and its provenance. It stops appearing in the briefing and it never comes back. Nothing is deleted
+and nothing is rewritten, because an uncorrected row is the record.
+
+**Default: two briefings, so roughly 48 hours.** One appearance is too few, since a single missed
+morning would mean a row never got its one chance. More than two is clutter, and clutter is what
+kills the surface. The deeper reason for a short window is that **the expiry should be shorter than
+the human's memory of the ground truth.** Two days out you no longer remember whether the scale
+said 3.2 or 3.4, so a prompt at that range invites a guess, and a guessed correction is worse than
+an honest machine read. Per-template overrides are allowed (a birth weight is remembered better and
+matters more than an equipment note), but the default is one number in one place.
+
+**Implementation: a predicate, not a process.** Store `unverified_until` as an ISO stamp in the
+event attrs at write time. The briefing selects rows where `unverified_until > now`; the
+calibration query counts corrected against expired-uncorrected. There is no sweep job, no state
+machine, no timer that can fail silently, and nothing to reconcile after a restore. Expiry is a
+timestamp comparison, which puts it where thresholds belong.
+
+**Cap what the briefing shows.** A heavy harvest morning can produce a dozen rows, and a dozen rows
+is a wall that gets skipped. Show at most a handful, ordered by uncertainty first (null quantity,
+then low confidence, then out-of-range), and count the rest: "+6 more, all read cleanly". The
+remainder stays visible on the dashboard for anyone who wants it. A capped list is read; a long one
+is not.
+
+**Silence is weak evidence, and the calibration record must not pretend otherwise.** The free
+accuracy number depends on treating an expired uncorrected read as an agreement, which is only
+true if a human actually looked. If nobody read the briefing for a week, every read "agrees" and
+the accuracy rate becomes a confident lie about a system nobody is checking. So an expiry counts as
+an agreement only when there is evidence of engagement in that window, the cheapest deterministic
+proxy being that at least one correction landed in the trailing week. Otherwise the row is recorded
+as `unreviewed` and **excluded from the rate entirely**. A correction rate computed from a hundred
+rows nobody looked at is worse than having no number at all, because it will be believed.
+
+**The almanac does not special-case unverified rows.** They count in season totals and YoY deltas
+like any other, which follows directly from the asymmetry above: a slightly wrong weight moves a
+total, a missing harvest leaves a hole nothing can see around. The `unverified` history stays in
+the attrs, so an audit later can always ask which numbers came from a model and which a human
+touched.
+
 ### Where this lane lands
 
 The lane is worth more than harvest logging, and most of its landing sites already exist as
@@ -395,6 +442,8 @@ router) injects the latest eyes proposal into the prompt. Cheap, no new model wo
 | OCR misreads the decimal (3.2 lb read as 32 lb) | low-confidence decimal is flagged ambiguous with both candidates shown, never rounded; range check against `harvest_totals()` marks it unusual; the display crop rides along so review is a glance |
 | Model invents a weight the display never showed | quantity may only come from pixels of a display or label; the tier returns `unreadable` rather than an estimate, and the row is written with a null quantity that the briefing asks about |
 | Eyes row duplicates a harvest the human logged by voice | capture writes once and the human is not asked to log it twice, which removes most of the overlap; a same-day (bed, crop) collision is flagged in the briefing as a possible double rather than silently merged |
+| Briefing becomes the new unread inbox | the `unverified` flag expires after two briefings and never re-raises, and the list is capped with the remainder counted, so the surface stays short enough to read |
+| Calibration rate computed from rows nobody looked at | an expiry counts as agreement only with evidence of engagement in that window (a correction landed in the trailing week); otherwise the row is `unreviewed` and excluded from the rate, because a believable wrong number is worse than none |
 | OCR trusted on a surface it was never good at | calibration is per surface, not global, and is built from briefing corrections; a surface whose correction rate stays high gets its reads written blank-with-a-prompt instead of filled |
 
 ## Parked: Frigate / live cameras
