@@ -49,6 +49,10 @@ from prompt import SYSTEM_PROMPT  # noqa: E402
 
 OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
 MODEL = os.environ.get("HESTIA_MODEL", "qwen3:14b")
+# Explicit, not left to each model's undocumented Ollama default — some GGUFs default far
+# below what the real system prompt + tool surface needs (~5.7k tokens worst case) and
+# silently 400 instead of truncating. See brain/eval_keymatch.py's num_ctx fix.
+NUM_CTX = int(os.environ.get("HESTIA_NUM_CTX", "32768"))
 MAX_STEPS = int(os.environ.get("HESTIA_MAX_STEPS", "6"))
 # Wall-clock guards so a slow/hung backend can't hang a whole request (2026-06-11: a hung
 # SearXNG made one turn run ~5 min). TURN_BUDGET bounds the entire request; TOOL_BUDGET caps
@@ -203,7 +207,8 @@ async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dic
     # see brain/eval_models.py — qwen3:14b no-think scored 100%/100% English at 1.5s).
     body = {"model": MODEL, "messages": messages,
             "tools": tools.SCHEMAS if schemas is None else schemas,
-            "stream": False, "think": THINK, "options": {"temperature": 0.3}}
+            "stream": False, "think": THINK,
+            "options": {"temperature": 0.3, "num_ctx": NUM_CTX}}
     r = await client.post("/api/chat", json=body)
     r.raise_for_status()
     return r.json()["message"]
