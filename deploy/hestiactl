@@ -7,13 +7,19 @@
 #   hestiactl health                 raw brain /health JSON
 #   hestiactl up|down|restart NAME   NAME: brain ollama | prowlarr sonarr radarr
 #                                    lidarr slskd flaresolverr | plex qbit ha
-#                                    adguard gluetun searxng mqtt | all
+#                                    adguard gluetun searxng mqtt | all | gpu
 #   hestiactl logs NAME [-f]         journalctl (local) or docker logs (remote)
 #   hestiactl vpn                    verify the qBittorrent kill-switch
 #
 # "all" means the Hestia-managed pieces: local units + the arr stack. The core
 # stack (Plex, qbit/gluetun, HA, AdGuard, MQTT) predates Hestia and is never
 # bulk-touched — control those one at a time, by name.
+#
+# "gpu" is just brain+ollama (both local units, no arr/hl-relay touch) — the
+# resident model is pinned to the 5080 with OLLAMA_KEEP_ALIVE=-1, so "down gpu"
+# is the only way to actually free that VRAM (stopping brain alone leaves the
+# model loaded). Use it to hand the 5080 to something else (e.g. gaming) and
+# "up gpu" to bring the brain back — expect a cold-start model load on the way up.
 
 set -uo pipefail
 
@@ -115,6 +121,15 @@ cmd_power() {  # cmd_power <up|down|restart> <name|all>
   local action=$1 target=${2:-} verb
   [[ -n $target ]] || die "usage: hestiactl $action <service|all>"
   case $action in up) verb=start ;; down) verb=stop ;; restart) verb=restart ;; esac
+
+  if [[ $target == gpu ]]; then
+    local u units=("${LOCAL_UNITS[@]}")
+    [[ $action == up ]] && units=(hestia-ollama hestia-brain)  # ollama before brain so it's ready when brain starts
+    for u in "${units[@]}"; do
+      echo "systemctl --user $verb $u"; systemctl --user "$verb" "$u"
+    done
+    return
+  fi
 
   if [[ $target == all ]]; then
     local u
