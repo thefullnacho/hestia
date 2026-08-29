@@ -7,6 +7,64 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-08-29 — the Qwen3.8-27B trial survives a real OOM crash, and hestiactl gets a GPU toggle
+
+**Minecraft needed the 5080's VRAM.** First attempt (pinning Prism Launcher's rendering to the
+4060 Ti via GNOME's `switcherooctl`, a `.desktop` override) crashed Minecraft and was rolled
+back. The fix that stuck: `hestiactl` gained a `gpu` target (`up`/`down`), stopping or starting
+`hestia-brain` and `hestia-ollama` together. `down brain` alone was never enough to free VRAM,
+since `OLLAMA_KEEP_ALIVE=-1` keeps the model resident until Ollama itself stops. Committed and
+pushed (`61f1f61`).
+
+**The Qwen3.8-27B resident-brain trial hit a real production crash.** Same day it started, the
+UD-IQ4_XS quant (about 15.5GB resident, leaving only ~700MB headroom on the 16GB 5080) began
+throwing genuine CUDA out-of-memory aborts mid-conversation, confirmed in `ollama`'s own log
+(`ggml_cuda_pool_vmm::alloc`, `runtime OOM detected`), not a hang. Reverted to `qwen3:14b` to
+restore service.
+
+**Side effect worth knowing:** the `num_ctx=32768` fix that made the trial possible at all
+(`93b20e9`, already committed) applies to every resident model, not only the trial one.
+`qwen3:14b`'s own footprint grew from about 10GB to about 14.5GB, so the 5080's normal headroom
+is now roughly 1.8GB, not the ~6GB earlier notes describe.
+
+**Round two, same day: the smaller `Q3_K_XL` quant plus a halved context window.** Pulling
+`Q3_K_XL` (13.1GB weights vs UD-IQ4_XS's 14.3GB) hit a real upstream Ollama bug: registration
+fails with a bare "file does not exist" right after the download completes clean
+([ollama/ollama#15447](https://github.com/ollama/ollama/issues/15447)). Worked around it by
+hand-building the Ollama manifest from the already-downloaded, hash-verified blobs, no re-pull
+needed. Result: the smaller quant alone barely moved headroom (about 756MB free, roughly the same
+as before), but halving `HESTIA_NUM_CTX` (32768 to 16384) on top brought it to about 1052MB free.
+Confirms the architecture's near-fixed-size KV state again: neither the weight quant nor the
+context length is the dominant VRAM lever the original trial notes assumed.
+
+Live now on `Q3_K_XL` + 16384 context (`~/.config/systemd/user/hestia-brain.service`, not the
+tracked template, this stays a personal live-unit trial). The unit has run continuously since
+2026-08-28 07:27 with no restarts and no OOM errors logged, including through a real stretch of
+ordinary use that afternoon and evening (media recommendations, movie downloads via the `media`
+tool). That is a genuinely good sign. As of this entry, `qwen3:14b` happens to be the model
+actually resident in VRAM (likely separate manual testing, unrelated to the brain unit, which
+never restarted), so the next real request through the brain will pay a fresh cold-start reload
+of `Q3_K_XL`.
+
+### In flight
+
+- **`Q3_K_XL` + halved-context Qwen3.8-27B, soak-testing.** `[non-production]` Watching whether
+  roughly 1GB of headroom holds up over the following days is on the operator, not a build task.
+  Revert path if it OOMs again: set `HESTIA_MODEL=qwen3:14b` in the live unit, drop the
+  `HESTIA_NUM_CTX` override, `daemon-reload` + restart `hestia-ollama` and `hestia-brain`.
+- **Multi-GPU tensor split, untested.** The 4060 Ti sits mostly idle (about 4GB used for voice,
+  about 12GB free) while `hestia-ollama` is pinned to the 5080 only via `CUDA_VISIBLE_DEVICES`.
+  Letting Ollama see both GPUs would tensor-split the model across roughly 28GB combined, likely
+  solving the headroom problem outright at the cost of some cross-GPU latency. Next concrete
+  action, not yet started.
+- **Semantic memory recall moved up in priority**, not from the original design doc but from live
+  use: the resident brain named its own keyword-only recall as a real gap unprompted, independently
+  confirming what `MEMORY-DESIGN.md`'s vector-recall "later" item already planned.
+
+**Small find, not a big deal:** a Plex library listing (71 movies) surfaced one mis-tagged entry,
+"The Lord of the Rings: The Two Towers - Extended Edition - Audio Commentary by the Cast" is filed
+as its own movie, and the actual film isn't in the library under its normal name. `[non-production]`
+
 ## 2026-08-24 — Eyes gets an OCR lane, and a maintenance clock that anything could reset
 
 **Where this started.** Looking for notes on "giving Hestia eyes" in the context of photo-logging
