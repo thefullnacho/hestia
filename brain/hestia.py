@@ -41,6 +41,7 @@ config.load_secrets()
 import datetime as _dt  # noqa: E402
 
 import memory_store  # noqa: E402
+import nfc  # noqa: E402
 import note_taker  # noqa: E402
 import records_store  # noqa: E402
 import review_notes  # noqa: E402
@@ -87,6 +88,10 @@ _tool_slots = asyncio.BoundedSemaphore(TOOL_WORKERS)
 # `photo` event is logged against the named entity (see records_store.attach_photo). Token auth.
 INGEST_TOKEN = os.environ.get("INGEST_TOKEN", "")
 PHOTO_DIR = config.PHOTO_DIR
+
+# NFC capture (see nfc.py): a tag-triggered harvest/service log that never touches the model —
+# a scanned tag can't afford the agent's silent "logged it" failure (2026-09-01 incident).
+NFC_TOKEN = os.environ.get("NFC_TOKEN", "")
 _PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif"}
 _MAX_PHOTO_BYTES = 25 * 1024 * 1024  # 25 MB — a phone photo is a few MB; reject the absurd
 
@@ -600,6 +605,41 @@ async def ingest_photo(request: Request):
     return {"ok": True, "domain": domain, "bytes": len(data), "filed": filed, "warning": warning,
             # back-compat: first subject's values, where older clients read them flat
             "subject": filed[0]["subject"], "saved": filed[0]["saved"]}
+
+
+@app.get("/nfc")
+async def nfc_capture(token: str = "", kind: str = "", subject: str = ""):
+    """Render the capture form for a scanned tag. Never touches the model — see nfc.py."""
+    if not NFC_TOKEN or token != NFC_TOKEN:
+        return HTMLResponse(nfc.bad_token_page(), status_code=401)
+    if not subject:
+        return HTMLResponse(nfc.error_page("Tag URL is missing 'subject'.", "400"), status_code=400)
+    return HTMLResponse(nfc.capture_form(kind, subject, token))
+
+
+@app.post("/nfc/log")
+async def nfc_log(request: Request):
+    """Write the scan (harvest or service) straight to records_store and confirm. Runs off the
+    event loop — sqlite writes are sync — but is a plain deterministic call, no agent involved."""
+    form = await request.form()
+    token = str(form.get("token") or "")
+    if not NFC_TOKEN or token != NFC_TOKEN:
+        return HTMLResponse(nfc.bad_token_page(), status_code=401)
+    kind = str(form.get("kind") or "")
+    subject = str(form.get("subject") or "").strip()
+    if not subject:
+        return HTMLResponse(nfc.error_page("Tag URL is missing 'subject'.", "400"), status_code=400)
+
+    if kind == "harvest":
+        body, status = await asyncio.to_thread(
+            nfc.log_harvest_tag, subject, str(form.get("crop") or ""),
+            str(form.get("qty") or ""), str(form.get("unit") or ""))
+    elif kind == "service":
+        body, status = await asyncio.to_thread(
+            nfc.log_service_tag, subject, str(form.get("note") or ""))
+    else:
+        body, status = nfc.error_page(f"Unknown kind '{kind}'.", "400"), 400
+    return HTMLResponse(body, status_code=status)
 
 
 # --- Voice loop (browser mic -> brain -> Wyoming services) -------------------------------------

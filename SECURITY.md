@@ -43,6 +43,9 @@ the contents back.
 - The photo/records **ingest endpoint requires a token** (`X-Ingest-Token` header or `Authorization:
   Bearer`). Set a strong `INGEST_TOKEN`; without one the endpoint refuses requests. This is still
   not a substitute for keeping the service on a private network.
+- The **NFC capture endpoints** (`GET /nfc`, `POST /nfc/log`) require a `token` query/form param
+  matching `NFC_TOKEN`. This path deliberately bypasses the model entirely — see `brain/nfc.py` —
+  so a scanned tag's write can't be silently swallowed the way a chat-agent tool call can be.
 
 ## Data
 

@@ -58,7 +58,7 @@ if str(BRAIN_DIR) not in sys.path:
 # systemd `Environment=` lines still win over the files. hosts.env carries deployment-specific
 # service addresses (e.g. where Whisper/Piper bind) so they stay out of the public tree; see
 # deploy/hosts.env.example. Missing bundles are skipped, so a single-box default just works.
-_SECRET_FILES = ("ha.env", "media.env", "ingest.env", "hosts.env")
+_SECRET_FILES = ("ha.env", "media.env", "ingest.env", "nfc.env", "hosts.env")
 
 
 def load_secrets() -> None:
