@@ -7,10 +7,12 @@ backstop to notice a silent no-op later. This module never touches the model —
 plain form, the form POSTs straight to `records_store`, and the reply says exactly what was
 written (or exactly what was wrong), synchronously, in the response.
 
-A tag encodes a URL like `/nfc?token=...&kind=harvest&subject=Bed+2` (garden beds) or
+A tag encodes a URL like `/nfc?token=...&kind=harvest&subject=Bed+2` (garden beds),
 `/nfc?token=...&kind=service&subject=Furnace+Filter` (assets — resets the `due` clock, see
-`records_store.due_assets`). `subject` is the bed/asset name; GET renders the capture form
-with it locked in, POST /nfc/log does the write and renders the confirmation.
+`records_store.due_assets`), or `/nfc?token=...&kind=use&subject=Weedwhacker` (assets whose
+maintenance isn't calendar-based — just a running log of minutes run, no due date implied).
+`subject` is the bed/asset name; GET renders the capture form with it locked in, POST /nfc/log
+does the write and renders the confirmation.
 """
 from __future__ import annotations
 
@@ -71,8 +73,17 @@ def capture_form(kind: str, subject: str, token: str) -> str:
         <input id="note" name="note" type="text" placeholder="serviced" autocomplete="off">
         """
         button = "Log service"
+    elif kind == "use":
+        fields = """
+        <label for="minutes">Minutes run</label>
+        <input id="minutes" name="minutes" type="number" step="any" inputmode="decimal" autofocus required>
+        <label for="note">Note (optional)</label>
+        <input id="note" name="note" type="text" placeholder="e.g. front + back yard" autocomplete="off">
+        """
+        button = "Log run"
     else:
-        return error_page(f"Unknown kind '{html.escape(kind)}' — tag should encode kind=harvest or kind=service.", "400")
+        return error_page(f"Unknown kind '{html.escape(kind)}' — tag should encode "
+                          "kind=harvest, kind=service, or kind=use.", "400")
 
     safe_subject = html.escape(subject)
     return _page(f"""
@@ -126,3 +137,19 @@ def log_service_tag(subject: str, note: str) -> tuple[str, int]:
     r = store.log_event("service", subject=subject, action="serviced", detail=detail,
                         subject_kind="asset", strict_subject=True)
     return _confirm("Logged service", f"{subject} — {detail}", r.get("created", False), subject), 200
+
+
+def log_use_tag(subject: str, minutes: str, note: str) -> tuple[str, int]:
+    """Write a runtime/usage event (no due-date implied — just a log for averages later,
+    e.g. the weedwhacker: no service interval, just 'how long did this run'). Returns (html, status)."""
+    try:
+        m = float(minutes)
+    except (TypeError, ValueError):
+        return error_page("Minutes must be a number.", "400"), 400
+    if not m > 0:
+        return error_page("Minutes must be a positive number.", "400"), 400
+    note = (note or "").strip()
+    detail = f"{m:g} min" + (f" — {note}" if note else "")
+    r = store.log_event("use", subject=subject, action="ran", detail=detail,
+                        subject_kind="asset", strict_subject=True, attrs={"minutes": m})
+    return _confirm(f"Logged {m:g} min run", subject, r.get("created", False), subject), 200

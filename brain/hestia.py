@@ -637,6 +637,9 @@ async def nfc_log(request: Request):
     elif kind == "service":
         body, status = await asyncio.to_thread(
             nfc.log_service_tag, subject, str(form.get("note") or ""))
+    elif kind == "use":
+        body, status = await asyncio.to_thread(
+            nfc.log_use_tag, subject, str(form.get("minutes") or ""), str(form.get("note") or ""))
     else:
         body, status = nfc.error_page(f"Unknown kind '{kind}'.", "400"), 400
     return HTMLResponse(body, status_code=status)

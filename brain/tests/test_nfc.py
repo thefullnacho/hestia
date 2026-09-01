@@ -41,6 +41,30 @@ def test_log_harvest_tag_rejects_bad_qty(db):
     assert status2 == 400
 
 
+def test_log_use_tag_writes_minutes(db):
+    db.upsert_entity("asset", "Weedwhacker")
+    import nfc
+    body, status = nfc.log_use_tag("Weedwhacker", "45", "front + back yard")
+    assert status == 200
+    assert "Logged 45 min run" in body
+
+
+def test_log_use_tag_rejects_bad_minutes(db):
+    import nfc
+    body, status = nfc.log_use_tag("Weedwhacker", "not-a-number", "")
+    assert status == 400
+    body2, status2 = nfc.log_use_tag("Weedwhacker", "0", "")
+    assert status2 == 400
+
+
+def test_log_use_tag_does_not_affect_due_assets(db):
+    # 'use' is a metric log, not a service event — must never satisfy an interval_days reminder.
+    db.upsert_entity("asset", "Weedwhacker", attrs={"interval_days": 30})
+    import nfc
+    nfc.log_use_tag("Weedwhacker", "45", "")
+    assert any(a["name"] == "Weedwhacker" for a in db.due_assets())
+
+
 def test_log_service_tag_resets_due_clock(db):
     db.upsert_entity("asset", "Furnace Filter", attrs={"interval_days": 90})
     import nfc
