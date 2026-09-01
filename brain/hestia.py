@@ -482,6 +482,15 @@ async def memory_inbox(limit: int = 0):
     return JSONResponse({"count": total, "dir": str(review_notes.INBOX_DIR), "proposals": rows})
 
 
+@app.get("/maintenance/due")
+async def maintenance_due():
+    """Assets whose service interval has lapsed, as JSON — the same records_store.due_assets()
+    the `records due` chat action formats for speech, so the dashboard and the spoken answer
+    can never disagree (same move as /status vs. the `status` tool)."""
+    rows = await asyncio.to_thread(records_store.due_assets)
+    return JSONResponse({"count": len(rows), "assets": rows})
+
+
 @app.get("/health")
 async def health():
     try:

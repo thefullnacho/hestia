@@ -179,6 +179,38 @@ pages:
                 url: ${RELAY}:8089
                 icon: di:adguard-home
 
+          # Assets past their service interval (records_store.due_assets — AC filters, the
+          # furnace, the washer, ...). Exists so a maintenance item that's overdue is SEEN,
+          # not something the user has to remember to ask about — see the NFC capture build
+          # (2026-09-01): the whole point of tag-triggered logging is nothing to hold in your
+          # head, and that only works if the "still overdue" side surfaces on its own too.
+          - type: custom-api
+            title: Maintenance due
+            cache: 15m
+            url: ${BRAIN}/maintenance/due
+            template: |
+              {{ $n := .JSON.Int "count" }}
+              {{ if eq $n 0 }}
+                <div class="flex items-center justify-center padding-block-5 color-subdue">
+                  Nothing overdue &mdash; the house is caught up.
+                </div>
+              {{ else }}
+              <div class="flex items-center justify-between margin-bottom-15">
+                <div class="size-h2 color-highlight">{{ $n }}<span class="size-h6 color-subdue"> overdue</span></div>
+              </div>
+              <ul class="list list-gap-10 list-with-separator">
+              {{ range .JSON.Array "assets" }}
+                <li>
+                  <p class="size-h5 color-primary">{{ .String "name" }}</p>
+                  <ul class="list-horizontal-text size-h6 color-subdue">
+                    <li>every {{ .Int "interval_days" }}d</li>
+                    <li>{{ $last := .String "last" }}{{ if eq $last "never" }}never logged{{ else }}last {{ $last }} ({{ .Int "days_since" }}d ago){{ end }}</li>
+                  </ul>
+                </li>
+              {{ end }}
+              </ul>
+              {{ end }}
+
           # What the brain wants to learn but hasn't been allowed to. Read-only by design:
           # promoting a proposal into live memory stays a human act at the CLI
           # (review_notes.py promote <id>), so this tile can surface the queue without
@@ -262,6 +294,8 @@ pages:
                     url: ${BRAIN}/status
                   - title: Memory queue JSON
                     url: ${BRAIN}/memory/inbox
+                  - title: Maintenance due JSON
+                    url: ${BRAIN}/maintenance/due
               - title: House
                 links:
                   - title: Home Assistant
