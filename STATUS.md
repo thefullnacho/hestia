@@ -7,6 +7,56 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-01 — harvest-log audit uncovers a silent tool-call miss; ships NFC capture as the fix
+
+**Chat-logged harvests didn't match what the user actually said.** Asked to validate a morning
+harvest-logging chat session against `hestia.db`: only 2 of 8 harvest messages had actually
+called the `records` tool, despite the brain replying as if all of them logged. Root cause: an
+unresolved bed name ("the squash bed" — never a real entity, actually one of the four numbered
+raised beds, Bed 2) hits a chat-agent path with no loud-failure or clarifying-question
+behavior — it fabricates a success reply instead of asking or erroring. The 5 lost harvests
+were reconstructed from the log text and backfilled by hand (event ids 134–138); the carrots
+entry was backdated to the date the user actually meant (2026-06-15).
+
+**Shipped a parallel, no-LLM capture path (`GET /nfc`, `POST /nfc/log`) instead of patching the
+chat agent's prompt.** A physical NFC tag encodes a bed/asset name; scanning opens a
+locked-subject form that writes straight to `records_store` and confirms synchronously — no
+model in the loop, so the failure class above is structurally impossible on this path. Three
+kinds: `harvest`, `service` (resets `due_assets()`), `use` (a runtime metric with no due-date
+implied, e.g. weedwhacker minutes). Token-gated (`NFC_TOKEN`, `secrets/nfc.env`). First real tag
+(Bed 2) written and verified end-to-end: 5.1 lb winter buttercup squash logged via a physical
+tap, no typing.
+
+**Registered 7 assets** for the maintenance side: Weedwhacker and Ego Lawn Mower (no interval
+set — usage-only / unknown schedule), Washing Machine and Furnace (30d / 365d, from the user's
+own estimates), AC Living / AC Guest / AC Master (30d, assumed default for Midea U-Shape units,
+not confirmed against the manual).
+
+**Added `GET /maintenance/due` + a third Glance tile ("Maintenance due")**, deployed to
+hl-relay. Same one-collector-many-consumers shape as `/status` and `/memory/inbox`. Backend
+verified live (5 assets correctly showing as never-serviced); the tile's actual on-screen render
+is unconfirmed — Glance loads widget content client-side, so a plain curl of the page never
+shows tile text even for tiles known to work.
+
+### In flight
+
+- **NFC tags physically un-written.** `[non-production]` URLs generated for all 7 remaining
+  assets; writing them into NFC Tools and testing each tap is on the operator.
+- **Glance tile render, unverified.** `[non-production]` Needs a browser check, not a build
+  step — the backend and deploy are both confirmed clean.
+- **AC/washer/mower service intervals are assumptions, not confirmed numbers.** `[non-production]`
+  30d defaulted for the three ACs and the washer; the mower has no interval at all ("not sure on
+  maintenance schedule"). Needs the operator's own knowledge or the manuals, not a build
+  decision.
+- **Backlog from the session's own scoping conversation, not yet built:** a multi-subject
+  `service` tag (one tap on the power washer logging house + pergola + vinyl fence at once), a
+  greenhouse-roof asset/tag, a mulch-tool tag, and a genuinely different shape — a yearly,
+  no-tap-to-scan calendar reminder for January seed-starting, which needs the `reminders` table
+  to support recurrence (it's one-shot only today). Next concrete action: extend `/nfc/log`'s
+  `service` kind to accept comma-separated subjects.
+- **Fridge/pantry inventory + receipt logging + leftover capture** raised and explicitly parked
+  as its own future project — not started, not scoped.
+
 ## 2026-08-29 — the Qwen3.8-27B trial survives a real OOM crash, and hestiactl gets a GPU toggle
 
 **Minecraft needed the 5080's VRAM.** First attempt (pinning Prism Launcher's rendering to the
