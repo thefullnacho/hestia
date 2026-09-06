@@ -121,3 +121,14 @@ def test_text_recovery_accepts_only_exact_valid_read_calls():
     assert read_call_from_text('Example: ' + json.dumps(call), tools.SCHEMAS) is None
     call['arguments'] = {'action': 'log', 'detail': 'vaccinated'}
     assert read_call_from_text(json.dumps(call), tools.SCHEMAS) is None
+
+
+@pytest.mark.parametrize('value,valid', [(2, True), ('2 lb 7 oz', True),
+                                        (True, False), ([], False), (None, False), (0, False)])
+def test_harvest_union_quantity_schema(value, valid):
+    from copy import deepcopy
+    schemas = deepcopy(tools.SCHEMAS)
+    schema = next(s['function']['parameters'] for s in schemas if s['function']['name'] == 'records')
+    schema['properties']['qty']['type'] = ['number', 'string']
+    error = validate('records', {'action': 'harvest', 'bed': 'Test bed', 'crop': 'Tomatoes', 'qty': value}, schemas)
+    assert (error is None) == valid

@@ -186,3 +186,17 @@ conversation latency. This direct Ollama probe bypasses Hestia's conservative in
 trimmer and exceeds its default 45-second turn budget. Model capacity is therefore
 not the same as end-to-end supported input size or acceptable voice latency.
 Qwen3 14B was restored at 32K afterward. No resident configuration changed.
+
+Schema validation accepts advertised JSON type unions while preserving strict boolean
+versus numeric checks. Text harvest quantities pass to the domain quantity parser;
+numeric quantities must still be positive. This keeps mixed-unit harvest input
+compatible with the action boundary.
+
+## Resident trial
+
+The Gemma 4 12B trial uses the systemd drop-in at
+`deploy/systemd/hestia-brain.service.d/90-resident-trial.conf`, installed in the matching
+user systemd directory. It selects `gemma4:12b`, thinking disabled and 32K context.
+The larger context probes do not justify changing the default voice latency budget.
+Remove that drop-in, reload user systemd and restart only `hestia-brain` to return
+to the base unit's resident model. The base unit and Python fallback remain Qwen3 14B.

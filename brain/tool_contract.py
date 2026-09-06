@@ -45,7 +45,10 @@ def validate(name, args, schemas):
 
     def check(value, spec, path):
         kind = spec.get('type')
-        types = {'object': dict, 'array': list, 'string': str, 'integer': int,
+        if isinstance(kind, list):
+            errors = [check(value, {**spec, 'type': alternative}, path) for alternative in kind]
+            return None if None in errors else f'{path} must match one of {kind}'
+        types = {'null': type(None), 'object': dict, 'array': list, 'string': str, 'integer': int,
                  'number': (int, float), 'boolean': bool}
         if kind in types and (not isinstance(value, types[kind]) or
                               (kind in ('integer', 'number') and isinstance(value, bool))):
@@ -78,7 +81,8 @@ def validate(name, args, schemas):
             return f'Error: {name}.{action} requires {"quantity (qty)" if key == "qty" else key}.'
     if name == 'records' and action == 'log' and not (args.get('did') or args.get('detail')):
         return 'Error: records.log requires did or detail; an empty event is not recorded.'
-    if name == 'records' and action == 'harvest' and args['qty'] <= 0:
+    if (name == 'records' and action == 'harvest'
+            and isinstance(args['qty'], (int, float)) and args['qty'] <= 0):
         return 'Error: harvest quantity must be positive.'
     if name == 'home' and action != 'get_state':
         if not re.fullmatch(r'light\.[a-z0-9_]+', args['entity_id']):
