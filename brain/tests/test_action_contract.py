@@ -132,3 +132,55 @@ def test_harvest_union_quantity_schema(value, valid):
     schema['properties']['qty']['type'] = ['number', 'string']
     error = validate('records', {'action': 'harvest', 'bed': 'Test bed', 'crop': 'Tomatoes', 'qty': value}, schemas)
     assert (error is None) == valid
+
+
+def test_transient_failure_is_not_replayed_under_key(monkeypatch, tmp_path):
+    monkeypatch.setattr(hestia.config, 'DATA_DIR', tmp_path)
+    monkeypatch.setattr(hestia.note_taker, 'ENABLED', False)
+    replies = [hestia._BUSY, 'real answer']
+    async def agent(messages, *, trace):
+        return replies.pop(0)
+    monkeypatch.setattr(hestia, 'run_agent', agent)
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=hestia.app), base_url='http://test') as client:
+            headers = {'Idempotency-Key': 'retry-key-0001'}
+            body = {'messages': [{'role': 'user', 'content': 'hello there'}]}
+            first = await client.post('/v1/chat/completions', json=body, headers=headers)
+            second = await client.post('/v1/chat/completions', json=body, headers=headers)
+            assert first.json()['choices'][0]['message']['content'] == hestia._BUSY
+            assert second.json()['choices'][0]['message']['content'] == 'real answer'
+            # The real answer is now the durable one.
+            third = await client.post('/v1/chat/completions', json=body, headers=headers)
+            assert third.json() == second.json()
+    asyncio.run(scenario())
+    assert replies == []
+
+
+def test_keyless_requests_leave_no_ledger_row(monkeypatch, tmp_path):
+    monkeypatch.setattr(hestia.config, 'DATA_DIR', tmp_path)
+    monkeypatch.setattr(hestia.note_taker, 'ENABLED', False)
+    async def agent(messages, *, trace):
+        return 'answer'
+    monkeypatch.setattr(hestia, 'run_agent', agent)
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=hestia.app), base_url='http://test') as client:
+            r = await client.post('/v1/chat/completions', json={'messages': [{'role': 'user', 'content': 'hello'}]})
+            assert r.status_code == 200
+    asyncio.run(scenario())
+    # No key means nothing to replay, so the request never touches the ledger.
+    assert not (tmp_path / 'operations.db').exists() or not operation_store.operations('')
+    from contextlib import closing
+    with closing(operation_store._connect()) as conn:
+        assert conn.execute('SELECT COUNT(*) FROM requests').fetchone()[0] == 0
+
+
+def test_ledger_prunes_old_rows(monkeypatch, tmp_path):
+    monkeypatch.setattr(hestia.config, 'DATA_DIR', tmp_path)
+    from contextlib import closing
+    with closing(operation_store._connect()) as conn, conn:
+        conn.execute('INSERT INTO requests VALUES (?, ?, ?, ?)', ('old-key', 'fp', '{}', 1.0))
+        conn.execute('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?)', ('old-op', 'old-key', 'home', 'succeeded', 'x', 1.0))
+    operation_store.claim_request('fresh-key-0001', [])
+    with closing(operation_store._connect()) as conn:
+        assert conn.execute('SELECT COUNT(*) FROM requests').fetchone()[0] == 1
+        assert conn.execute('SELECT COUNT(*) FROM operations').fetchone()[0] == 0

@@ -105,7 +105,6 @@ MAX_TOOL_CALLS = int(os.environ.get("HESTIA_MAX_TOOL_CALLS", "16"))
 MAX_ACTIVE_TURNS = max(1, int(os.environ.get("HESTIA_ACTIVE_TURNS", "1")))
 _turn_slots = asyncio.BoundedSemaphore(MAX_ACTIVE_TURNS)
 _stream_sink: ContextVar[object] = ContextVar("stream_sink", default=None)
-_live_turns: set = set()
 _BUSY = "The brain is busy with another request. Please try again shortly."
 _NO_ACTION = "I haven't completed the requested action. Please clarify the target or try again."
 _EMPTY_REPLY = "The model returned no usable answer. Please try again."
@@ -268,8 +267,11 @@ async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dic
     repair = trace.repair_tool if trace else ''
     if trace:
         trace.repair_tool = ''
+    schema = next((s['function']['parameters'] for s in body['tools']
+                   if s['function']['name'] == repair), None) if repair else None
+    if schema is None:
+        repair = ''   # never repair through a tool this request did not offer
     if repair:
-        schema = next(s['function']['parameters'] for s in body['tools'] if s['function']['name'] == repair)
         body['tools'] = []
         body['format'] = schema
         body['options']['temperature'] = 0
@@ -343,6 +345,7 @@ def _is_soil_readout(user_text: str) -> bool:
 
 
 _INTENT_TOOLS = {
+    'home': r"\b(?:light|lights|lamp|lamps)\b|\bturn\b[^.!?]{0,120}\b(?:on|off)\b",
     'reminder': r"\b(?:remind|reminder|timer|alarm)\b",
     'shopping': r"\b(?:shopping|grocery|groceries|out of|buy)\b|\badd\b.+\blist\b",
     'memory': r"\b(?:remember|recall|preference|prefer|previously told)\b",
@@ -370,7 +373,11 @@ def _required_writes(text: str) -> set[str]:
         'reminder': start + r"(?:remind me|set (?:a |an )?(?:timer|reminder))\b",
         'shopping': start + r"add\b[^.!?]*\b(?:shopping|grocery) list\b",
     }
-    return {name for name, pattern in patterns.items() if re.search(pattern, text, re.I)}
+    found = {name for name, pattern in patterns.items() if re.search(pattern, text, re.I)}
+    # The home tool only actuates lights: "turn on the news" is not a write it could attempt.
+    if 'home' in found and not re.search(r"\b(?:light|lights|lamp|lamps|it|them|those|everything|all)\b", text, re.I):
+        found.discard('home')
+    return found
 
 
 def _request_schemas(user_text: str) -> list:
@@ -530,9 +537,10 @@ async def _agent_loop(messages: list[dict]) -> str:
             return _TOO_SLOW
         try:
             convo = context_budget.fit(convo, schemas, NUM_CTX, OUTPUT_TOKENS)
-            msg = await asyncio.wait_for(_ollama_chat(convo, schemas), timeout=remaining)
         except ValueError as e:
             return str(e)
+        try:
+            msg = await asyncio.wait_for(_ollama_chat(convo, schemas), timeout=remaining)
         except asyncio.TimeoutError:
             _log(f"model call exceeded remaining {remaining:.1f}s at step {step}")
             return _TOO_SLOW
@@ -563,7 +571,8 @@ async def _agent_loop(messages: list[dict]) -> str:
                     if content:
                         convo.append({'role': 'assistant', 'content': content})
                     need = ', '.join(sorted(missing))
-                    if len(missing) == 1 and trace:
+                    offered = {s['function']['name'] for s in schemas}
+                    if len(missing) == 1 and trace and missing <= offered:
                         trace.repair_tool = next(iter(missing))
                     convo.append({'role': 'system', 'content':
                         'Harness execution check: no usable completion was received. ' +
@@ -863,7 +872,10 @@ async def chat_completions(request: Request):
     if key and not re.fullmatch(r'[A-Za-z0-9_-]{8,128}', key):
         return JSONResponse(status_code=400, content={'error': 'Invalid Idempotency-Key.'})
     trace = TurnTrace(request_id=key or uuid.uuid4().hex)
-    state, saved = await asyncio.to_thread(operation_store.claim_request, trace.request_id, messages)
+    # Only a client-supplied key can be retried, so only keyed requests enter the ledger.
+    state, saved = 'new', None
+    if key:
+        state, saved = await asyncio.to_thread(operation_store.claim_request, key, messages)
     if state in ('pending', 'conflict'):
         return JSONResponse(status_code=409, content={
             'error': 'Request is already running or has an unknown outcome.' if state == 'pending' else
@@ -876,7 +888,10 @@ async def chat_completions(request: Request):
         content = await run_agent(messages, trace=trace)
         comp = _completion(content, trace)
         comp['request_id'] = trace.request_id
-        await asyncio.to_thread(operation_store.finish_request, trace.request_id, comp)
+        if key:
+            # A busy/slow/down answer ran no write, so a retry must run the turn, not replay it.
+            await asyncio.to_thread(operation_store.finish_request, key,
+                                    None if content in _NO_LEARN else comp)
         return comp
 
     if body.get('stream'):
@@ -899,8 +914,6 @@ async def chat_completions(request: Request):
 
         async def chunks():
             task = asyncio.create_task(produce())
-            _live_turns.add(task)
-            task.add_done_callback(_live_turns.discard)
             try:
                 while True:
                     # Wake on either an event or producer failure; no orphaned stream wait.

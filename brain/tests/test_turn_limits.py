@@ -177,3 +177,68 @@ def test_unattempted_explicit_write_cannot_claim_success(monkeypatch):
 def test_followup_actuation_is_an_explicit_required_write():
     assert hestia._required_writes('Turn them back on.') == {'home'}
     assert hestia._required_writes('How do I turn them on?') == set()
+
+
+def test_stream_garbage_line_is_a_backend_failure(monkeypatch):
+    class Chunks(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b'{"message":{"content":"Hi"},"done":false}\n'
+            yield b'<html>502 bad gateway</html>\n'
+    async def handle(request):
+        return httpx.Response(200, stream=Chunks())
+    async def sink(text):
+        pass
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
+            monkeypatch.setattr(hestia, 'client', client)
+            monkeypatch.setattr(hestia, '_request_schemas', lambda _: [])
+            async def prompt(_):
+                return ''
+            monkeypatch.setattr(hestia, '_build_system_prompt', prompt)
+            token = hestia._stream_sink.set(sink)
+            try:
+                return await hestia.run_agent([{'role': 'user', 'content': 'hello'}])
+            finally:
+                hestia._stream_sink.reset(token)
+    answer = asyncio.run(scenario())
+    # The tokens already shown stay; the raw JSON decode error must not become the reply.
+    assert answer == 'Hi\n' + hestia._BACKEND_DOWN
+    assert 'Expecting value' not in answer
+
+
+def test_non_light_turn_on_is_not_a_required_write():
+    assert hestia._required_writes('Turn on the news.') == set()
+    assert hestia._required_writes('Turn off the kitchen lights.') == {'home'}
+    assert hestia._required_writes('Turn it off.') == {'home'}
+
+
+def test_explicit_light_command_always_offers_home():
+    with fixtures():
+        for text in ['Log that Biscuit was vaccinated, then turn on the porch lights.',
+                     'Turn them back on.']:
+            token = hestia._prepared.set(None)
+            try:
+                offered = {s['function']['name'] for s in hestia._request_schemas(text)}
+            finally:
+                hestia._prepared.reset(token)
+            assert hestia._required_writes(text) <= offered, text
+
+
+def test_repair_is_skipped_for_a_tool_the_request_did_not_offer(monkeypatch):
+    async def handle(request):
+        body = json.loads(request.content)
+        assert 'format' not in body, 'must not run schema repair for an un-offered tool'
+        return httpx.Response(200, json={'message': {'content': 'plain answer'}})
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
+            monkeypatch.setattr(hestia, 'client', client)
+            trace = hestia.TurnTrace(repair_tool='home')
+            token = hestia._trace.set(trace)
+            try:
+                records_only = [s for s in hestia.tools.SCHEMAS if s['function']['name'] == 'records']
+                msg = await hestia._ollama_chat([], records_only)
+                assert msg['content'] == 'plain answer'
+                assert trace.repair_tool == ''
+            finally:
+                hestia._trace.reset(token)
+    asyncio.run(scenario())

@@ -199,10 +199,13 @@ def execute(action: str, entity_id: str | None = None,
         try:
             chk = httpx.get(f"{HA_URL}/api/states/{entity_id}", headers=_HDRS, timeout=8).json()
             state = chk.get("state")
+            # The receipt is what the user hears when this is the whole reply, so name the
+            # light the way HA does rather than reading an entity_id aloud.
+            label = chk.get("attributes", {}).get("friendly_name") or entity_id
         except Exception:  # noqa: BLE001 — only the read-back failed
             return f"Sent {action} to {entity_id}, but couldn't confirm the new state."
         if state == "unavailable":
             return f"Sent {action} to {entity_id}, but it's currently unavailable (bulb may be powered off at the switch)."
-        return f"Done — {entity_id} is now {state}."
+        return f"Done — {label} is now {state}."
     except Exception as e:  # noqa: BLE001
         return f"Error talking to Home Assistant: {e}"
