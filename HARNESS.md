@@ -133,3 +133,56 @@ Further inference tuning should compare context size, concurrency and cache sett
 against this suite plus a broader held-out corpus. No inference-engine environment
 settings, model weights or thinking defaults were changed. Semantic retrieval remains
 a separate experiment, justified by measured misses rather than added by default.
+
+## Conversation and context evaluation
+
+`brain/eval_conversation.py` runs six synthetic three-turn discussions through the
+production loop and through a minimal conversational prompt as a diagnostic control.
+The control changes the prompt and removes the harness/tool path; it is not a pure
+prompt ablation. Both use thinking disabled, temperature 0.3, 768 output tokens and
+32K context by default. Other sampling defaults come from the installed model.
+Warm-up loads are excluded from conversation latency. Each scenario gets fresh
+synthetic stores. No live household tools or web search are available in this test.
+
+```sh
+uv run --project brain python brain/eval_conversation.py qwen3:14b gemma4:12b --output /tmp/hestia-conversations
+uv run --project brain python brain/eval_conversation.py gemma4:12b --context-only --probe-contexts 32768 65536 131072 262144 --output /tmp/hestia-contexts
+```
+
+JSON retains prompts, responses, tool calls, metrics, model digests, and context
+allocation snapshots. Markdown transcripts include per-scenario review rubrics.
+Review correctness, adaptation, uncertainty, naturalness and unwanted actions;
+there is no automatic general-intelligence score. The corpus is synthetic and small,
+not a standardized benchmark. Search failures here reflect an intentionally offline
+fixture and must not be mistaken for a model knowledge failure.
+
+The context probe measures allocation with a short prompt, not full-window speed or
+recall. `--fill-chars N` optionally adds a repeated synthetic input and a beginning/middle/end
+code retrieval check, saving actual backend token counts and timings. Characters are
+not tokens, and this easy retrieval check does not establish long-context reasoning.
+Probing stops after CPU offload or a load error. The `--restore` model (default
+`qwen3:14b`) is warmed at `--restore-context` (default 32K) in a finally block; check the saved restoration flag on failure.
+These commands change GPU residency temporarily and should run serially when the
+resident assistant is idle. They do not change service settings or deploy a model.
+
+### Conversation snapshot, 2026-09-06
+
+Six three-turn scenarios per model and mode produced 72 completed turns and no tool
+calls. Through Hestia, Qwen3 14B had median/p95 full-response latency of 1.19/2.68s;
+Gemma 4 12B had 1.97/4.32s. Median answer lengths were 43 and 91.5 words respectively.
+Gemma gave a clearer analogy, better wet-shoe airflow reasoning, and more specific
+conversational engagement. Both tracked corrected fictional facts. Both also made
+unsupported or oversimplified claims, and Gemma often exceeded voice-friendly brevity.
+The minimal control did not consistently improve accuracy and increased verbosity.
+This is a single sample of each discussion, not a statistically ranked knowledge test.
+
+Gemma also loaded 32K, 64K, 128K and 256K contexts entirely on the 5080. NVIDIA
+process allocations were approximately 8.9, 9.5, 10.2 and 12.3 GiB; these include
+more overhead than Ollama's reported model allocation. A separate 256K-window
+probe processed 166,731 tokens and retrieved all three beginning/middle/end codes
+in 84.32s, including 83.26s of prompt evaluation. The filler was repetitive and
+retrieval was easy; this does not establish full-window reasoning or realistic
+conversation latency. This direct Ollama probe bypasses Hestia's conservative input
+trimmer and exceeds its default 45-second turn budget. Model capacity is therefore
+not the same as end-to-end supported input size or acceptable voice latency.
+Qwen3 14B was restored at 32K afterward. No resident configuration changed.
