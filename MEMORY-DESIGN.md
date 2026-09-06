@@ -116,3 +116,12 @@ user message
 | The "agent writes a memory record mid-task" reflex | The whole workspace app |
 | ChromaDB-style vector recall as a reference | Its UI / routes / feature surface |
 | The idea of typed, structured memories | Coupling memory to a serving stack |
+
+## Implemented briefing history
+
+Daily briefings have a separate private SQLite archive of generated snapshots and
+delivery receipts. It is shared by all clients through bounded, on-demand prompt
+retrieval. It records what the workflow generated and attempted, without promoting
+model narration into approved memory or treating historical readings as current
+state. The background note-taker's inbox approval rule is unchanged. See `HARNESS.md`
+for retrieval limits, timestamps, delivery semantics and retention.

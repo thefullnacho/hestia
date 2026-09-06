@@ -25,6 +25,7 @@ import garden_watch                    # noqa: E402 — reuse soil_beds + build_
 import ha_announce                     # noqa: E402 — one Assist-satellite delivery path
 import records_store                   # noqa: E402
 import reminders_store                 # noqa: E402
+import briefing_store                  # noqa: E402
 import daily_facts                     # noqa: E402 — shared scheduled-workflow collectors
 from tools import weather              # noqa: E402
 
@@ -33,7 +34,7 @@ HA_TOKEN = os.environ.get("HA_TOKEN", "")
 NOTIFY = os.environ.get("BRIEFING_NOTIFY",
                         os.environ.get("GARDEN_NOTIFY", "mobile_app_alexs_iphone"))
 OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
-MODEL = os.environ.get("HESTIA_BRIEFING_MODEL") or os.environ.get("HESTIA_MODEL", "qwen3:14b")
+MODEL = os.environ.get("HESTIA_MODEL") or os.environ.get("HESTIA_BRIEFING_MODEL", "qwen3:14b")
 ANNOUNCE = os.environ.get("HESTIA_BRIEFING_ANNOUNCE", "1") not in ("0", "", "false", "False")
 TIMEOUT = float(os.environ.get("HESTIA_BRIEFING_TIMEOUT", "60"))
 MEDIA_WINDOW_H = 24
@@ -121,14 +122,15 @@ def build_facts(now: dt.datetime | None = None) -> list[str]:
     down costs its section, never the briefing."""
     now = now or dt.datetime.now()
     facts = [f"Date: {now.strftime('%A, %B ')}{now.day}."]
-    for section in (_weather_facts,
-                    _garden_facts,
-                    _records_facts,
-                    lambda: _reminder_facts(now),
-                    lambda: _media_facts(now)):
+    for label, section in (("weather", _weather_facts),
+                           ("garden", _garden_facts),
+                           ("maintenance", _records_facts),
+                           ("reminders", lambda: _reminder_facts(now)),
+                           ("media arrivals", lambda: _media_facts(now))):
         try:
             facts.extend(section())
         except Exception as e:  # noqa: BLE001
+            facts.append(f"For this briefing, {label} information is unavailable.")
             print(f"briefing: section {getattr(section, '__name__', 'lambda')} failed: {e}",
                   file=sys.stderr)
     return facts
@@ -141,12 +143,16 @@ def narrate(facts: list[str]) -> str:
             "messages": [{"role": "user",
                           "content": NARRATE_PROMPT + "\n".join(f"- {f}" for f in facts)}],
             "stream": False, "think": False,
-            "options": {"temperature": 0.3}}
+            "options": {"temperature": 0.3,
+                        "num_ctx": int(os.environ.get("HESTIA_NUM_CTX", "32768")),
+                        "num_predict": 768}}
     r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=TIMEOUT)
     r.raise_for_status()
     text = (r.json().get("message", {}).get("content", "") or "").strip()
     if not text:
         raise ValueError("empty narration")
+    if r.json().get("done_reason") == "length":
+        raise ValueError("truncated narration")
     return text
 
 
@@ -168,7 +174,9 @@ def main() -> int:
     do_announce = ANNOUNCE and "--no-announce" not in sys.argv
     do_push = "--no-push" not in sys.argv
 
+    collected_at = dt.datetime.now().astimezone().isoformat()
     facts = build_facts()
+    narration = "raw" if raw else "model"
     if raw:
         text = fallback_text(facts)
     else:
@@ -177,16 +185,50 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001 — the briefing arrives even with the brain down
             print(f"briefing: narration failed ({e}); sending raw facts", file=sys.stderr)
             text = fallback_text(facts)
+            narration = "fallback"
 
     if dry_run:
         print("briefing (dry-run) facts:\n" + fallback_text(facts))
         print("\nbriefing (dry-run) would send:\n" + text)
         return 0
+    delivery = {"push": {"status": "pending" if do_push else "disabled"},
+                "voice": {"status": "pending" if do_announce else "disabled"}}
+    identifier = None
+    archive_failed = False
+    try:
+        identifier = briefing_store.create(facts, text, MODEL if narration == "model" else None,
+                                          narration, delivery, collected_at=collected_at)
+    except Exception as e:
+        archive_failed = True
+        print(f"briefing: archive failed ({type(e).__name__}); continuing delivery", file=sys.stderr)
+
+    def checkpoint():
+        nonlocal archive_failed
+        if identifier:
+            try:
+                briefing_store.update_delivery(identifier, delivery)
+            except Exception as e:
+                archive_failed = True
+                print(f"briefing: receipt save failed ({type(e).__name__})", file=sys.stderr)
+
     if do_push:
-        push(text)
-    spoke = ha_announce.announce(text) if do_announce else []
-    print(f"briefing: sent (push={do_push}, spoke on {spoke or 'none'}):\n{text}")
-    return 0
+        try:
+            push(text)
+            delivery["push"] = {"status": "accepted"}
+        except Exception as e:
+            # A timeout may follow delivery. Record unknown and never retry here.
+            delivery["push"] = {"status": "unknown", "error_type": type(e).__name__}
+        checkpoint()
+    if do_announce:
+        try:
+            report = ha_announce.announce_report(text)
+            delivery["voice"] = {"status": "attempted", **report}
+        except Exception as e:
+            delivery["voice"] = {"status": "unknown", "error_type": type(e).__name__}
+        checkpoint()
+    print(f"briefing: generated id={identifier or 'unsaved'} delivery={delivery}")
+    return 1 if archive_failed or delivery["push"]["status"] == "unknown" else 0
+
 
 
 if __name__ == "__main__":

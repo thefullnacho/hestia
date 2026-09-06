@@ -200,3 +200,41 @@ user systemd directory. It selects `gemma4:12b`, thinking disabled and 32K conte
 The larger context probes do not justify changing the default voice latency budget.
 Remove that drop-in, reload user systemd and restart only `hestia-brain` to return
 to the base unit's resident model. The base unit and Python fallback remain Qwen3 14B.
+
+## Daily briefing continuity
+
+Each non-dry-run briefing saves its collected facts, collection/generation timestamps,
+exact narrated text (or raw fallback), narrator model, and delivery receipts in the
+private `data/briefings.db`. This is workflow history, not an automatically approved
+preference or household fact. Old announcements are not backfilled. The archive is
+retained until operator maintenance; recall fetches at most three recent records or
+records from an explicit ISO date, today, or yesterday. Context is capped at 10KB and
+marked as historical, data-only evidence. Briefing/announcement questions and narrow
+follow-ups such as "What about yesterday?" retrieve it across clients, including a
+fresh Voice PE conversation. Other date expressions may require clarification.
+
+A source snapshot is not current house state. Fresh-state questions still require live
+tools. Delivery `accepted` means HA accepted the service call, not that the user heard
+it. `pending` after interruption and `unknown` after an error are unconfirmed. Voice
+receipts list each attempted satellite and discovery failures. Disabled delivery and
+raw/fallback narration are explicit. A failed push does not suppress voice delivery;
+an archive failure does not suppress either channel. No automatic delivery retries
+were added. A dry run neither archives nor delivers anything.
+
+The briefing service's resident drop-in is a relative symlink to the brain's drop-in,
+so both receive the same `HESTIA_MODEL` and `HESTIA_NUM_CTX`. Install the symlink as
+well as its target and reload user systemd. `HESTIA_MODEL` now takes precedence over
+the legacy `HESTIA_BRIEFING_MODEL` fallback. Narration uses thinking disabled and a
+768-token output cap; truncated narration falls back to the complete fact lines.
+To end the trial, remove both installed trial drop-ins, reload user systemd, and
+restart the brain. The next scheduled briefing then uses the base fallback too.
+
+`uv run --project brain python brain/eval_briefing.py gemma4:12b` exercises recall,
+exact narration, a missing date, delivery uncertainty, a date-changing follow-up,
+fresh versus historical state, and instructions embedded in archived narration
+through the production loop with synthetic archives and intercepted household tools.
+It saves transcripts and review flags under `/tmp`; flags are not a semantic score.
+
+Validation: 299 offline tests and 24/24 synthetic Gemma action checks passed. Seven
+briefing scenarios (eight turns) were reviewed for factual recall, date handling,
+unknown delivery, fresh state and untrusted narration; no mutations were dispatched.

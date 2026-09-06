@@ -43,12 +43,13 @@ def test_media_arrivals_normalizes_and_deduplicates(monkeypatch):
     ]
 
 
-def test_briefing_delegates_announcements_to_shared_helper(monkeypatch):
+def test_briefing_delegates_announcements_to_shared_helper(monkeypatch, tmp_path):
+    monkeypatch.setattr(briefing.config, "DATA_DIR", tmp_path)
     calls = []
     monkeypatch.setattr(briefing, "build_facts", lambda: ["Date: Friday, August 21."])
     monkeypatch.setattr(briefing, "narrate", lambda _: "Good morning.")
     monkeypatch.setattr(briefing, "push", lambda _: calls.append("push"))
-    monkeypatch.setattr(briefing.ha_announce, "announce", lambda text: calls.append(text) or ["assist_satellite.kitchen"])
+    monkeypatch.setattr(briefing.ha_announce, "announce_report", lambda text: calls.append(text) or {"discovery": "ok", "satellites": [{"entity_id": "assist_satellite.kitchen", "status": "accepted"}]})
     monkeypatch.setattr(briefing.sys, "argv", ["briefing.py"])
     assert briefing.main() == 0
     assert calls == ["push", "Good morning."]

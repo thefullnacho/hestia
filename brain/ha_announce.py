@@ -29,21 +29,29 @@ def satellites() -> list[str]:
             and s["state"] not in ("unavailable", "unknown")]
 
 
-def announce(message: str) -> list[str]:
-    """Speak `message` on every reachable satellite. Returns the ones that played it.
-    Each failure is logged and skipped — a spoken announcement is a bonus, never a gate."""
-    done = []
+def announce_report(message: str) -> dict:
+    """HA service acceptance is observable; actual hearing is not."""
+    report = {"discovery": "ok", "satellites": []}
     try:
         sats = satellites()
-    except Exception as e:  # noqa: BLE001 — HA unreachable: nobody speaks, nobody errors
-        print(f"announce: could not list satellites: {e}", file=sys.stderr)
-        return done
+    except Exception as e:
+        report.update(discovery="unknown", error_type=type(e).__name__)
+        return report
     for ent in sats:
+        attempt = {"entity_id": ent, "status": "unknown"}
         try:
             httpx.post(f"{HA_URL}/api/services/assist_satellite/announce", headers=_HDRS,
                        json={"entity_id": ent, "message": message},
-                       timeout=120).raise_for_status()  # HA blocks until playback ends
-            done.append(ent)
-        except Exception as e:  # noqa: BLE001
-            print(f"announce on {ent} failed: {e}", file=sys.stderr)
-    return done
+                       timeout=120).raise_for_status()
+            attempt["status"] = "accepted"
+        except Exception as e:
+            attempt["error_type"] = type(e).__name__
+            print(f"announce on {ent} failed: {type(e).__name__}", file=sys.stderr)
+        report["satellites"].append(attempt)
+    return report
+
+
+def announce(message: str) -> list[str]:
+    """Compatibility helper: satellites whose HA announcement call succeeded."""
+    return [a["entity_id"] for a in announce_report(message)["satellites"]
+            if a["status"] == "accepted"]
