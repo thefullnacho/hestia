@@ -68,14 +68,14 @@ def _score(text: str, triggers: list[str]) -> int:
     return sum(1 for kw in triggers if re.search(rf"\b{re.escape(kw)}\b", t))
 
 
+def matches(user_text: str, limit: int = 3) -> list[dict]:
+    """Rank matching procedures; keep a bounded union for mixed requests."""
+    scored = [(s, _score(user_text, s['triggers'])) for s in _skills()]
+    return [s for s, score in sorted(scored, key=lambda pair: -pair[1]) if score > 0][:limit]
+
+
 def match(user_text: str) -> dict | None:
-    """The single best-matching skill for this request, or None if nothing matches."""
-    best, best_score = None, 0
-    for s in _skills():
-        sc = _score(user_text, s["triggers"])
-        if sc > best_score:
-            best, best_score = s, sc
-    return best
+    return next(iter(matches(user_text, 1)), None)
 
 
 def _body(text: str) -> str:
@@ -87,9 +87,9 @@ def _body(text: str) -> str:
     return text
 
 
-def active_block(user_text: str) -> str:
+def active_block(user_text: str, selected: dict | None = None) -> str:
     """The matched skill's knowledge to inline into the system prompt, or '' if none."""
-    s = match(user_text)
+    s = selected or match(user_text)
     if s is None:
         return ""
     d = s["dir"]

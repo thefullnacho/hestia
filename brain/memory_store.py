@@ -87,23 +87,37 @@ def write(content: str, type: str = "preference", source: str = "agent",
     return rid
 
 
+_STOP_WORDS = set("a an and are as at be did do for from have how i in is it me my of on or that the this to was what when where which with you your".split())
+
+
 def recall(query: str, k: int = 5) -> list[dict]:
-    """Return up to k records most relevant to the query (keyword overlap v1)."""
-    q = set(re.findall(r"[a-z0-9]+", query.lower()))
-    if not q:
+    """Lexical recall with corpus rarity and length normalization; pins only break ties."""
+    import math
+    from collections import Counter
+
+    def tokens(text):
+        return [t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in _STOP_WORDS]
+
+    q = set(tokens(query))
+    if not q or k <= 0:
         return []
+    records = _all()
+    documents = [tokens(" ".join([re.sub(r"-\d+$", "", r['id']), r['body'],
+                 " ".join(map(str, r['meta'].get('links', [])))])) for r in records]
+    df = Counter(t for doc in documents for t in set(doc))
+    average = sum(map(len, documents)) / max(1, len(documents)) or 1
     scored = []
-    for r in _all():
-        hay = " ".join([r["id"], r["body"], " ".join(map(str, r["meta"].get("links", []))),
-                        str(r["meta"].get("type", ""))]).lower()
-        toks = set(re.findall(r"[a-z0-9]+", hay))
-        score = len(q & toks)
-        # pinned + confidence as gentle tiebreakers
-        score += 0.5 if r["meta"].get("pinned") else 0
-        if score > 0:
-            scored.append((score, r))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [r for _, r in scored[:k]]
+    for r, doc in zip(records, documents):
+        counts = Counter(doc)
+        matched = q & counts.keys()
+        if not matched:
+            continue
+        score = sum(math.log(1 + (len(documents) - df[t] + .5) / (df[t] + .5))
+                    * counts[t] * 2.2 / (counts[t] + 1.2 * (.25 + .75 * len(doc) / average))
+                    for t in matched)
+        scored.append((score, bool(r['meta'].get('pinned')), r))
+    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    return [r for _, _, r in scored[:min(k, 20)]]
 
 
 def context_block(query: str, k: int = 5) -> str:
@@ -113,5 +127,6 @@ def context_block(query: str, k: int = 5) -> str:
         return ""
     out = ["Relevant things you remember (from your memory store):"]
     for r in hits:
-        out.append(f"- ({r['meta'].get('type', '?')}) {r['body']}")
+        out.append(f"- [id={r['id']}, source={r['meta'].get('source', 'unknown')}, "
+                   f"last_seen={r['meta'].get('last_seen', 'unknown')}] {r['body'][:1200]}")
     return "\n".join(out)

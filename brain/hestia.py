@@ -42,6 +42,7 @@ config.load_secrets()
 
 import datetime as _dt  # noqa: E402
 
+import context_budget
 import operation_store  # noqa: E402
 from tool_contract import ToolResult, mutation, receipt, validate
 
@@ -91,6 +92,9 @@ class TurnTrace:
 
 
 _trace: ContextVar[TurnTrace | None] = ContextVar("turn_trace", default=None)
+_prepared: ContextVar[dict | None] = ContextVar("prepared_context", default=None)
+OUTPUT_TOKENS = int(os.environ.get("HESTIA_OUTPUT_TOKENS", "768"))
+TOOL_RESULT_BYTES = int(os.environ.get("HESTIA_TOOL_RESULT_BYTES", "6000"))
 
 
 # Voice services (the same Wyoming STT/TTS the HA Assist pipeline uses). The chat client's mic
@@ -135,12 +139,13 @@ def _context_plan(user_text: str) -> dict:
     It lets ordinary conversation skip Home Assistant instead of fetching every light and soil
     sensor before every model call.
     """
-    matched = tools.skill.match(user_text)
+    selected = tools.skill.matches(user_text)
+    matched = selected[0] if selected else None
     garden_focus = records_store.garden_lookup(user_text)
-    garden_topic = bool(garden_focus) or bool(matched and matched.get("name") == "garden_bed")
+    garden_topic = bool(garden_focus) or any(s["name"] == "garden_bed" for s in selected)
     text = user_text.lower()
-    return {"matched": matched, "garden_focus": garden_focus, "garden_topic": garden_topic,
-            "lights": bool(matched and matched.get("name") == "home_control")
+    return {"matched": matched, "selected": selected, "query": user_text, "garden_focus": garden_focus, "garden_topic": garden_topic,
+            "lights": any(s["name"] == "home_control" for s in selected)
             or any(re.search(rf"\b{re.escape(term)}\b", text) for term in _LIGHT_CONTEXT),
             # The garden skill's procedure relies on live readings, including broad bed questions.
             # Keep that behavior, but do not load soil for unrelated turns.
@@ -154,9 +159,12 @@ def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: st
     here preserves grounding behavior while making I/O ownership explicit.
     """
     now = _dt.datetime.now().strftime("%A %B %d %Y, %H:%M")
-    parts = [SYSTEM_PROMPT, "", f"Current date/time: {now}."]
+    # Stable policy and selected procedures precede all changing household evidence.
+    selected = plan.get('selected', [plan['matched']] if plan.get('matched') else [])
+    procedures = [tools.skill.active_block(user_text, selected=s) for s in selected]
+    parts = [SYSTEM_PROMPT, *procedures, "", f"Current date/time: {now}."]
     if light_catalog:
-        parts += ["", "--- LIGHT CATALOG ---", light_catalog]
+        parts += ["", "--- LIGHT CATALOG ---", context_budget.evidence("light catalog, fetched within 60 seconds", light_catalog)]
     if soil:
         parts += ["", "--- GARDEN SOIL MOISTURE (live readings — the COMPLETE sensor list) ---",
                   "These are ALL the soil-moisture sensors and their current % readings. To answer "
@@ -165,15 +173,12 @@ def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: st
                   "dry') — read the values straight from this list and report them. Do NOT call a "
                   "tool for this, and never name a bed or sensor that is not written here. For a "
                   "broad request, give every reading.",
-                  soil]
+                  context_budget.evidence("soil catalog, fetched within 60 seconds", soil)]
     matched = plan["matched"]
-    skill_block = tools.active_skill(user_text)
-    if skill_block:
-        parts += ["", skill_block]
     # The almanac pages are nightly-regenerated files, not static skill knowledge, so the
     # brain injects them live when the almanac skill owns the request (same move as the
     # GARDEN blocks: put the real data in front of the model instead of hoping it fetches).
-    if matched and matched.get("name") == "almanac":
+    if any(s["name"] == "almanac" for s in selected):
         pages = _almanac_pages()
         if pages:
             parts += ["", "--- ALMANAC (authoritative season record) ---",
@@ -181,7 +186,7 @@ def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: st
                       "timeline, wildlife, year-over-year comparisons — strictly from the "
                       "page(s) below. Everything historical is already written here; do NOT "
                       "call a tool for it. Never invent a date or event that is not on a page.",
-                      pages]
+                      context_budget.evidence("almanac", pages, 6000)]
     # Garden topic = the watering skill triggered OR the user named a real bed / zone /
     # plant that exists in records (data-driven, so we don't have to enumerate every plant
     # as a keyword). Places are kept out of roster() to avoid bloating every prompt.
@@ -199,20 +204,20 @@ def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: st
                       "the user instead reports something that happened in the garden — planted, "
                       "thinned, transplanted, harvested, lost, treated a bed — record it with the "
                       "records tool against the named bed, then confirm.)",
-                      garden]
+                      context_budget.evidence("planting records", garden, 5000)]
     roster = records_store.roster()
     if roster:
-        parts += ["", "--- WHO & WHAT ---", roster]
+        parts += ["", "--- WHO & WHAT ---", context_budget.evidence("entity roster", roster, 2000)]
     mem = memory_store.context_block(user_text)
     if mem:
-        parts += ["", "--- MEMORY ---", mem]
+        parts += ["", "--- MEMORY ---", context_budget.evidence("approved or user-requested memories", mem, 3000)]
     # Focused, exact garden records for the entities the user named — injected LAST so
     # it's the most recent context the model sees, which it grounds on far better than a
     # block buried earlier. Answer the specific question from this; no tool call needed.
     if garden_focus:
         parts += ["", "--- GARDEN RECORDS FOR THIS QUESTION "
                   "(answer using these exact entries; do NOT use search for this) ---",
-                  garden_focus]
+                  context_budget.evidence("focused garden records", garden_focus, 5000)]
     return "\n".join(parts)
 
 
@@ -220,6 +225,8 @@ async def _build_system_prompt(user_text: str) -> str:
     """Collect only context relevant to this turn, without blocking the request event loop."""
     plan = await asyncio.to_thread(_context_plan, user_text)
     light_catalog, soil = await tools.home.context_catalogs(lights=plan["lights"], soil=plan["soil"])
+    plan['soil_available'] = bool(soil) and not soil.startswith('(home catalog unavailable')
+    _prepared.set(plan)
     return await asyncio.to_thread(_system_prompt, user_text, plan, light_catalog, soil)
 
 
@@ -242,7 +249,7 @@ async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dic
     body = {"model": trace.model if trace else MODEL, "messages": messages,
             "tools": tools.SCHEMAS if schemas is None else schemas,
             "stream": False, "think": trace.think if trace else THINK,
-            "options": {"temperature": 0.3, "num_ctx": NUM_CTX}}
+            "options": {"temperature": 0.3, "num_ctx": NUM_CTX, "num_predict": OUTPUT_TOKENS}}
     r = await client.post("/api/chat", json=body)
     r.raise_for_status()
     payload = r.json()
@@ -265,26 +272,46 @@ _WATER_DECISION = ("water", "irrigat")
 
 
 def _is_soil_readout(user_text: str) -> bool:
-    t = user_text.lower()
-    return any(w in t for w in _SOIL_STATE) and not any(w in t for w in _WATER_DECISION)
+    """Only an unambiguous single state question may suppress tools."""
+    t = user_text.lower().strip()
+    return (bool(re.match(r"^(?:what|how|is|are|show|tell me)\b", t))
+            and any(re.search(rf"\b{word}\b", t) for word in _SOIL_STATE)
+            and not re.search(r"\b(?:and|then|also|log|record|remember|remind|water|watering|irrigate|irrigation)\b|[;\n]", t))
+
+
+_INTENT_TOOLS = {
+    'reminder': r"\b(?:remind|reminder|timer|alarm)\b",
+    'shopping': r"\b(?:shopping|grocery|groceries|out of|buy)\b|\badd\b.+\blist\b",
+    'memory': r"\b(?:remember|preference|prefer|previously told|coffee)\b",
+    'records': r"\b(?:log|record|harvest|harvested|picked|vaccinated|thinned)\b",
+    'search': r"\b(?:search|look up|news|web)\b",
+    'status': r"\b(?:disk|system status|service status|uptime)\b",
+}
+
+
+def _routing_text(messages: list[dict]) -> str:
+    latest = messages[-1]['content']
+    if len(latest) < 300 and re.search(r"\b(?:it|them|those|that|there|same|again|back)\b", latest, re.I):
+        prior = [m['content'] for m in messages[:-1] if m['role'] == 'user']
+        if prior:
+            return prior[-1][-1000:] + "\nFollow-up: " + latest
+    return latest
 
 
 def _request_schemas(user_text: str) -> list:
-    """Tools offered for this request. If the matched skill declares a `tools:` allow-list,
-    offer ONLY those (so a small model can't misfire into search on a garden question);
-    otherwise offer everything. Garden detection is data-driven: naming a real bed/zone/plant
-    scopes to the garden_bed tools even when no keyword trigger fired (e.g. 'fig trees')."""
-    matched = tools.skill.match(user_text)
-    garden = bool(matched and matched.get("name") == "garden_bed") or bool(records_store.garden_lookup(user_text))
-    # Pure soil-state readout + the live block is present → offer nothing; force a read from it.
-    if garden and _is_soil_readout(user_text) and tools.soil_catalog():
+    """Reuse the prepared plan. Schema selection performs no network I/O."""
+    plan = _prepared.get() or _context_plan(user_text)
+    selected = plan.get('selected', [])
+    allow = {name for skill in selected for name in skill.get('tools', [])}
+    query = plan.get('query', user_text).lower()
+    explicit = {name for name, pattern in _INTENT_TOOLS.items() if re.search(pattern, query)}
+    if plan['garden_topic']:
+        allow.update(('home', 'weather', 'records'))
+    allow.update(explicit)
+    if (plan['garden_topic'] and _is_soil_readout(user_text) and plan.get('soil_available')
+            and not explicit):
         return []
-    allow = (matched or {}).get("tools")
-    if not allow and records_store.garden_lookup(user_text):
-        allow = (tools.skill.get("garden_bed") or {}).get("tools")
-    if not allow:
-        return tools.SCHEMAS
-    return [s for s in tools.SCHEMAS if s["function"]["name"] in allow]
+    return [s for s in tools.SCHEMAS if not allow or s['function']['name'] in allow]
 
 
 def _log(msg: str) -> None:
@@ -342,6 +369,7 @@ async def _run_tool(name: str, args: dict, budget: float) -> tuple[str, str]:
 async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> str:
     trace = trace or TurnTrace()
     token = _trace.set(trace)
+    prepared_token = _prepared.set(None)
     started = time.monotonic()
     try:
         answer = await _agent_loop(messages)
@@ -357,6 +385,7 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
                          "model_calls": trace.model_calls, "usage": trace.usage(),
                          "backend_ns": trace.backend}))
         _trace.reset(token)
+        _prepared.reset(prepared_token)
 
 
 async def _agent_loop(messages: list[dict]) -> str:
@@ -368,10 +397,13 @@ async def _agent_loop(messages: list[dict]) -> str:
     finish, so a slow backend cannot exhaust asyncio's shared executor. Every step is traced to
     the journal so a misfire is one `journalctl` away.
     """
-    user_text = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
+    if error := context_budget.validate_messages(messages):
+        return error
+    user_text = messages[-1]['content']
+    routing_text = _routing_text(messages)
     context_started = time.monotonic()
     convo = [m for m in messages if m.get("role") != "system"]
-    convo = [{"role": "system", "content": await _build_system_prompt(user_text)}, *convo]
+    convo = [{"role": "system", "content": await _build_system_prompt(routing_text)}, *convo]
     schemas = _request_schemas(user_text)
     if trace := _trace.get():
         trace.context_seconds = time.monotonic() - context_started
@@ -389,7 +421,10 @@ async def _agent_loop(messages: list[dict]) -> str:
             _log(f"TURN BUDGET {TURN_BUDGET}s exhausted before step {step}")
             return _TOO_SLOW
         try:
+            convo = context_budget.fit(convo, schemas, NUM_CTX, OUTPUT_TOKENS)
             msg = await asyncio.wait_for(_ollama_chat(convo, schemas), timeout=remaining)
+        except ValueError as e:
+            return str(e)
         except asyncio.TimeoutError:
             _log(f"model call exceeded remaining {remaining:.1f}s at step {step}")
             return _TOO_SLOW
@@ -468,7 +503,7 @@ async def _agent_loop(messages: list[dict]) -> str:
                 trace.actions.append(fact)
             seen[sig] = fact.message()
             last_result = str(result)
-            convo.append({"role": "tool", "tool_name": name, "content": fact.message()})
+            convo.append({"role": "tool", "tool_name": name, "content": context_budget.evidence("tool result " + name, fact.message(), TOOL_RESULT_BYTES)})
         # The model ignored the nudge and is still repeating itself — stop looping and answer from
         # the data we already have rather than dead-ending at MAX_STEPS with an apology.
         if dup_nudges >= 2 and last_result:
@@ -619,7 +654,11 @@ async def operation_status(request_id: str):
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     body = await request.json()
+    if not isinstance(body, dict):
+        return JSONResponse(status_code=400, content={'error': 'Expected a JSON object.'})
     messages = body.get("messages") or []
+    if error := context_budget.validate_messages(messages):
+        return JSONResponse(status_code=400, content={'error': error})
     key = request.headers.get('Idempotency-Key')
     if key and not re.fullmatch(r'[A-Za-z0-9_-]{8,128}', key):
         return JSONResponse(status_code=400, content={'error': 'Invalid Idempotency-Key.'})

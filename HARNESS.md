@@ -35,3 +35,29 @@ repeated. Exactly-once remote execution cannot be guaranteed across backend cras
 Requests without a client key receive a generated ID but cannot deduplicate a lost
 response unless the client retained the ID. Keep keys unique for intentional new turns.
 The ledger currently retains receipts until operator maintenance; it is private data.
+
+## Context and routing
+
+One prepared plan selects up to three matching skills and unions their tool lists
+with explicit reminder, shopping, memory, records, search and status intents. Short
+pronoun follow-ups include the preceding user topic for routing. This is a bounded
+heuristic, not general coreference resolution. Only a single soil-state question
+with available readings can disable tools; observations retain records access.
+
+Evidence blocks carry source and truncation metadata and are explicitly data-only.
+Stable instructions precede changing evidence. History is trimmed at whole user
+exchange boundaries, keeping assistant/tool groups together. The conservative UTF-8
+byte estimate reserves `HESTIA_OUTPUT_TOKENS` (default 768) plus protocol headroom.
+If the current exchange and required context cannot fit, the harness asks for a
+shorter request instead of silently dropping instructions. This estimate intentionally
+overestimates typical English token counts; backend counts remain authoritative.
+Tool results are bounded by `HESTIA_TOOL_RESULT_BYTES` (default 6000).
+
+The API accepts only bounded text user/assistant/system messages; client-supplied
+system messages are ignored and client-supplied tool evidence is rejected. Prompt
+boundaries reduce instruction confusion but are not a proof against prompt injection.
+
+Memory recall uses lexical rarity and document-length normalization, ignores common
+question words, and treats pins as tie-breakers only after a relevant match. Injected
+memories include record ID, source and last-seen date. No embedding service was added;
+semantic retrieval remains a measured follow-up if lexical misses warrant it.

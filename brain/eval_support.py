@@ -68,6 +68,7 @@ async def first_message(model: str, prompt: str):
     """Selection probes use production prompt construction and generation settings."""
     trace = hestia.TurnTrace(model=model, think=False)
     token = hestia._trace.set(trace)
+    prepared_token = hestia._prepared.set(None)
     try:
         system = await hestia._build_system_prompt(prompt)
         schemas = hestia._request_schemas(prompt)
@@ -76,3 +77,4 @@ async def first_message(model: str, prompt: str):
         return msg, len(schemas)
     finally:
         hestia._trace.reset(token)
+        hestia._prepared.reset(prepared_token)

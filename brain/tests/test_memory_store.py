@@ -42,3 +42,19 @@ def test_pinned_breaks_ties_toward_pinned(mem):
     mem.write("blue car", type="reference", pinned=True)
     top = mem.recall("blue car")[0]
     assert top["meta"]["pinned"] is True
+
+
+def test_irrelevant_pinned_memory_is_not_recalled(mem):
+    mem.write('trash collection Tuesday', pinned=True)
+    assert mem.recall('quantum chromodynamics') == []
+
+
+def test_common_question_words_do_not_count_as_relevance(mem):
+    mem.write('the car is in the garage')
+    assert mem.recall('what is the coffee') == []
+
+
+def test_alias_links_retrieve_and_context_carries_provenance(mem):
+    rid = mem.write('Orange bag beans', links=['coffee'], source='user')
+    assert mem.recall('coffee')[0]['id'] == rid
+    assert 'source=user@' in mem.context_block('coffee')
