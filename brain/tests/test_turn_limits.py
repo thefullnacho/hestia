@@ -106,3 +106,74 @@ def test_independent_reads_overlap(monkeypatch):
     with fixtures():
         asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'How is the garden and will it rain?'}]))
     assert peak == 2
+
+
+def test_simple_light_write_needs_only_one_model_round(monkeypatch):
+    calls = []
+    async def chat(*_):
+        calls.append(1)
+        return {'tool_calls': [{'function': {'name': 'home', 'arguments': {
+            'action': 'turn_off', 'entity_id': 'light.light_kitchen_lights'}}}]}
+    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    with fixtures():
+        answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'Turn off the kitchen lights.'}]))
+    assert len(calls) == 1
+    assert 'off' in answer
+
+
+def test_mixed_read_and_write_preserves_information(monkeypatch):
+    replies = [{'tool_calls': [{'function': {'name': 'home', 'arguments': {
+        'action': 'turn_off', 'entity_id': 'light.light_kitchen_lights'}}}]},
+        {'content': 'Biscuit is a corgi.'}]
+    async def chat(*_):
+        return replies.pop(0)
+    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    with fixtures():
+        answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content':
+            'Turn off the kitchen lights and tell me what breed Biscuit is.'}]))
+    assert 'corgi' in answer
+    assert 'Verified actions' in answer
+
+
+def test_interrupted_stream_receipt_matches_visible_partial_text(monkeypatch):
+    async def loop(messages):
+        trace = hestia._trace.get()
+        trace.emitted = True
+        trace.streamed_text = 'Partial answer'
+        return hestia._BACKEND_DOWN
+    monkeypatch.setattr(hestia, '_agent_loop', loop)
+    trace = hestia.TurnTrace()
+    answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'hello'}], trace=trace))
+    assert answer == 'Partial answer\n' + hestia._BACKEND_DOWN
+    assert trace.failure == hestia._BACKEND_DOWN
+
+
+def test_empty_action_response_gets_one_recovery_attempt(monkeypatch):
+    replies = [{'content': ''}, {'tool_calls': [{'function': {'name': 'home', 'arguments': {
+        'action': 'turn_off', 'entity_id': 'light.light_kitchen_lights'}}}]}]
+    async def chat(*_):
+        return replies.pop(0)
+    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    with fixtures() as state:
+        answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'Turn off the kitchen lights.'}]))
+        assert state['light'] == 'off'
+        assert 'off' in answer
+    assert replies == []
+
+
+def test_unattempted_explicit_write_cannot_claim_success(monkeypatch):
+    calls = []
+    async def chat(*_):
+        calls.append(1)
+        return {'content': 'Recorded successfully.'}
+    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    with fixtures() as state:
+        answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'Log the vaccination.'}]))
+        assert state['calls'] == []
+    assert answer == hestia._NO_ACTION
+    assert len(calls) == 2
+
+
+def test_followup_actuation_is_an_explicit_required_write():
+    assert hestia._required_writes('Turn them back on.') == {'home'}
+    assert hestia._required_writes('How do I turn them on?') == set()

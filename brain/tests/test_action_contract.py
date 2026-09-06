@@ -110,3 +110,14 @@ def test_late_write_completes_once_and_remains_observable(monkeypatch, tmp_path)
     finally:
         release.set()
         pool.shutdown(wait=True)
+
+
+def test_text_recovery_accepts_only_exact_valid_read_calls():
+    import json
+    from tool_contract import read_call_from_text
+    call = {'name': 'records', 'arguments': {'action': 'entity', 'name': 'Biscuit'}}
+    assert read_call_from_text(json.dumps(call), tools.SCHEMAS)
+    assert read_call_from_text(json.dumps(call), []) is None
+    assert read_call_from_text('Example: ' + json.dumps(call), tools.SCHEMAS) is None
+    call['arguments'] = {'action': 'log', 'detail': 'vaccinated'}
+    assert read_call_from_text(json.dumps(call), tools.SCHEMAS) is None

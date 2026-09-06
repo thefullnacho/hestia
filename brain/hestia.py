@@ -8,8 +8,8 @@ to control the house, `memory` to remember/recall — until the model produces a
 answer, which it returns to the client as a normal chat completion.
 
 Internally it speaks to Ollama's native /api/chat (structured tool_calls). Tool
-execution is sync, run off the event loop. v1 returns complete (non-streamed)
-responses; clients that asked for stream=true get the final answer in one SSE chunk.
+execution is sync, run in a bounded worker pool. Tool-selection rounds are buffered;
+streaming clients receive incremental final synthesis when tools are disabled.
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ import datetime as _dt  # noqa: E402
 
 import context_budget
 import operation_store  # noqa: E402
-from tool_contract import ToolResult, mutation, receipt, validate
+from tool_contract import ToolResult, mutation, receipt, validate, read_call_from_text
 
 import memory_store  # noqa: E402
 import nfc  # noqa: E402
@@ -87,6 +87,9 @@ class TurnTrace:
     actions: list = field(default_factory=list)
     deadline: float = 0.0
     emitted: bool = False
+    streamed_text: str = ""
+    failure: str = ""
+    repair_tool: str = ""
 
     def usage(self) -> dict:
         return {"prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens,
@@ -104,6 +107,8 @@ _turn_slots = asyncio.BoundedSemaphore(MAX_ACTIVE_TURNS)
 _stream_sink: ContextVar[object] = ContextVar("stream_sink", default=None)
 _live_turns: set = set()
 _BUSY = "The brain is busy with another request. Please try again shortly."
+_NO_ACTION = "I haven't completed the requested action. Please clarify the target or try again."
+_EMPTY_REPLY = "The model returned no usable answer. Please try again."
 
 
 
@@ -176,13 +181,13 @@ def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: st
     if light_catalog:
         parts += ["", "--- LIGHT CATALOG ---", context_budget.evidence("light catalog, fetched within 60 seconds", light_catalog)]
     if soil:
-        parts += ["", "--- GARDEN SOIL MOISTURE (live readings — the COMPLETE sensor list) ---",
-                  "These are ALL the soil-moisture sensors and their current % readings. To answer "
+        parts += ["", "--- GARDEN SOIL MOISTURE (live readings — available sensor readings) ---",
+                  "These are the available soil-moisture sensors and their current % readings. To answer "
                   "ANY question about garden/bed/sensor moisture — whether broad ('what do the "
                   "moisture sensors say', 'how's the garden') or about one bed ('is the carrot bed "
                   "dry') — read the values straight from this list and report them. Do NOT call a "
                   "tool for this, and never name a bed or sensor that is not written here. For a "
-                  "broad request, give every reading.",
+                  "broad request, give every supplied reading and mention any truncation.",
                   context_budget.evidence("soil catalog, fetched within 60 seconds", soil)]
     matched = plan["matched"]
     # The almanac pages are nightly-regenerated files, not static skill knowledge, so the
@@ -202,10 +207,10 @@ def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: st
     # as a keyword). Places are kept out of roster() to avoid bloating every prompt.
     garden_focus = plan["garden_focus"]
     garden_topic = plan["garden_topic"]
-    if garden_topic:
+    if garden_topic and not garden_focus:
         garden = records_store.garden_overview()
         if garden:
-            parts += ["", "--- GARDEN (authoritative — the COMPLETE planting list) ---",
+            parts += ["", "--- GARDEN (authoritative planting records) ---",
                       "Answer every question about what is planted, or about any bed / zone / "
                       "area, strictly and only from the list below. Use these exact plant names "
                       "and counts. Never add, invent, generalize, or guess a plant, bed, or area "
@@ -260,10 +265,25 @@ async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dic
             "tools": tools.SCHEMAS if schemas is None else schemas,
             "stream": False, "think": trace.think if trace else THINK,
             "options": {"temperature": 0.3, "num_ctx": NUM_CTX, "num_predict": OUTPUT_TOKENS}}
+    repair = trace.repair_tool if trace else ''
+    if trace:
+        trace.repair_tool = ''
+    if repair:
+        schema = next(s['function']['parameters'] for s in body['tools'] if s['function']['name'] == repair)
+        body['tools'] = []
+        body['format'] = schema
+        body['options']['temperature'] = 0
+        body['messages'] = [*messages, {'role': 'system', 'content':
+            f'Return only the JSON argument object for the {repair} tool, matching the supplied schema. '
+            'The harness will validate it before execution. Do not claim completion. '
+            'Omit optional fields the user did not specify, especially location and timestamps. '
+            'For events today or now, omit ts so the datastore supplies its own clock. '
+            'Choose the event kind from its meaning (health, chore, sighting, or note). '
+            'Argument schema: ' + json.dumps(schema)}]
     sink = _stream_sink.get()
     # Only a final synthesis with tools disabled can emit user-visible text safely.
     # Tool-selection rounds stay buffered, as a late tool call may change the outcome.
-    if sink and not body['tools'] and not (trace and trace.actions):
+    if sink and not repair and not body['tools'] and not (trace and trace.actions):
         body['stream'] = True
         content, payload = [], {}
         async with client.stream('POST', '/api/chat', json=body) as response:
@@ -280,6 +300,7 @@ async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dic
                     await sink(delta)
                     if trace:
                         trace.emitted = True
+                        trace.streamed_text += delta
                 if event.get('done'):
                     payload = event
         if not payload.get('done'):
@@ -295,6 +316,12 @@ async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dic
         trace.completion_tokens += payload.get("eval_count", 0)
         for key in ("load_duration", "prompt_eval_duration", "eval_duration", "total_duration"):
             trace.backend[key] = trace.backend.get(key, 0) + payload.get(key, 0)
+    if repair:
+        try:
+            args = json.loads(payload['message'].get('content', ''))
+        except (ValueError, TypeError):
+            return {'content': ''}
+        return {'content': '', 'tool_calls': [{'function': {'name': repair, 'arguments': args}}]}
     return payload["message"]
 
 
@@ -318,7 +345,7 @@ def _is_soil_readout(user_text: str) -> bool:
 _INTENT_TOOLS = {
     'reminder': r"\b(?:remind|reminder|timer|alarm)\b",
     'shopping': r"\b(?:shopping|grocery|groceries|out of|buy)\b|\badd\b.+\blist\b",
-    'memory': r"\b(?:remember|preference|prefer|previously told|coffee)\b",
+    'memory': r"\b(?:remember|recall|preference|prefer|previously told)\b",
     'records': r"\b(?:log|record|harvest|harvested|picked|vaccinated|thinned)\b",
     'search': r"\b(?:search|look up|news|web)\b",
     'status': r"\b(?:disk|system status|service status|uptime)\b",
@@ -332,6 +359,18 @@ def _routing_text(messages: list[dict]) -> str:
         if prior:
             return prior[-1][-1000:] + "\nFollow-up: " + latest
     return latest
+
+
+def _required_writes(text: str) -> set[str]:
+    """Narrow explicit command detection, not a general intent classifier."""
+    start = r"(?:^|\band\s+|\bthen\s+)(?:please\s+)?"
+    patterns = {
+        'records': start + r"(?:log|record)\b",
+        'home': start + r"turn\b[^.!?]{0,120}\b(?:on|off)\b",
+        'reminder': start + r"(?:remind me|set (?:a |an )?(?:timer|reminder))\b",
+        'shopping': start + r"add\b[^.!?]*\b(?:shopping|grocery) list\b",
+    }
+    return {name for name, pattern in patterns.items() if re.search(pattern, text, re.I)}
 
 
 def _request_schemas(user_text: str) -> list:
@@ -425,9 +464,21 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
                 answer = await _agent_loop(messages)
         except TimeoutError:
             answer = _TOO_SLOW
+        if answer in _NO_LEARN:
+            trace.failure = answer
         if trace.actions:
-            return "\n".join(a.data if a.status == 'succeeded' else
-                             f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
+            receipts = "\n".join(a.data if a.status == 'succeeded' else
+                                 f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
+            # Preserve informational answers in successful mixed read/write requests.
+            # Known failures always take precedence over model-authored completion claims.
+            question = messages[-1]['content'] if messages else ''
+            if (all(a.status == 'succeeded' for a in trace.actions) and not trace.failure
+                    and re.search(r"\b(?:what|how|why|which|where|should|tell me)\b|\?", question, re.I)
+                    and answer != receipts):
+                return answer + "\nVerified actions: " + receipts
+            return receipts
+        if trace.emitted and trace.failure:
+            return trace.streamed_text + "\n" + trace.failure
         return answer
     finally:
         if admitted:
@@ -468,6 +519,8 @@ async def _agent_loop(messages: list[dict]) -> str:
     last_result = ""              # most recent real tool result, for a graceful fallback
     dup_nudges = 0
     total_calls = 0
+    recovery_used = False
+    required_writes = _required_writes(user_text)
     _log(f"start tools={[s['function']['name'] for s in schemas]}")
 
     for step in range(1, MAX_STEPS + 1):
@@ -484,23 +537,43 @@ async def _agent_loop(messages: list[dict]) -> str:
             _log(f"model call exceeded remaining {remaining:.1f}s at step {step}")
             return _TOO_SLOW
         except Exception as e:  # noqa: BLE001 — an Ollama restart must not 500 the client
-            _log(f"model call failed at step {step}: {type(e).__name__}: {e}")
+            _log(f"model call failed at step {step}: {type(e).__name__}")
             return _BACKEND_DOWN
         if not isinstance(msg, dict):
             return _BACKEND_DOWN
         calls = msg.get("tool_calls") or []
+        if not calls and not re.search(r"\b(?:json|example|code|schema|format)\b", user_text, re.I):
+            recovered = read_call_from_text(msg.get('content'), schemas)
+            if recovered:
+                calls = [recovered]
+                msg['content'] = ''
         if not isinstance(calls, list) or any(not isinstance(c, dict) or
                 not isinstance(c.get('function'), dict) for c in calls):
             return 'The model returned an invalid tool-call structure; nothing further was run.'
         if not calls:
-            _log(f"answered in {step} step(s), {time.monotonic()-t0:.1f}s")
+            content = msg.get('content')
+            content = content.strip() if isinstance(content, str) else ''
             trace = _trace.get()
-            if trace and trace.actions:
-                # Deterministic receipts preserve partial completion and unknown outcomes.
-                # Successful read-only answers remain model-authored.
-                return "\n".join(a.data if a.status == 'succeeded' else
-                                 f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
-            return msg.get("content", "") or ""
+            attempted = {t['name'] for t in trace.tools if t.get('mutation')} if trace else set()
+            missing = required_writes - attempted
+            clarification = bool(content) and content.endswith('?')
+            if (not content or (missing and not clarification)) and not (trace and trace.emitted):
+                if not recovery_used:
+                    recovery_used = True
+                    if content:
+                        convo.append({'role': 'assistant', 'content': content})
+                    need = ', '.join(sorted(missing))
+                    if len(missing) == 1 and trace:
+                        trace.repair_tool = next(iter(missing))
+                    convo.append({'role': 'system', 'content':
+                        'Harness execution check: no usable completion was received. ' +
+                        (f'The user explicitly requested an action using {need}, but no such write was attempted. ' if missing else '') +
+                        'Use a native tool call with JSON object arguments to complete the request, or ask for missing information. '
+                        'Do not claim an action completed without a successful tool receipt.'})
+                    continue
+                return _NO_ACTION if missing else _EMPTY_REPLY
+            _log(f"answered in {step} step(s), {time.monotonic()-t0:.1f}s")
+            return content
         convo.append({"role": "assistant", "content": msg.get("content", ""), "tool_calls": calls})
         parallel = {}
         # Concrete reads emitted together have no result references to one another.
@@ -582,7 +655,7 @@ async def _agent_loop(messages: list[dict]) -> str:
                 result = f"Error: {name} execution could not be verified."
                 _log(f"step {step} tool={name} args={_short(args)} EXECUTOR ERROR {type(e).__name__}")
             if trace := _trace.get():
-                trace.tools.append({"name": name, "seconds": time.monotonic() - ts})
+                trace.tools.append({"name": name, "mutation": mutation(name, args), "seconds": time.monotonic() - ts})
             fact = receipt(name, args, result, outcome,
                            operation_store.digest([trace.request_id, name, args]) if trace else '')
             if trace and mutation(name, args):
@@ -590,6 +663,12 @@ async def _agent_loop(messages: list[dict]) -> str:
             seen[sig] = fact.message()
             last_result = str(result)
             convo.append({"role": "tool", "tool_name": name, "content": context_budget.evidence("tool result " + name, fact.message(), TOOL_RESULT_BYTES)})
+        if (len(calls) == 1 and (_trace.get() and _trace.get().actions)
+                and all(a.status == 'succeeded' for a in _trace.get().actions)
+                and calls[0]['function'].get('name') == 'home'
+                and re.fullmatch(r"(?:please )?turn (?:on|off) (?:the )?[a-z ]{1,60}lights?[.!]?", user_text.strip(), re.I)
+                and not re.search(r"\b(?:and|then|also|if|when|before|after|while)\b", user_text, re.I)):
+            return _trace.get().actions[-1].data
         read_names = {c['function'].get('name') for c in calls}
         if (read_names <= {'home', 'weather', 'memory', 'records', 'status', 'shopping'}
                 and all(not mutation(c['function'].get('name'), c['function'].get('arguments')) for c in calls)
@@ -724,7 +803,7 @@ async def health():
 
 
 # Answers that are non-substantive (errors / give-ups) — never worth note-taking on.
-_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _BUSY,
+_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _BUSY, _NO_ACTION, _EMPTY_REPLY,
              "I wasn't able to finish that in a reasonable number of steps — can you narrow it down?"}
 
 
@@ -751,8 +830,8 @@ async def _run_note(messages, content):
 
 def _note_task(messages: list[dict], content: str) -> BackgroundTask | None:
     """A fire-after-response note-taking task, or None when there's nothing to learn from.
-    Starlette runs sync background callables in a threadpool, so note_taker's blocking model
-    call won't touch the event loop, and it runs only once the answer is already on the wire."""
+    A dedicated bounded worker keeps extraction off the request event loop. It runs
+    only after the answer is on the wire and skips work when capacity is occupied."""
     if not note_taker.ENABLED or not content or content in _NO_LEARN:
         return None
     return BackgroundTask(_run_note, messages, content)
@@ -773,7 +852,7 @@ async def chat_completions(request: Request):
             return JSONResponse(status_code=413, content={'error': 'Request exceeds the byte limit.'})
     try:
         body = json.loads(raw)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError):
         return JSONResponse(status_code=400, content={'error': 'Invalid JSON.'})
     if not isinstance(body, dict):
         return JSONResponse(status_code=400, content={'error': 'Expected a JSON object.'})
@@ -812,8 +891,8 @@ async def chat_completions(request: Request):
                 text = comp['choices'][0]['message']['content']
                 if not trace.emitted:
                     await queue.put(text)
-                elif text in _NO_LEARN:
-                    await queue.put('\n' + text)
+                elif trace.failure:
+                    await queue.put('\n' + trace.failure)
                 await queue.put(comp)
             finally:
                 _stream_sink.reset(token)
@@ -835,6 +914,7 @@ async def chat_completions(request: Request):
                     finally:
                         if not event_task.done():
                             event_task.cancel()
+                            await asyncio.gather(event_task, return_exceptions=True)
                     final = isinstance(event, dict)
                     chunk = {'id': comp_id, 'object': 'chat.completion.chunk',
                              'created': int(time.time()), 'model': trace.model,
@@ -852,7 +932,7 @@ async def chat_completions(request: Request):
                     task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
         async def after_stream():
-            if completed and not saved and not trace.actions:
+            if completed and not saved and not trace.actions and not trace.failure:
                 note = _note_task(messages, completed[0]['choices'][0]['message']['content'])
                 if note:
                     await note()
@@ -861,7 +941,7 @@ async def chat_completions(request: Request):
                                  background=BackgroundTask(after_stream))
     comp = await execute()
     content = comp['choices'][0]['message']['content']
-    note = _note_task(messages, content) if not saved and not trace.actions else None
+    note = _note_task(messages, content) if not saved and not trace.actions and not trace.failure else None
     return JSONResponse(comp, background=note, headers={'X-Request-ID': trace.request_id})
 
 

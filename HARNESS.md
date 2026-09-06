@@ -89,3 +89,47 @@ Extraction has one dedicated worker and no waiting queue; busy periods skip opti
 extraction. `HESTIA_NOTETAKER_OLLAMA` can select a separate local inference server,
 with `HESTIA_NOTETAKER_MODEL` selecting its model. Sharing the foreground GPU can
 still add contention after a note job has started; no runtime GPU settings are changed.
+
+A simple single light on/off command returns its verified tool receipt after one
+model round. Successful mixed informational/action requests retain the informational
+answer alongside explicit verified receipts. Known failed or unknown writes override
+model completion prose. Interrupted streams retain the visible partial answer plus
+the failure in the replay receipt and are never sent to background learning.
+
+Empty model replies and unattempted explicit log/record, light, reminder and shopping
+commands receive at most one recovery instruction. A second failure produces an honest
+non-completion response and is not learned. This catches a measured native Ollama case
+that generated tokens but returned an empty message with no parsed tool call. Detection
+is intentionally limited to explicit command forms and does not prove all user intents
+were completed. Missing arguments may still require a clarifying question.
+
+When one explicit write tool is missing, recovery uses Ollama's schema-constrained
+JSON output for that tool's arguments, then the ordinary scope, validation and receipt
+path. It never executes free-form model prose. This is a fallback only, consumes the
+same turn budget, uses temperature zero, and does not repeat a dispatched write.
+See [Ollama structured outputs](https://docs.ollama.com/capabilities/structured-outputs).
+
+Successful light mutations invalidate the cached prompt catalog immediately, so the
+next turn refreshes state instead of treating a pre-action snapshot as current. The
+synthetic evaluation catalog follows fixture state for the same reason. Explicit
+follow-up actuations such as "turn them back on" require a write attempt too.
+
+A native parser miss that returns a complete JSON read-call object can be normalized
+into a validated read call. This accepts exactly `name` and `arguments`, rejects
+mutations and extra prose, and is disabled when the user asks for JSON/code/examples.
+It addresses an observed model response that printed a records lookup instead of
+executing it. Write recovery remains schema-constrained, never parsed from prose.
+
+## Validation snapshot, 2026-09-06
+
+272 offline tests passed. The resident `qwen3:14b` with thinking disabled passed
+24/24 synthetic evaluations (eight cases, three repeats each). Case latency
+was p50 1.35s and p95 2.40s; the follow-up case includes two turns.
+The simple light-command median was 0.55s with one model round. These are
+isolated regression checks with mocked household backends, not a production SLA or
+a controlled before/after speedup measurement. No service was deployed or restarted.
+
+Further inference tuning should compare context size, concurrency and cache settings
+against this suite plus a broader held-out corpus. No inference-engine environment
+settings, model weights or thinking defaults were changed. Semantic retrieval remains
+a separate experiment, justified by measured misses rather than added by default.

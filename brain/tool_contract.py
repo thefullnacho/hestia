@@ -40,7 +40,7 @@ def validate(name, args, schemas):
     try:
         if len(json.dumps(args, allow_nan=False).encode()) > 32768:
             return 'Error: tool arguments exceed the size limit.'
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, RecursionError):
         return 'Error: arguments must contain finite JSON values.'
 
     def check(value, spec, path):
@@ -129,3 +129,23 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
     if name == 'reminder' and text.startswith(("I couldn't read", 'No pending reminder', 'Which reminder')):
         return ToolResult('failed', text, operation_id, 'invalid_target_or_time')
     return ToolResult('unknown', text, operation_id, 'unverified_write')
+
+
+def read_call_from_text(text, schemas):
+    """Recognize only a complete JSON read-call object from a native-parser miss.
+
+    Never recover a mutation from prose. Writes require a native or schema-constrained
+    call. Explanations, markdown and objects with extra keys are ordinary answer text.
+    """
+    if not isinstance(text, str) or len(text) > 32768:
+        return None
+    try:
+        obj = json.loads(text)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(obj, dict) or set(obj) != {'name', 'arguments'}:
+        return None
+    name, args = obj['name'], obj['arguments']
+    if not isinstance(name, str) or validate(name, args, schemas) or mutation(name, args):
+        return None
+    return {'function': {'name': name, 'arguments': args}}

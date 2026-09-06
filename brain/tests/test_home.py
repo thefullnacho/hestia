@@ -63,3 +63,13 @@ def test_resolve_unique_friendly_name():
 def test_resolve_ambiguous_returns_none():
     assert home._resolve("soil", STATES) is None
     assert home._resolve("bed", STATES) is None
+
+
+def test_successful_mutation_invalidates_prompt_catalog(monkeypatch):
+    from tools import home
+    import httpx
+    home._cache['t'] = 12345
+    monkeypatch.setattr(home.httpx, 'post', lambda *a, **k: httpx.Response(200, json=[]))
+    monkeypatch.setattr(home.httpx, 'get', lambda *a, **k: httpx.Response(200, json={'state': 'off'}))
+    home.execute('turn_off', entity_id='light.kitchen')
+    assert home._cache['t'] == 0

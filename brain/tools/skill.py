@@ -1,12 +1,9 @@
 """Skill router — deterministic, pre-loop domain-knowledge injection.
 
-A 14B model can't reliably *choose* which skill applies once there's more than one
-(it anchors on the first-listed and mis-routes). So skills are not a model-facing tool:
-instead, before the agent loop runs, `active_block(user_text)` keyword-matches the
-request against each skill's declared triggers, picks the single best match, and the
-caller injects that one skill's knowledge + procedure inline into the request's system
-prompt. The model never decides — it just sees the right knowledge already in front of
-it. An irrelevant match is cheap (extra context the model ignores), so this fails soft.
+Skill procedures are selected deterministically before the agent loop. The caller
+unions up to three matching procedures and their tools for mixed requests; the model
+receives relevant domain knowledge without an extra routing inference. The single
+match() helper remains available for callers that need the highest-scoring skill.
 
 A skill lives in `brain/skills/<name>/` with a `SKILL.md` whose frontmatter carries
 `name`, `description`, and `triggers` (comma-separated keywords), plus `references/*.md`.

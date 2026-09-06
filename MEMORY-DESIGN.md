@@ -1,5 +1,9 @@
 # Hestia memory — the design (and the build-vs-reuse call)
 
+> Historical memory plan. Background extraction now always proposes to the review
+> inbox; only approved proposals are promoted. Current retrieval and harness behavior
+> are documented in [HARNESS.md](HARNESS.md).
+
 ## The call: build the brain fresh, steal the memory *design*
 
 **Verdict: fresh brain.** Odysseus fails the ≥70% test *as a brain*. It's a

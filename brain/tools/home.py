@@ -192,6 +192,8 @@ def execute(action: str, entity_id: str | None = None,
         r = httpx.post(f"{HA_URL}/api/services/light/{service}", headers=_HDRS, json=data, timeout=12)
         if r.status_code >= 400:
             return f"Home Assistant returned {r.status_code}: {r.text[:120]}"
+        # A later turn must not ground itself on a pre-action catalog snapshot.
+        _cache['t'] = 0.0
         # confirm new state (a nicety — the command already landed, so a flaky read-back
         # must not report the action itself as failed; that invites a state-flipping retry)
         try:

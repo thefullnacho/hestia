@@ -36,10 +36,12 @@ CASES = [
      lambda text, s: "orange" in text.lower()),
     ("mixed request", ["Turn off the kitchen lights and add milk to the shopping list."],
      lambda text, s: s["light"] == "off" and "milk" in s["shopping"]),
+    ("mixed read and write", ["Turn off the kitchen lights and tell me what breed Biscuit is."],
+     lambda text, s: s["light"] == "off" and "corgi" in text.lower()),
     ("follow-up", ["Turn off the kitchen lights.", "Turn them back on."],
      lambda text, s: s["light"] == "on" and len(s["calls"]) >= 2),
     ("unavailable backend", ["Search the web for today's technology news."],
-     lambda text, s: any(w in text.lower() for w in ("unavailable", "disabled", "couldn't", "unable", "error"))),
+     lambda text, s: any(w in text.lower() for w in ("unavailable", "disabled", "couldn't", "can't", "cannot", "unable", "error"))),
 ]
 
 

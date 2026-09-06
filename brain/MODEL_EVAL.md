@@ -1,3 +1,7 @@
+> Historical comparison below. The current harness uses isolated synthetic fixtures and
+> the production agent loop; see [HARNESS.md](../HARNESS.md). Historical percentages
+> and latencies are not directly comparable with the new evaluation suite.
+
 # Resident-brain model eval — 2026-06-14
 
 Comparing candidates for Hestia's resident model slot against the incumbent
@@ -54,7 +58,6 @@ Rejected: `lfm2.5:8b` (judgment flakiness), `qwen3.5:9b` (records-logging gap),
 ## Reproduce
 
 ```
-cd ~/hestia && set -a && . secrets/ha.env && set +a
 EVAL_REPEATS=10 uv run --project brain python brain/eval_models.py \
   qwen3:14b:nothink gemma4:12b:nothink lfm2.5:8b:nothink
 ```

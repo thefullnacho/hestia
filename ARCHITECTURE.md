@@ -1,6 +1,8 @@
 # Hestia — a home + work intelligence
 
-*Working sketch. Not code yet — a shared mental model to argue with.*
+*Historical working sketch. Current runtime invariants are in `CLAUDE.md`; current
+agent-loop behavior and evaluation procedures are in `HARNESS.md`. References below
+to a shell tool and unaudited memory writes describe abandoned plans.*
 
 ---
 

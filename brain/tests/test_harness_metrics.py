@@ -44,3 +44,28 @@ def test_eval_uses_isolated_real_write_path(monkeypatch):
         assert _logged(state)
         assert records_store.DB_PATH != original
     assert records_store.DB_PATH == original
+
+
+def test_structured_repair_uses_schema_then_normal_validation(monkeypatch):
+    from tool_contract import validate
+    async def handle(request):
+        import json
+        body = json.loads(request.content)
+        assert body['tools'] == []
+        assert body['format']['type'] == 'object'
+        return httpx.Response(200, json={'message': {'content': json.dumps({
+            'action': 'log', 'subject': 'Biscuit', 'did': 'vaccinated'})}})
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
+            monkeypatch.setattr(hestia, 'client', client)
+            trace = hestia.TurnTrace(repair_tool='records')
+            token = hestia._trace.set(trace)
+            try:
+                msg = await hestia._ollama_chat([], hestia.tools.SCHEMAS)
+                fn = msg['tool_calls'][0]['function']
+                assert fn['name'] == 'records'
+                assert validate(fn['name'], fn['arguments'], hestia.tools.SCHEMAS) is None
+                assert trace.repair_tool == ''
+            finally:
+                hestia._trace.reset(token)
+    asyncio.run(scenario())

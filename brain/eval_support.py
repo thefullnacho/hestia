@@ -34,7 +34,7 @@ def fixtures():
         soil = "Carrot bed=25%"
 
         async def catalogs(*, lights=False, soil=False):
-            return (light if lights else "", "Carrot bed=25%" if soil else "")
+            return (light.replace("Kitchen lights)=on", f"Kitchen lights)={state['light']}") if lights else "", "Carrot bed=25%" if soil else "")
 
         original = tools.dispatch
 
