@@ -101,13 +101,13 @@ def test_run_skips_trivial_turns(mem, inbox):
     assert called == []                          # too short to bother extracting
 
 
-def test_run_autowrite_goes_straight_to_memory(mem, inbox, monkeypatch):
-    monkeypatch.setattr(inbox, "AUTOWRITE", True)
+def test_legacy_autowrite_flag_cannot_bypass_review(mem, inbox, monkeypatch):
+    monkeypatch.setenv("HESTIA_NOTETAKER_AUTOWRITE", "1")
     fake = lambda _t: '[{"content": "User wants movies in 1080p, never 4K", "type": "preference"}]'
     ids = inbox.run(_MSGS, "Got it.", extract_fn=fake)
     assert len(ids) == 1
-    assert mem.recall("1080p")                   # written to live memory, not the inbox
-    assert not list(inbox.INBOX_DIR.glob("*.md")) if inbox.INBOX_DIR.exists() else True
+    assert mem.recall("1080p") == []
+    assert list(inbox.INBOX_DIR.glob("*.md"))
 
 
 def test_run_never_raises_on_extract_failure(mem, inbox):

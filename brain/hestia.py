@@ -728,13 +728,34 @@ _NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _BUSY,
              "I wasn't able to finish that in a reasonable number of steps — can you narrow it down?"}
 
 
+_note_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="hestia-note")
+_note_slots = asyncio.BoundedSemaphore(1)
+
+
+async def _run_note(messages, content):
+    # Optional learning must not create a queue or occupy the shared default executor.
+    if _note_slots.locked() or _turn_slots.locked():
+        return
+    await _note_slots.acquire()
+    try:
+        work = asyncio.get_running_loop().run_in_executor(_note_executor, note_taker.run, messages, content)
+    except Exception:
+        _note_slots.release()
+        return
+    work.add_done_callback(lambda _: _note_slots.release())
+    try:
+        await asyncio.shield(work)
+    except Exception:
+        _log('background note extraction failed')
+
+
 def _note_task(messages: list[dict], content: str) -> BackgroundTask | None:
     """A fire-after-response note-taking task, or None when there's nothing to learn from.
     Starlette runs sync background callables in a threadpool, so note_taker's blocking model
     call won't touch the event loop, and it runs only once the answer is already on the wire."""
     if not note_taker.ENABLED or not content or content in _NO_LEARN:
         return None
-    return BackgroundTask(note_taker.run, messages, content)
+    return BackgroundTask(_run_note, messages, content)
 
 
 @app.get("/v1/operations/{request_id}")

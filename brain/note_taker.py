@@ -5,8 +5,8 @@ After an exchange, a model reads the transcript and PROPOSES durable facts worth
 remembering ("User prefers TV downloads in 1080p, not 4K"). Per Hestia's north star —
 determinism over intelligence; the Eyes pattern of *propose, don't dispose* — proposals
 land in a review inbox (memory/inbox/*.md), NOT straight into the live memory store. You
-review and promote them with `review_notes.py`. Set HESTIA_NOTETAKER_AUTOWRITE=1 to skip
-the queue and write durable memories directly once you trust it.
+review and promote them with `review_notes.py`. Background extraction always requires
+review; deployment environment variables cannot bypass this gate.
 
 It runs out of band: the brain answers the user first, then this fires as a background
 task, bounded by a timeout, never raising into the request. By default it reuses the
@@ -25,11 +25,10 @@ import httpx
 import config
 import memory_store
 
-OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
+OLLAMA = os.environ.get("HESTIA_NOTETAKER_OLLAMA") or os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
 # Reuse the resident brain by default (hot, zero cold-start); override to offload.
 MODEL = os.environ.get("HESTIA_NOTETAKER_MODEL") or os.environ.get("HESTIA_MODEL", "qwen3:14b")
 ENABLED = os.environ.get("HESTIA_NOTETAKER", "1") not in ("0", "", "false", "False")
-AUTOWRITE = os.environ.get("HESTIA_NOTETAKER_AUTOWRITE", "0") not in ("0", "", "false", "False")
 TIMEOUT = float(os.environ.get("HESTIA_NOTETAKER_TIMEOUT", "30"))
 INBOX_DIR = config.INBOX_DIR
 
@@ -187,7 +186,7 @@ def _extract(transcript: str) -> str:
     body = {"model": MODEL,
             "messages": [{"role": "user", "content": EXTRACT_PROMPT + transcript}],
             "stream": False, "think": False,
-            "options": {"temperature": 0.1}}
+            "options": {"temperature": 0.1, "num_ctx": 8192, "num_predict": 512}}
     r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=TIMEOUT)
     r.raise_for_status()
     return r.json().get("message", {}).get("content", "") or ""
@@ -196,7 +195,7 @@ def _extract(transcript: str) -> str:
 def run(messages: list[dict], answer: str, extract_fn=None) -> list[str]:
     """Extract durable facts from one exchange and record them.
 
-    Returns the ids written (to the inbox, or to live memory when AUTOWRITE). `extract_fn`
+    Returns the proposal IDs written to the review inbox. `extract_fn`
     lets tests inject the model output; production uses the real Ollama call. Never raises —
     a note-taking failure must not affect the conversation that already completed."""
     extract_fn = extract_fn or _extract
@@ -210,12 +209,7 @@ def run(messages: list[dict], answer: str, extract_fn=None) -> list[str]:
         for p in proposals:
             if not is_novel(p["content"]):
                 continue
-            if AUTOWRITE:
-                written.append(memory_store.write(
-                    p["content"], type=p["type"], source="note-taker",
-                    confidence=p["confidence"]))
-            else:
-                written.append(_write_proposal(p))
+            written.append(_write_proposal(p))
         return written
     except Exception as e:  # noqa: BLE001 — background best-effort; log and move on
         print(f"[note-taker] failed: {e}", flush=True)

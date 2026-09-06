@@ -269,9 +269,11 @@ uv run --project brain python brain/review_notes.py discard <id> | --all
 ```
 
 It reuses the resident model by default and never blocks or breaks a request. Tuning knobs:
-`HESTIA_NOTETAKER=0` disables it; `HESTIA_NOTETAKER_AUTOWRITE=1` skips the review queue and
-writes durable memories directly; `HESTIA_NOTETAKER_MODEL` points it at a cheaper model (e.g.
-a second Ollama on the free 4060 Ti) to take the load off the brain.
+`HESTIA_NOTETAKER=0` disables it. Background proposals always require inbox review; the old
+`HESTIA_NOTETAKER_AUTOWRITE` flag no longer bypasses approval. `HESTIA_NOTETAKER_MODEL` and
+`HESTIA_NOTETAKER_OLLAMA` select a separate local model/server to keep extraction off the
+foreground inference device. Extraction is best-effort and skipped while its worker is busy.
+See [HARNESS.md](HARNESS.md) for request budgets, retry receipts and isolated evaluations.
 
 ## License & security
 

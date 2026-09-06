@@ -80,3 +80,12 @@ completed request streams its saved answer. Streamed replies use the same note g
 The bundled browser and HA clients retain request keys for transport retries within
 their current session. They continue to use non-streaming replies; API streaming
 clients can opt in with `stream: true`.
+
+## Background learning
+
+The note-taker always writes proposals to the inbox. The former
+`HESTIA_NOTETAKER_AUTOWRITE` setting is ignored, preserving the approval invariant.
+Extraction has one dedicated worker and no waiting queue; busy periods skip optional
+extraction. `HESTIA_NOTETAKER_OLLAMA` can select a separate local inference server,
+with `HESTIA_NOTETAKER_MODEL` selecting its model. Sharing the foreground GPU can
+still add contention after a note job has started; no runtime GPU settings are changed.
