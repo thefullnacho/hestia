@@ -64,7 +64,8 @@ def test_malformed_tool_args_are_refused_not_run(monkeypatch):
     monkeypatch.setattr(hestia.tools, "dispatch",
                         lambda name, args: called.append((name, args)) or "ran")
     out = _run("log something")
-    assert out == "All set."
+    assert "nothing was run" in out
+    assert "All set" not in out
     assert called == []           # the refusal path must not execute the tool
 
 

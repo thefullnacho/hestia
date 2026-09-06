@@ -15,6 +15,7 @@ non-arbitrary. Do not reintroduce a general shell tool.
 from __future__ import annotations
 
 import inspect
+from tool_contract import validate
 
 from . import home, media, memory_tool, records, recipe, reminder, search, shopping, skill, status, weather
 
@@ -41,7 +42,8 @@ def dispatch(name: str, args: dict) -> str:
     mod = _TOOLS.get(name)
     if mod is None:
         return f"Error: no such tool '{name}'."
-    args = args or {}
+    if error := validate(name, args, SCHEMAS):
+        return error
     # Bind first, so "bad arguments" means exactly that. A TypeError raised *inside* the
     # tool is a bug, and reporting it as bad args just sends the model retrying with
     # permuted arguments.

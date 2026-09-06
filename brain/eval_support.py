@@ -21,6 +21,7 @@ def fixtures():
     """Each case gets fresh local stores; every external tool is intercepted."""
     with TemporaryDirectory(prefix="hestia-eval-") as tmp, ExitStack() as stack:
         root = Path(tmp)
+        stack.enter_context(patch.object(config, "DATA_DIR", root))
         stack.enter_context(patch.object(records_store, "DB_PATH", root / "records.db"))
         stack.enter_context(patch.object(memory_store, "MEMORY_DIR", root / "memory"))
         stack.enter_context(patch.object(config, "ALMANAC_DIR", root / "almanac"))
@@ -47,7 +48,7 @@ def fixtures():
                 action = args.get("action")
                 if action in ("turn_on", "turn_off"):
                     state["light"] = "on" if action == "turn_on" else "off"
-                return f"Kitchen lights are {state['light']}."
+                return f"Done - Kitchen lights are {state['light']}."
             if name == "shopping":
                 if args.get("action") == "add":
                     state["shopping"].extend(tools.shopping._split(args.get("items", "")))

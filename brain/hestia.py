@@ -42,6 +42,9 @@ config.load_secrets()
 
 import datetime as _dt  # noqa: E402
 
+import operation_store  # noqa: E402
+from tool_contract import ToolResult, mutation, receipt, validate
+
 import memory_store  # noqa: E402
 import nfc  # noqa: E402
 import note_taker  # noqa: E402
@@ -80,6 +83,7 @@ class TurnTrace:
     total_seconds: float = 0.0
     backend: dict = field(default_factory=dict)
     tools: list = field(default_factory=list)
+    actions: list = field(default_factory=list)
 
     def usage(self) -> dict:
         return {"prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens,
@@ -290,8 +294,7 @@ def _log(msg: str) -> None:
 
 def _short(args: dict) -> str:
     """Compact args for a log line — truncate values so we don't dump payloads/secrets."""
-    out = {k: (s if len(s := str(v)) <= 40 else s[:37] + "...") for k, v in (args or {}).items()}
-    return str(out)
+    return str(sorted(args)) if isinstance(args, dict) else "invalid"
 
 
 _TOO_SLOW = "Sorry — that took too long to pull together (a backend was slow). Try again in a moment?"
@@ -315,7 +318,12 @@ async def _run_tool(name: str, args: dict, budget: float) -> tuple[str, str]:
                 "(other backends are still busy).", "capacity")
 
     try:
-        work = asyncio.get_running_loop().run_in_executor(_tool_executor, tools.dispatch, name, args)
+        trace = _trace.get()
+        if trace and mutation(name, args):
+            work = asyncio.get_running_loop().run_in_executor(
+                _tool_executor, operation_store.execute_once, trace.request_id, name, args, tools.dispatch)
+        else:
+            work = asyncio.get_running_loop().run_in_executor(_tool_executor, tools.dispatch, name, args)
     except Exception:
         _tool_slots.release()
         raise
@@ -336,7 +344,11 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
     token = _trace.set(trace)
     started = time.monotonic()
     try:
-        return await _agent_loop(messages)
+        answer = await _agent_loop(messages)
+        if trace.actions:
+            return "\n".join(a.data if a.status == 'succeeded' else
+                             f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
+        return answer
     finally:
         trace.total_seconds = time.monotonic() - started
         _log(json.dumps({"request_id": trace.request_id, "model": trace.model,
@@ -369,7 +381,7 @@ async def _agent_loop(messages: list[dict]) -> str:
     seen: dict[str, str] = {}     # (tool|args) -> result, to break repeat-call loops
     last_result = ""              # most recent real tool result, for a graceful fallback
     dup_nudges = 0
-    _log(f"start {user_text[:80]!r} tools={[s['function']['name'] for s in schemas]}")
+    _log(f"start tools={[s['function']['name'] for s in schemas]}")
 
     for step in range(1, MAX_STEPS + 1):
         remaining = deadline - time.monotonic()
@@ -387,6 +399,12 @@ async def _agent_loop(messages: list[dict]) -> str:
         calls = msg.get("tool_calls") or []
         if not calls:
             _log(f"answered in {step} step(s), {time.monotonic()-t0:.1f}s")
+            trace = _trace.get()
+            if trace and trace.actions:
+                # Deterministic receipts preserve partial completion and unknown outcomes.
+                # Successful read-only answers remain model-authored.
+                return "\n".join(a.data if a.status == 'succeeded' else
+                                 f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
             return msg.get("content", "") or ""
         convo.append({"role": "assistant", "content": msg.get("content", ""), "tool_calls": calls})
         for c in calls:
@@ -398,10 +416,25 @@ async def _agent_loop(messages: list[dict]) -> str:
                 try:
                     args = json.loads(args)
                 except Exception:  # noqa: BLE001 — non-JSON args; refuse rather than run silent defaults
-                    _log(f"step {step} tool={name!r} MALFORMED args {raw!r} — refused")
-                    convo.append({"role": "tool", "tool_name": name,
-                                  "content": f"Error: arguments for {name} were not valid JSON; nothing was run."})
+                    _log(f"step {step} tool={name!r} MALFORMED args refused")
+                    rejected = ToolResult('failed', f"Arguments for {name} were not valid JSON; nothing was run.", error_code='invalid_arguments')
+                    if trace := _trace.get():
+                        trace.actions.append(rejected)
+                    convo.append({"role": "tool", "tool_name": name, "content": rejected.message()})
                     continue
+            error = validate(name, args, schemas)
+            if not error and mutation(name, args) and (trace := _trace.get()):
+                if any(a.status == 'unknown' for a in trace.actions):
+                    error = 'A previous write has an unknown outcome; further writes were stopped. Check operation status.'
+            if not error and name == 'shopping' and args.get('action') == 'clear':
+                if not re.fullmatch(r"(?:please )?confirm clear (?:the |my )?shopping list[.!]?", user_text.strip(), re.I):
+                    error = 'To empty the list, say: confirm clear the shopping list.'
+            if error:
+                rejected = ToolResult('failed', error, error_code='invalid_or_disallowed')
+                if trace := _trace.get():
+                    trace.actions.append(rejected)
+                convo.append({'role': 'tool', 'tool_name': name, 'content': rejected.message()})
+                continue
             sig = f"{name}|{json.dumps(args, sort_keys=True, default=str)}"
             if sig in seen:
                 # The model is repeating a call it already made this turn — a small-model loop
@@ -424,13 +457,18 @@ async def _agent_loop(messages: list[dict]) -> str:
                 else:
                     _log(f"step {step} tool={name} args={_short(args)} TIMEOUT {budget:.0f}s")
             except Exception as e:  # noqa: BLE001 — executor failures still become tool results
-                result = f"Error: {name} failed before it could run: {e}"
+                outcome = "unknown"
+                result = f"Error: {name} execution could not be verified."
                 _log(f"step {step} tool={name} args={_short(args)} EXECUTOR ERROR {type(e).__name__}")
             if trace := _trace.get():
                 trace.tools.append({"name": name, "seconds": time.monotonic() - ts})
-            seen[sig] = str(result)
+            fact = receipt(name, args, result, outcome,
+                           operation_store.digest([trace.request_id, name, args]) if trace else '')
+            if trace and mutation(name, args):
+                trace.actions.append(fact)
+            seen[sig] = fact.message()
             last_result = str(result)
-            convo.append({"role": "tool", "tool_name": name, "content": str(result)})
+            convo.append({"role": "tool", "tool_name": name, "content": fact.message()})
         # The model ignored the nudge and is still repeating itself — stop looping and answer from
         # the data we already have rather than dead-ending at MAX_STEPS with an apology.
         if dup_nudges >= 2 and last_result:
@@ -572,14 +610,35 @@ def _note_task(messages: list[dict], content: str) -> BackgroundTask | None:
     return BackgroundTask(note_taker.run, messages, content)
 
 
+@app.get("/v1/operations/{request_id}")
+async def operation_status(request_id: str):
+    return {"request_id": request_id,
+            "operations": await asyncio.to_thread(operation_store.operations, request_id)}
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     body = await request.json()
     messages = body.get("messages") or []
-    trace = TurnTrace()
-    content = await run_agent(messages, trace=trace)
-    comp = _completion(content, trace)
-    note = _note_task(messages, content)
+    key = request.headers.get('Idempotency-Key')
+    if key and not re.fullmatch(r'[A-Za-z0-9_-]{8,128}', key):
+        return JSONResponse(status_code=400, content={'error': 'Invalid Idempotency-Key.'})
+    trace = TurnTrace(request_id=key or uuid.uuid4().hex)
+    state, saved = await asyncio.to_thread(operation_store.claim_request, trace.request_id, messages)
+    if state in ('pending', 'conflict'):
+        return JSONResponse(status_code=409, content={
+            'error': 'Request is already running or has an unknown outcome.' if state == 'pending' else
+                     'Idempotency-Key was already used for different messages.',
+            'request_id': trace.request_id})
+    if saved:
+        comp = saved
+        content = comp['choices'][0]['message']['content']
+    else:
+        content = await run_agent(messages, trace=trace)
+        comp = _completion(content, trace)
+        comp['request_id'] = trace.request_id
+        await asyncio.to_thread(operation_store.finish_request, trace.request_id, comp)
+    note = _note_task(messages, content) if not saved and not trace.actions else None
 
     if body.get("stream"):
         async def one_shot():

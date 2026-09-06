@@ -17,7 +17,7 @@ def test_dispatch_bad_arguments_returns_error_string():
 
 def test_dispatch_records_unknown_action():
     out = tools.dispatch("records", {"action": "frobnicate"})
-    assert out == "Error: unknown action 'frobnicate'."
+    assert out.startswith("Error: bad arguments for records")
 
 
 def test_dispatch_records_round_trip(db):
