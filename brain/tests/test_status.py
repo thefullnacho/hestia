@@ -19,7 +19,7 @@ def test_status_dispatch_returns_string():
 
 
 def test_status_unknown_section_is_a_string_not_a_raise():
-    assert tools.dispatch("status", {"section": "bogus"}) == "Error: unknown section 'bogus'."
+    assert tools.dispatch("status", {"section": "bogus"}).startswith("Error: bad arguments for status")
 
 
 def test_snapshot_shape():

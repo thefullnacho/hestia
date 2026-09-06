@@ -75,7 +75,7 @@ def validate(name, args, schemas):
     action = args.get('action', args.get('op'))
     for key in REQUIRED.get((name, action), ()):
         if key not in args or args[key] is None or (isinstance(args[key], str) and not args[key].strip()):
-            return f'Error: {name}.{action} requires {key}.'
+            return f'Error: {name}.{action} requires {"quantity (qty)" if key == "qty" else key}.'
     if name == 'records' and action == 'log' and not (args.get('did') or args.get('detail')):
         return 'Error: records.log requires did or detail; an empty event is not recorded.'
     if name == 'records' and action == 'harvest' and args['qty'] <= 0:

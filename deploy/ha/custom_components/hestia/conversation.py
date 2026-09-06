@@ -83,6 +83,9 @@ class HestiaConversationEntity(conversation.ConversationEntity):
         history = convo["messages"]
         send = (history + [{"role": "user", "content": user_input.text}])[-MAX_SEND:]
         payload = {"messages": send, "stream": False}
+        pending = convo.get("pending")
+        request_key = pending["key"] if pending and pending["payload"] == payload else uuid.uuid4().hex
+        convo["pending"] = {"key": request_key, "payload": payload}
         # The verification line: shows whether HA reused this conversation_id (prior_turns>0 on a
         # follow-up = genuinely multi-turn) or minted a fresh one (prior_turns=0 every time = HA is
         # NOT threading; we'd need the chat_log path). Enable via:
@@ -94,11 +97,14 @@ class HestiaConversationEntity(conversation.ConversationEntity):
         cont = False
         try:
             async with session.post(self._url, json=payload,
+                                    headers={"Idempotency-Key": request_key},
                                     timeout=aiohttp.ClientTimeout(total=120)) as resp:
+                resp.raise_for_status()
                 data = await resp.json()
                 text = (data["choices"][0]["message"]["content"] or text).strip()
             # Commit the exchange only on success, so a failed turn leaves the thread clean
             # (no dangling user turn, no apology masquerading as dialogue).
+            convo.pop("pending", None)
             history.append({"role": "user", "content": user_input.text})
             history.append({"role": "assistant", "content": text})
             # Keep the conversation (and the mic) alive when the reply invites a follow-up.

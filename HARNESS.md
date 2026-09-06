@@ -61,3 +61,22 @@ Memory recall uses lexical rarity and document-length normalization, ignores com
 question words, and treats pins as tie-breakers only after a relevant match. Injected
 memories include record ID, source and last-seen date. No embedding service was added;
 semantic retrieval remains a measured follow-up if lexical misses warrant it.
+
+## Latency and streaming
+
+`HESTIA_TURN_BUDGET` covers context preparation and all model/tool rounds. New
+turns fail promptly when `HESTIA_ACTIVE_TURNS` (default 1) is occupied, avoiding an
+unbounded inference queue. `HESTIA_FINAL_RESERVE` (default 3 seconds) prevents new
+tools from consuming the final-answer budget. `HESTIA_MAX_TOOL_CALLS` defaults to 16.
+Concrete independent reads in one model batch can run concurrently in the existing
+bounded worker pool; writes remain sequential. A cancelled write retains its worker
+slot and durable unknown receipt until the worker actually completes.
+
+SSE emits real incremental tokens for a tools-disabled final synthesis, including
+simple read answers after tool execution. Tool-selection rounds and write receipts
+remain buffered so speculative action claims do not reach the user. Client disconnect
+cancels further model work; already dispatched writes can still complete. Replaying a
+completed request streams its saved answer. Streamed replies use the same note gate.
+The bundled browser and HA clients retain request keys for transport retries within
+their current session. They continue to use non-streaming replies; API streaming
+clients can opt in with `stream: true`.

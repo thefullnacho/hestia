@@ -136,6 +136,7 @@ const send = document.getElementById("send");
 const dot = document.getElementById("dot");
 
 let messages = load();
+let retryTurn = null;
 render();
 health();
 
@@ -177,8 +178,14 @@ async function submit(viaVoice = false) {
   const text = box.value.trim();
   if (!text) return;
   box.value = ""; box.style.height = "auto";
-  messages.push({ role: "user", content: text });
-  bubble("me", text); save();
+  const retry = retryTurn && retryTurn.text === text;
+  if (!retry) {
+    messages.push({ role: "user", content: text });
+    bubble("me", text); save();
+    retryTurn = { text, key: crypto.randomUUID ? crypto.randomUUID() :
+      Date.now().toString(36) + "-" + Math.random().toString(36).slice(2),
+      payload: { messages: messages.slice(-MAX_SEND) } };
+  }
 
   send.disabled = true;
   const pending = bubble("you", "Hestia is thinking…");
@@ -187,12 +194,13 @@ async function submit(viaVoice = false) {
   try {
     const r = await fetch("v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": retryTurn.key },
       // only user/assistant turns; the brain injects its own system prompt and ignores ours
-      body: JSON.stringify({ messages: messages.slice(-MAX_SEND) }),
+      body: JSON.stringify(retryTurn.payload),
     });
     if (!r.ok) throw new Error("brain returned " + r.status);
     const data = await r.json();
+    retryTurn = null;
     const reply = (data.choices?.[0]?.message?.content || "").trim() || "(empty reply)";
     pending.remove();
     messages.push({ role: "assistant", content: reply });
@@ -201,7 +209,8 @@ async function submit(viaVoice = false) {
     if (viaVoice) speak(reply);   // spoke to her -> she speaks back (text turns stay silent)
   } catch (e) {
     pending.remove();
-    bubble("err", "Couldn't reach Hestia — " + e.message + ". Is the brain up and are you on the tailnet?");
+    bubble("err", "Could not retrieve the reply: " + e.message + ". Press Send to retry this same request safely.");
+    box.value = text;
     dot.className = "dot err";
   } finally {
     send.disabled = false;
@@ -220,7 +229,7 @@ box.addEventListener("input", () => {           // grow with content
 });
 document.getElementById("clear").addEventListener("click", () => {
   if (messages.length && !confirm("Clear this conversation?")) return;
-  messages = []; save(); render();
+  messages = []; retryTurn = null; save(); render();
 });
 
 // --- Voice: tap the mic to record, tap again to stop. The clip goes to the brain's STT proxy

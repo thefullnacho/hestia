@@ -85,6 +85,8 @@ class TurnTrace:
     backend: dict = field(default_factory=dict)
     tools: list = field(default_factory=list)
     actions: list = field(default_factory=list)
+    deadline: float = 0.0
+    emitted: bool = False
 
     def usage(self) -> dict:
         return {"prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens,
@@ -95,6 +97,14 @@ _trace: ContextVar[TurnTrace | None] = ContextVar("turn_trace", default=None)
 _prepared: ContextVar[dict | None] = ContextVar("prepared_context", default=None)
 OUTPUT_TOKENS = int(os.environ.get("HESTIA_OUTPUT_TOKENS", "768"))
 TOOL_RESULT_BYTES = int(os.environ.get("HESTIA_TOOL_RESULT_BYTES", "6000"))
+FINAL_RESERVE = float(os.environ.get("HESTIA_FINAL_RESERVE", "3"))
+MAX_TOOL_CALLS = int(os.environ.get("HESTIA_MAX_TOOL_CALLS", "16"))
+MAX_ACTIVE_TURNS = max(1, int(os.environ.get("HESTIA_ACTIVE_TURNS", "1")))
+_turn_slots = asyncio.BoundedSemaphore(MAX_ACTIVE_TURNS)
+_stream_sink: ContextVar[object] = ContextVar("stream_sink", default=None)
+_live_turns: set = set()
+_BUSY = "The brain is busy with another request. Please try again shortly."
+
 
 
 # Voice services (the same Wyoming STT/TTS the HA Assist pipeline uses). The chat client's mic
@@ -250,9 +260,35 @@ async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dic
             "tools": tools.SCHEMAS if schemas is None else schemas,
             "stream": False, "think": trace.think if trace else THINK,
             "options": {"temperature": 0.3, "num_ctx": NUM_CTX, "num_predict": OUTPUT_TOKENS}}
-    r = await client.post("/api/chat", json=body)
-    r.raise_for_status()
-    payload = r.json()
+    sink = _stream_sink.get()
+    # Only a final synthesis with tools disabled can emit user-visible text safely.
+    # Tool-selection rounds stay buffered, as a late tool call may change the outcome.
+    if sink and not body['tools'] and not (trace and trace.actions):
+        body['stream'] = True
+        content, payload = [], {}
+        async with client.stream('POST', '/api/chat', json=body) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line:
+                    continue
+                event = json.loads(line)
+                if event.get('error'):
+                    raise RuntimeError('Model streaming failed')
+                delta = event.get('message', {}).get('content', '')
+                if delta:
+                    content.append(delta)
+                    await sink(delta)
+                    if trace:
+                        trace.emitted = True
+                if event.get('done'):
+                    payload = event
+        if not payload.get('done'):
+            raise RuntimeError('Model stream ended before completion')
+        payload['message'] = {'role': 'assistant', 'content': ''.join(content)}
+    else:
+        r = await client.post("/api/chat", json=body)
+        r.raise_for_status()
+        payload = r.json()
     if trace:
         trace.model_calls += 1
         trace.prompt_tokens += payload.get("prompt_eval_count", 0)
@@ -364,6 +400,12 @@ async def _run_tool(name: str, args: dict, budget: float) -> tuple[str, str]:
         return str(await asyncio.wait_for(asyncio.shield(work), timeout=remaining)), "ok"
     except asyncio.TimeoutError:
         return f"Error: {name} timed out after {budget:.0f}s (backend slow/unreachable).", "timeout"
+    except asyncio.CancelledError:
+        if (trace := _trace.get()) and mutation(name, args):
+            trace.actions.append(ToolResult('unknown',
+                f'{name} was interrupted after dispatch; check operation status before retrying.',
+                operation_store.digest([trace.request_id, name, args]), 'interrupted'))
+        raise
 
 
 async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> str:
@@ -371,13 +413,25 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
     token = _trace.set(trace)
     prepared_token = _prepared.set(None)
     started = time.monotonic()
+    trace.deadline = started + TURN_BUDGET
+    admitted = False
     try:
-        answer = await _agent_loop(messages)
+        if _turn_slots.locked():
+            return _BUSY
+        await _turn_slots.acquire()
+        admitted = True
+        try:
+            async with asyncio.timeout(TURN_BUDGET):
+                answer = await _agent_loop(messages)
+        except TimeoutError:
+            answer = _TOO_SLOW
         if trace.actions:
             return "\n".join(a.data if a.status == 'succeeded' else
                              f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
         return answer
     finally:
+        if admitted:
+            _turn_slots.release()
         trace.total_seconds = time.monotonic() - started
         _log(json.dumps({"request_id": trace.request_id, "model": trace.model,
                          "seconds": round(trace.total_seconds, 3),
@@ -409,10 +463,11 @@ async def _agent_loop(messages: list[dict]) -> str:
         trace.context_seconds = time.monotonic() - context_started
 
     t0 = time.monotonic()
-    deadline = t0 + TURN_BUDGET
+    deadline = (_trace.get().deadline if _trace.get() else 0) or t0 + TURN_BUDGET
     seen: dict[str, str] = {}     # (tool|args) -> result, to break repeat-call loops
     last_result = ""              # most recent real tool result, for a graceful fallback
     dup_nudges = 0
+    total_calls = 0
     _log(f"start tools={[s['function']['name'] for s in schemas]}")
 
     for step in range(1, MAX_STEPS + 1):
@@ -431,7 +486,12 @@ async def _agent_loop(messages: list[dict]) -> str:
         except Exception as e:  # noqa: BLE001 — an Ollama restart must not 500 the client
             _log(f"model call failed at step {step}: {type(e).__name__}: {e}")
             return _BACKEND_DOWN
+        if not isinstance(msg, dict):
+            return _BACKEND_DOWN
         calls = msg.get("tool_calls") or []
+        if not isinstance(calls, list) or any(not isinstance(c, dict) or
+                not isinstance(c.get('function'), dict) for c in calls):
+            return 'The model returned an invalid tool-call structure; nothing further was run.'
         if not calls:
             _log(f"answered in {step} step(s), {time.monotonic()-t0:.1f}s")
             trace = _trace.get()
@@ -442,7 +502,30 @@ async def _agent_loop(messages: list[dict]) -> str:
                                  f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
             return msg.get("content", "") or ""
         convo.append({"role": "assistant", "content": msg.get("content", ""), "tool_calls": calls})
+        parallel = {}
+        # Concrete reads emitted together have no result references to one another.
+        # Never parallelize mutations, malformed calls, or more than the turn call cap.
+        if (1 < len(calls) <= MAX_TOOL_CALLS - total_calls
+                and all(isinstance(c['function'].get('arguments'), dict)
+                        and not mutation(c['function'].get('name'), c['function']['arguments'])
+                        and not validate(c['function'].get('name'), c['function']['arguments'], schemas)
+                        for c in calls)):
+            unique = {f"{c['function']['name']}|{json.dumps(c['function']['arguments'], sort_keys=True)}":
+                      c['function'] for c in calls}
+            budget = min(TOOL_BUDGET, deadline - time.monotonic() - FINAL_RESERVE)
+            if budget > 0:
+                async def read(sig, fn):
+                    began = time.monotonic()
+                    try:
+                        result, outcome = await _run_tool(fn['name'], fn['arguments'], budget)
+                    except Exception:
+                        result, outcome = 'Error: read failed.', 'unknown'
+                    return sig, (began, result, outcome)
+                parallel = dict(await asyncio.gather(*(read(sig, fn) for sig, fn in unique.items() if sig not in seen)))
         for c in calls:
+            total_calls += 1
+            if total_calls > MAX_TOOL_CALLS or deadline - time.monotonic() <= FINAL_RESERVE:
+                return last_result or _TOO_SLOW
             fn = c.get("function", {})
             name = fn.get("name", "")
             raw = fn.get("arguments", {})
@@ -481,10 +564,13 @@ async def _agent_loop(messages: list[dict]) -> str:
                               seen[sig] + "\n\n(You already called this and have the result above. "
                               "Do not call it again — answer the user now from this.)"})
                 continue
-            budget = min(TOOL_BUDGET, max(0.1, deadline - time.monotonic()))
+            budget = min(TOOL_BUDGET, deadline - time.monotonic() - FINAL_RESERVE)
             ts = time.monotonic()
             try:
-                result, outcome = await _run_tool(name, args, budget)
+                if sig in parallel:
+                    ts, result, outcome = parallel[sig]
+                else:
+                    result, outcome = await _run_tool(name, args, budget)
                 if outcome == "ok":
                     _log(f"step {step} tool={name} args={_short(args)} ok {time.monotonic()-ts:.1f}s")
                 elif outcome == "capacity":
@@ -504,6 +590,12 @@ async def _agent_loop(messages: list[dict]) -> str:
             seen[sig] = fact.message()
             last_result = str(result)
             convo.append({"role": "tool", "tool_name": name, "content": context_budget.evidence("tool result " + name, fact.message(), TOOL_RESULT_BYTES)})
+        read_names = {c['function'].get('name') for c in calls}
+        if (read_names <= {'home', 'weather', 'memory', 'records', 'status', 'shopping'}
+                and all(not mutation(c['function'].get('name'), c['function'].get('arguments')) for c in calls)
+                and not (_trace.get() and _trace.get().actions)
+                and not re.search(r"\b(?:and|then|also|remind|save|add|turn|log|record)\b", user_text, re.I)):
+            schemas = []
         # The model ignored the nudge and is still repeating itself — stop looping and answer from
         # the data we already have rather than dead-ending at MAX_STEPS with an apology.
         if dup_nudges >= 2 and last_result:
@@ -632,7 +724,7 @@ async def health():
 
 
 # Answers that are non-substantive (errors / give-ups) — never worth note-taking on.
-_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN,
+_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _BUSY,
              "I wasn't able to finish that in a reasonable number of steps — can you narrow it down?"}
 
 
@@ -653,10 +745,18 @@ async def operation_status(request_id: str):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
-    body = await request.json()
+    raw = bytearray()
+    async for chunk in request.stream():
+        raw.extend(chunk)
+        if len(raw) > 160000:
+            return JSONResponse(status_code=413, content={'error': 'Request exceeds the byte limit.'})
+    try:
+        body = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        return JSONResponse(status_code=400, content={'error': 'Invalid JSON.'})
     if not isinstance(body, dict):
         return JSONResponse(status_code=400, content={'error': 'Expected a JSON object.'})
-    messages = body.get("messages") or []
+    messages = body.get('messages') or []
     if error := context_budget.validate_messages(messages):
         return JSONResponse(status_code=400, content={'error': error})
     key = request.headers.get('Idempotency-Key')
@@ -669,25 +769,80 @@ async def chat_completions(request: Request):
             'error': 'Request is already running or has an unknown outcome.' if state == 'pending' else
                      'Idempotency-Key was already used for different messages.',
             'request_id': trace.request_id})
-    if saved:
-        comp = saved
-        content = comp['choices'][0]['message']['content']
-    else:
+
+    async def execute():
+        if saved:
+            return saved
         content = await run_agent(messages, trace=trace)
         comp = _completion(content, trace)
         comp['request_id'] = trace.request_id
         await asyncio.to_thread(operation_store.finish_request, trace.request_id, comp)
-    note = _note_task(messages, content) if not saved and not trace.actions else None
+        return comp
 
-    if body.get("stream"):
-        async def one_shot():
-            chunk = {"id": comp["id"], "object": "chat.completion.chunk", "created": comp["created"],
-                     "model": MODEL, "choices": [{"index": 0, "delta": {"role": "assistant", "content": content},
-                                                   "finish_reason": "stop"}]}
-            yield f"data: {json.dumps(chunk)}\n\n".encode()
-            yield b"data: [DONE]\n\n"
-        return StreamingResponse(one_shot(), media_type="text/event-stream", background=note)
-    return JSONResponse(comp, background=note)
+    if body.get('stream'):
+        queue = asyncio.Queue(maxsize=32)
+        completed = []
+        comp_id = saved['id'] if saved else f'chatcmpl-{trace.request_id}'
+        async def produce():
+            token = _stream_sink.set(queue.put)
+            try:
+                comp = await execute()
+                completed.append(comp)
+                text = comp['choices'][0]['message']['content']
+                if not trace.emitted:
+                    await queue.put(text)
+                elif text in _NO_LEARN:
+                    await queue.put('\n' + text)
+                await queue.put(comp)
+            finally:
+                _stream_sink.reset(token)
+
+        async def chunks():
+            task = asyncio.create_task(produce())
+            _live_turns.add(task)
+            task.add_done_callback(_live_turns.discard)
+            try:
+                while True:
+                    # Wake on either an event or producer failure; no orphaned stream wait.
+                    event_task = asyncio.create_task(queue.get())
+                    try:
+                        done, _ = await asyncio.wait((event_task, task), return_when=asyncio.FIRST_COMPLETED)
+                        if event_task not in done and task.done() and queue.empty():
+                            task.result()
+                            break
+                        event = await event_task
+                    finally:
+                        if not event_task.done():
+                            event_task.cancel()
+                    final = isinstance(event, dict)
+                    chunk = {'id': comp_id, 'object': 'chat.completion.chunk',
+                             'created': int(time.time()), 'model': trace.model,
+                             'choices': [{'index': 0, 'delta': {} if final else {'content': event},
+                                          'finish_reason': 'stop' if final else None}]}
+                    if final:
+                        chunk['usage'] = event['usage']
+                        chunk['request_id'] = trace.request_id
+                    yield f'data: {json.dumps(chunk)}\n\n'.encode()
+                    if final:
+                        yield b'data: [DONE]\n\n'
+                        break
+            finally:
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        async def after_stream():
+            if completed and not saved and not trace.actions:
+                note = _note_task(messages, completed[0]['choices'][0]['message']['content'])
+                if note:
+                    await note()
+        return StreamingResponse(chunks(), media_type='text/event-stream',
+                                 headers={'X-Request-ID': trace.request_id},
+                                 background=BackgroundTask(after_stream))
+    comp = await execute()
+    content = comp['choices'][0]['message']['content']
+    note = _note_task(messages, content) if not saved and not trace.actions else None
+    return JSONResponse(comp, background=note, headers={'X-Request-ID': trace.request_id})
+
 
 
 @app.post("/ingest/photo")
