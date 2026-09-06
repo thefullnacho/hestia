@@ -1,25 +1,30 @@
 """`recipe` tool — the household's recipe collection (local markdown files).
 
 Determinism over a web blob: the recipes the family actually cooks live as clean markdown
-on disk (one file each), so "her" banana bread is byte-identical every time and works
+on disk (one file each), so "her" banana bread is the approved version every time and works
 offline. `lookup` returns the full recipe text into context, where the model answers
 follow-ups from it (reading comprehension, not recall — a 14B will confidently hallucinate
 a flour quantity otherwise). `save` persists a recipe the model has already cleaned into
-structured form: the MODEL is the parser (it can see the recipe), this tool just writes the
-file. A recipe that isn't in the collection falls through to the `search` tool (web), which
-the recipe skill then offers to `save` for next time.
+structured form as a DRAFT. The original chat input (when available) accompanies it.
+Only the private review page can approve it into the collection. URL imports preserve
+original bytes and prefer structured recipe data; old versions survive replacement.
+
 
 Recipes are private household data, so they live under DATA_DIR (gitignored), never the
 public tree — same posture as photos.
 """
 from __future__ import annotations
 
-import datetime as dt
+from contextvars import ContextVar
+
+import recipe_drafts
+import recipe_import
 import re
 
 import config
 
 RECIPES_DIR = config.RECIPES_DIR
+SOURCE_CONTEXT = ContextVar("recipe_source_context", default="")
 
 SCHEMA = {
     "type": "function",
@@ -31,14 +36,15 @@ SCHEMA = {
             "FIRST for any 'how do I make / cook / bake X' request, then answer the user's "
             "questions from the returned recipe (never state a quantity or temperature that "
             "isn't in it). action='list' names the saved recipes. action='save' stores a recipe "
-            "for next time: pass the recipe already cleaned into structured markdown — a short "
+            "as a DRAFT awaiting browser approval: pass the recipe already cleaned into structured markdown — a short "
             "Ingredients list and numbered Steps, with blog story/ads removed — as `content`. "
             "If lookup finds nothing, use the `search` tool to find the recipe on the web, then "
-            "offer to save it."),
+            "offer to draft it. For a user-supplied URL use action='import_url' to preserve the original and extract structured recipe data. Never claim a draft is approved; only the human review page can approve or replace a saved recipe."),
         "parameters": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["lookup", "save", "list"]},
+                "action": {"type": "string", "enum": ["lookup", "save", "list", "import_url"]},
+                "url": {"type": "string", "description": "for import_url: the exact public recipe or PDF URL supplied by the user"},
                 "name": {"type": "string", "description": "the dish name, e.g. 'banana bread' (for lookup/save)"},
                 "content": {"type": "string", "description": "for save: the cleaned recipe body — an Ingredients list and numbered Steps in markdown"},
                 "servings": {"type": "string", "description": "for save (optional): yield, e.g. '1 loaf', 'serves 4'"},
@@ -104,7 +110,15 @@ def _lookup(name: str) -> str:
                 f"`search` tool to find it on the web, then offer to save it.")
     meta, body = _frontmatter(best.read_text(encoding="utf-8"))
     serv = f" ({meta['servings']})" if meta.get("servings") else ""
-    return f"Saved recipe: {_title(best, meta)}{serv}\n\n{body.rstrip()}"
+    provenance = ''
+    identifier = meta.get('recipe_draft','')
+    if re.fullmatch('[a-f0-9]{32}',identifier):
+        try:
+            entry = recipe_drafts.read(identifier)
+            provenance = f"\n\nSource: {entry.get('url') or entry['kind']}. Approved original and review: /recipes/review/{identifier}"
+        except (ValueError,FileNotFoundError):
+            provenance = '\n\nSource review is unavailable.'
+    return f"Saved recipe: {_title(best, meta)}{serv}\n\n{body.rstrip()}{provenance}"
 
 
 def _save(name: str | None, content: str | None, servings: str | None = None,
@@ -113,17 +127,16 @@ def _save(name: str | None, content: str | None, servings: str | None = None,
         return "What's the recipe called? I need a name to save it."
     if not (content or "").strip():
         return "Nothing to save — pass the cleaned recipe (ingredients + numbered steps) as content."
-    RECIPES_DIR.mkdir(parents=True, exist_ok=True)
-    path = RECIPES_DIR / f"{_slug(name)}.md"
-    existed = path.exists()
-    fm = [f"name: {name.strip()}"]
-    if aliases and aliases.strip():
-        fm.append(f"aliases: {aliases.strip()}")
-    if servings and servings.strip():
-        fm.append(f"servings: {servings.strip()}")
-    fm.append(f"saved: {dt.date.today().isoformat()}")
-    path.write_text("---\n" + "\n".join(fm) + "\n---\n\n" + content.strip() + "\n", encoding="utf-8")
-    return f"{'Updated' if existed else 'Saved'} '{name.strip()}' in the recipe collection."
+    original = SOURCE_CONTEXT.get()
+    source = original or content
+    entry = recipe_drafts.create({'kind':'conversation draft', 'url':'', 'media_type':'text/plain',
+        'text':source, 'pdf_links':[],
+        'warnings':['Model-prepared draft. Check every quantity against the source. A web source must be imported by URL to preserve its original page.'
+                    if original else 'Original conversation was unavailable; only the proposed text was preserved.'],
+        'candidates':[{'name':name,'content':content,'servings':servings or '',
+                       'aliases':aliases or '', 'method':'model proposal'}]}, source.encode())
+    return f"Drafted '{name.strip()}' for review. It is not in the saved collection yet. Open /recipes/review/{entry['id']} to check and approve it."
+
 
 
 def _list() -> str:
@@ -134,7 +147,13 @@ def _list() -> str:
 
 
 def execute(action: str, name: str | None = None, content: str | None = None,
-            servings: str | None = None, aliases: str | None = None) -> str:
+            servings: str | None = None, aliases: str | None = None, url: str | None = None) -> str:
+    if action == "import_url":
+        if not url: return "Error: provide the recipe URL."
+        from recipe_review import stage
+        raw, media_type = recipe_import.fetch_public(url)
+        entry = stage(raw,media_type,url)
+        return f"Drafted recipe import for review at /recipes/review/{entry['id']}. No recipe has been approved or replaced."
     if action == "lookup":
         return _lookup(name or "")
     if action == "save":

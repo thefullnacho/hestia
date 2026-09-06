@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hestia recipes</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0f13;--panel:#16181f;--line:#303340;--text:#e8eaf0;--muted:#aaaeb9;--accent:#d98a4b}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:22px}a{color:var(--accent)}h1{font-size:1.6rem}h2{font-size:1.2rem}section{padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:18px 0}label{display:block;margin:12px 0}input:not([type=checkbox]),textarea,select{display:block;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:10px;margin-top:5px;font:inherit}textarea{min-height:120px}#content{min-height:390px}button{background:var(--accent);color:#19130d;border:0;border-radius:7px;padding:10px 14px;margin:7px 7px 7px 0;cursor:pointer;font:inherit}button:disabled{opacity:.45;cursor:default}.secondary{background:var(--line);color:var(--text)}.columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:650px;overflow:auto;font:14px/1.5 ui-monospace,monospace}.muted{color:var(--muted)}#notice{position:sticky;top:0;background:var(--panel);border-left:4px solid var(--accent);padding:12px;z-index:1}#warnings{color:#f0be87}input[type=checkbox]{width:20px;height:20px;vertical-align:middle;margin-right:8px}[hidden]{display:none!important}@media(max-width:700px){.columns{grid-template-columns:1fr}main{padding:12px}}
+</style></head><body><main>
+<a href="/app">Back to chat</a><h1>Recipe collection</h1>
+<p>Import a source, check the draft, then approve your household version.</p>
+<p id="notice" role="status" hidden></p>
+<section id="importPanel"><h2>Import a recipe</h2>
+<label>Source<select id="sourceType"><option value="text">Paste recipe text</option><option value="url">Recipe or PDF URL</option><option value="pdf">Upload a PDF</option></select></label>
+<label id="textRow">Original recipe<textarea id="sourceText" placeholder="Paste the ingredients, instructions, yield and any notes."></textarea></label>
+<label id="urlRow" hidden>Source URL<input id="sourceURL" type="url" placeholder="https://..."></label>
+<label id="pdfRow" hidden>Original PDF<input id="sourcePDF" type="file" accept="application/pdf,.pdf"></label>
+<p class="muted">Structured recipe data is preferred. Linked PDFs are imported only when you choose them. Scanned recipe cards need a transcription.</p>
+<button id="importButton">Prepare a draft</button>
+</section>
+<section id="pendingPanel"><h2>Awaiting review</h2><div id="pending"></div></section>
+<section id="reviewPanel" hidden><h2>Review before saving</h2>
+<p id="sourceInfo" class="muted"></p><a id="download">Download the preserved original</a>
+<div id="pdfLinks"></div>
+<label id="candidateRow">Which recipe?<select id="candidate"></select></label>
+<ul id="warnings"></ul>
+<div class="columns"><div><h2>Original source text</h2><p id="truncation" class="muted"></p><pre id="sourcePreview"></pre></div>
+<div><h2>Your draft</h2><label>Name<input id="name" maxlength="200"></label><label>Yield or servings<input id="servings" maxlength="500"></label><label>Other names, comma-separated<input id="aliases" maxlength="500"></label><label>Ingredients, steps, temperatures, times and notes<textarea id="content"></textarea></label></div></div>
+<div id="existing" hidden><h2>Existing saved recipe</h2><p>This name is already in use. Compare the versions, or give the draft a different name.</p><pre id="oldContent"></pre><label><input type="checkbox" id="replace">Replace this saved recipe and retain its previous version</label></div>
+<button class="secondary" id="refreshTarget">Refresh saved version</button>
+<label><input type="checkbox" id="ack">I checked the original, quantities, units, yield, temperatures, times and steps, including missing or conflicting details.</label>
+<button id="approve" disabled>Approve into collection</button><p class="muted">Preparing a draft does not save it into the collection. Approval is your decision.</p>
+</section></main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let draft=null,target=null,targetName='',selected=false;
+function notice(text){$('notice').textContent=text;$('notice').hidden=!text;}
+async function api(path,body){const r=await fetch(path,body===undefined?{cache:'no-store'}:{method:'POST',headers:{'Content-Type':'application/json','X-Hestia-Recipe-Review':'1'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');return d;}
+function eligible(){$('approve').disabled=!draft||draft.status!=='pending'||!selected||!target||targetName!==$('name').value||!$('content').value.trim()||!$('ack').checked||(target.exists&&!$('replace').checked);}
+async function refreshTarget(){target=null;$('ack').checked=false;$('replace').checked=false;eligible();const name=$('name').value;if(!name.trim())return;try{const t=await api('/api/recipes/target?name='+encodeURIComponent(name));if(name!==$('name').value)return;target=t;targetName=name;$('existing').hidden=!t.exists;$('oldContent').textContent=t.content;eligible();}catch(e){notice(e.message);}}
+async function pending(){const rows=await api('/api/recipes/drafts');$('pending').replaceChildren();if(!rows.length)$('pending').textContent='No drafts waiting.';for(const row of rows){const b=document.createElement('button');b.className='secondary';b.textContent=(row.names.filter(Boolean).join(' / ')||'Untitled draft')+' · '+new Date(row.created_at).toLocaleDateString();b.onclick=()=>location.assign('/recipes/review/'+row.id);$('pending').append(b);}}
+function showWarnings(items){$('warnings').replaceChildren();for(const item of items){const li=document.createElement('li');li.textContent=item;$('warnings').append(li);}}
+function choose(){selected=$('candidate').value!=='';if(!selected){eligible();return;}const c=draft.candidates[Number($('candidate').value)];for(const k of ['name','content','servings','aliases'])$(k).value=c[k]||'';showWarnings([...draft.warnings,...(c.warnings||[])]);refreshTarget();}
+async function load(id){draft=await api('/api/recipes/drafts/'+id);$('reviewPanel').hidden=false;$('sourceInfo').textContent=(draft.url||draft.kind)+' · '+new Date(draft.created_at).toLocaleString()+' · '+draft.status;$('download').href='/api/recipes/drafts/'+id+'/source';$('sourcePreview').textContent=draft.source_preview;$('truncation').textContent=draft.source_preview_truncated?'Preview shortened. Download the preserved original to check the rest.':'';
+$('candidate').replaceChildren();if(draft.candidates.length>1){const o=new Option('Choose one recipe to review','');$('candidate').add(o);}draft.candidates.forEach((c,i)=>$('candidate').add(new Option(c.name||'Untitled recipe',String(i))));$('candidateRow').hidden=draft.candidates.length===1;
+$('pdfLinks').replaceChildren();for(const url of draft.pdf_links||[]){const b=document.createElement('button');b.className='secondary';b.textContent='Import linked PDF: '+url;b.onclick=()=>importSource({url});$('pdfLinks').append(b);}showWarnings(draft.warnings);choose();if(draft.status==='approved')notice('This draft was approved. Import a new draft to make further changes.');}
+async function importSource(body){$('importButton').disabled=true;notice('Preparing the draft. The original will be preserved.');try{const result=await api('/api/recipes/import',body);location.assign(result.review_url);}catch(e){notice(e.message);}finally{$('importButton').disabled=false;}}
+$('sourceType').onchange=()=>{for(const type of ['text','url','pdf'])$(type+'Row').hidden=$('sourceType').value!==type;};
+$('importButton').onclick=async()=>{try{const type=$('sourceType').value;if(type==='text')return importSource({text:$('sourceText').value});if(type==='url')return importSource({url:$('sourceURL').value});const file=$('sourcePDF').files[0];if(!file)throw Error('Choose a PDF first.');if(file.size>5*1024*1024)throw Error('PDF exceeds 5 MiB.');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return importSource({pdf_base64:btoa(binary)});}catch(e){notice(e.message);}};
+$('candidate').onchange=choose;$('name').oninput=()=>{target=null;$('ack').checked=false;eligible();};$('name').onchange=refreshTarget;$('refreshTarget').onclick=refreshTarget;
+for(const k of ['content','servings','aliases'])$(k).oninput=()=>{$('ack').checked=false;eligible();};$('ack').onchange=eligible;$('replace').onchange=eligible;
+$('approve').onclick=async()=>{if($('approve').disabled)return;$('approve').disabled=true;try{const result=await api('/api/recipes/drafts/'+draft.id+'/approve',{revision:draft.revision,name:$('name').value,content:$('content').value,servings:$('servings').value,aliases:$('aliases').value,expected_target_hash:target.sha256,replace:$('replace').checked,acknowledged:$('ack').checked});draft.status='approved';notice('Approved '+result.name+'. It is now available to Hestia.');await pending();}catch(e){notice(e.message);}finally{eligible();}};
+(async()=>{try{await pending();const match=location.pathname.match(/^\/recipes\/review\/([a-f0-9]{32})$/);if(match)await load(match[1]);}catch(e){notice(e.message);}})();
+</script></body></html>

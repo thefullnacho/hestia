@@ -8,7 +8,7 @@ import re
 MUTATIONS = {
     'home': {'turn_on', 'turn_off', 'toggle'},
     'records': {'remember', 'log', 'birth', 'harvest', 'relate'},
-    'memory': {'write'}, 'recipe': {'save'}, 'media': {'add'},
+    'memory': {'write'}, 'recipe': {'save', 'import_url'}, 'media': {'add'},
     'reminder': {'create', 'cancel'}, 'shopping': {'add', 'remove', 'clear'},
 }
 REQUIRED = {
@@ -18,7 +18,7 @@ REQUIRED = {
     ('records', 'harvest'): ('bed', 'crop', 'qty'), ('records', 'entity'): ('name',),
     ('records', 'relate'): ('name', 'rel', 'to'),
     ('memory', 'write'): ('content',), ('memory', 'recall'): ('content',),
-    ('recipe', 'save'): ('name', 'content'), ('recipe', 'lookup'): ('name',),
+    ('recipe', 'save'): ('name', 'content'), ('recipe', 'lookup'): ('name',), ('recipe', 'import_url'): ('url',),
     ('reminder', 'create'): ('when',), ('reminder', 'cancel'): ('id',),
     ('shopping', 'add'): ('items',), ('shopping', 'remove'): ('items',),
     ('search', 'search'): ('query',), ('search', 'fetch'): ('url',),
@@ -121,7 +121,7 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
                           'backend_error' if failed else '', failed)
     success = {
         'records': ('Remembered ', 'Logged ', 'Recorded puppy ', 'Linked '),
-        'memory': ('Remembered ',), 'recipe': ('Saved ', 'Updated '),
+        'memory': ('Remembered ',), 'recipe': ('Drafted ',),
         'reminder': ('Reminder #', 'Reminder cancelled.'),
         'shopping': ('Added to ', 'Already on it:', 'Took off ', 'Cleared '),
         'home': ('Done ', 'Sent '), 'media': ('Added ', 'Queued ', 'Already '),

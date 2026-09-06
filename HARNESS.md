@@ -238,3 +238,35 @@ It saves transcripts and review flags under `/tmp`; flags are not a semantic sco
 Validation: 299 offline tests and 24/24 synthetic Gemma action checks passed. Seven
 briefing scenarios (eight turns) were reviewed for factual recall, date handling,
 unknown delivery, fresh state and untrusted narration; no mutations were dispatched.
+
+
+## Recipe import and approval
+
+The chat client's Recipes button opens `/recipes`. Paste recipe text, upload a PDF,
+or import a public URL. Structured Recipe JSON-LD is extracted directly, preserving
+its ingredient and instruction strings without model rewriting. Multiple recipes
+remain separate candidates. Blog prose is left for manual selection; linked PDFs
+are offered as separate imports and never fetched automatically.
+
+Text and PDF imports can use the resident to organize a draft, with tools disabled
+and the normal inference admission limit. Busy, long, or unreadable sources remain
+editable drafts. PDFs require local `pdftotext`; extraction is limited to 40 pages
+and does not perform OCR. Sources are limited to 5 MiB; model organization is limited
+to 14 KB of extracted text. URL requests reject private addresses, redirects and
+compressed responses, and pin the connection to a validated public IP.
+
+Original bytes and draft metadata live under the private recipes directory in
+`.review/sources` and `.review/drafts`. Review shows the original text, downloadable
+source, and warnings for missing details and suspicious quantities. These checks
+are heuristics, not a guarantee that an extraction is faithful. The human checks
+quantities and steps, edits as needed, and explicitly approves in the browser.
+Only approved Markdown files enter recipe lookup and listing. Chat `save` and
+`import_url` create drafts; the model has no approval tool. Conversational approval
+does not bypass browser review.
+
+Replacing an existing recipe requires a separate replacement checkbox and an
+unchanged content hash. Previous bytes are retained in `.review/versions`; writes
+are atomic and serialized, and duplicate approvals are idempotent. Sources, drafts
+and versions are retained until manually removed. Existing recipe files remain
+readable without migration. The review API shares the brain's private network
+boundary and requires same-origin browser mutation headers.

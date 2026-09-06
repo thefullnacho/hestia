@@ -5,7 +5,7 @@ triggers: recipe, recipes, recipe for, cook, cooking, bake, baking, baked, how d
 tools: recipe, search, reminder
 metadata:
   domain: kitchen
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Recipe
@@ -16,10 +16,17 @@ questions about it while someone's hands are busy in the kitchen.
 ## Get the recipe in front of you first
 - For any "how do I make / cook / bake X", call `recipe` with action='lookup' FIRST. If it
   returns a saved recipe, that is the household's canonical version — use it and nothing else.
-- If lookup finds nothing, use `search` to find one on the web, read the best result, and
-  answer from it. Then OFFER to save it ("want me to save this one for next time?"). Only on
-  a yes, call `recipe` action='save' — and pass the recipe CLEANED into a short Ingredients
-  list and numbered Steps, with the blog story, ads, and chatter stripped out.
+- If lookup finds nothing, use `search` to find a source and offer to import it. A user-provided
+  recipe or PDF URL goes to `recipe` action='import_url', never to generic page stripping.
+- Pasted or dictated recipes use `recipe` action='save' to prepare a DRAFT with Ingredients
+  and numbered Steps. Preserve all quantities, units, timing, temperature, yield and notes.
+  Do not invent missing values, combine recipes, scale amounts, or silently substitute.
+- Every import or save is pending review. Tell the user to open Recipes in the chat app,
+  choose the draft, compare it with the original, and approve it there. Include the returned
+  review path in text chat. Never claim the recipe is in the collection before approval.
+- Only the human review page can approve or replace recipes. A conversational "yes" can
+  authorize preparing a draft, not bypass review. Existing recipes require an explicit
+  replacement choice; older versions and source snapshots are retained.
 
 ## Ground every quantity — never recall one
 - Amounts, oven temperatures, and times come ONLY from the recipe text in front of you. Never
