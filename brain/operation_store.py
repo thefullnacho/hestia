@@ -14,22 +14,36 @@ import time
 import config
 from tool_contract import receipt
 
+# Replay only serves a transport retry, so request rows are short-lived. Operation receipts
+# stay longer so an interrupted write can still be checked before anyone repeats it.
+REQUEST_TTL = 24 * 3600
+OPERATION_TTL = 7 * 24 * 3600
+_ready: set = set()
+
 
 def _connect():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     path = config.DATA_DIR / 'operations.db'
     conn = sqlite3.connect(path, timeout=5)
-    path.chmod(0o600)
     conn.row_factory = sqlite3.Row
-    conn.executescript('''
-        CREATE TABLE IF NOT EXISTS requests (
-            id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, response TEXT,
-            created REAL NOT NULL);
-        CREATE TABLE IF NOT EXISTS operations (
-            id TEXT PRIMARY KEY, request_id TEXT NOT NULL, name TEXT NOT NULL,
-            status TEXT NOT NULL, result TEXT, created REAL NOT NULL);
-    ''')
+    if path not in _ready:
+        path.chmod(0o600)
+        conn.executescript('''
+            CREATE TABLE IF NOT EXISTS requests (
+                id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, response TEXT,
+                created REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS operations (
+                id TEXT PRIMARY KEY, request_id TEXT NOT NULL, name TEXT NOT NULL,
+                status TEXT NOT NULL, result TEXT, created REAL NOT NULL);
+        ''')
+        _ready.add(path)
     return conn
+
+
+def prune(conn, now=None):
+    now = now or time.time()
+    conn.execute('DELETE FROM requests WHERE created < ?', (now - REQUEST_TTL,))
+    conn.execute('DELETE FROM operations WHERE created < ?', (now - OPERATION_TTL,))
 
 
 def digest(value):
@@ -39,6 +53,7 @@ def digest(value):
 def claim_request(key, messages):
     fingerprint = digest(messages)
     with closing(_connect()) as conn, conn:
+        prune(conn)
         changed = conn.execute('INSERT OR IGNORE INTO requests VALUES (?, ?, NULL, ?)',
                                (key, fingerprint, time.time())).rowcount
         row = conn.execute('SELECT * FROM requests WHERE id=?', (key,)).fetchone()
@@ -50,8 +65,12 @@ def claim_request(key, messages):
 
 
 def finish_request(key, response):
+    """Store the durable answer, or release the key when the turn did no work (response=None)."""
     with closing(_connect()) as conn, conn:
-        conn.execute('UPDATE requests SET response=? WHERE id=?', (json.dumps(response), key))
+        if response is None:
+            conn.execute('DELETE FROM requests WHERE id=? AND response IS NULL', (key,))
+        else:
+            conn.execute('UPDATE requests SET response=? WHERE id=?', (json.dumps(response), key))
 
 
 def execute_once(request_id, name, args, execute):

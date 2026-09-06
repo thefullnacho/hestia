@@ -32,14 +32,17 @@ still-running/crashed request return 409. Operation receipts are stored privatel
 `data/operations.db`. `GET /v1/operations/{request_id}` exposes late outcomes under the
 same private network boundary as chat. An interrupted write is never automatically
 repeated. Exactly-once remote execution cannot be guaranteed across backend crashes.
-Requests without a client key receive a generated ID but cannot deduplicate a lost
-response unless the client retained the ID. Keep keys unique for intentional new turns.
-The ledger currently retains receipts until operator maintenance; it is private data.
+Requests without a client key are not written to the request ledger at all; their
+operation receipts are still stored under the generated ID returned in `X-Request-ID`.
+A busy, timed-out or backend-down answer ran no write, so it is never stored as a
+key's durable answer: the client's retry runs the turn instead of replaying the failure.
+Keep keys unique for intentional new turns. Request rows are pruned after one day and
+operation receipts after seven; the ledger is private data.
 
 ## Context and routing
 
 One prepared plan selects up to three matching skills and unions their tool lists
-with explicit reminder, shopping, memory, records, search and status intents. Short
+with explicit home, reminder, shopping, memory, records, search and status intents. Short
 pronoun follow-ups include the preceding user topic for routing. This is a bounded
 heuristic, not general coreference resolution. Only a single soil-state question
 with available readings can disable tools; observations retain records access.
@@ -91,7 +94,8 @@ with `HESTIA_NOTETAKER_MODEL` selecting its model. Sharing the foreground GPU ca
 still add contention after a note job has started; no runtime GPU settings are changed.
 
 A simple single light on/off command returns its verified tool receipt after one
-model round. Successful mixed informational/action requests retain the informational
+model round; the receipt names the light by its Home Assistant friendly name, since it
+is spoken aloud by the voice clients. Successful mixed informational/action requests retain the informational
 answer alongside explicit verified receipts. Known failed or unknown writes override
 model completion prose. Interrupted streams retain the visible partial answer plus
 the failure in the replay receipt and are never sent to background learning.
@@ -101,12 +105,15 @@ commands receive at most one recovery instruction. A second failure produces an 
 non-completion response and is not learned. This catches a measured native Ollama case
 that generated tokens but returned an empty message with no parsed tool call. Detection
 is intentionally limited to explicit command forms and does not prove all user intents
-were completed. Missing arguments may still require a clarifying question.
+were completed. A light command counts only when the text names a light or refers back
+to one, because the home tool actuates nothing else. Missing arguments may still
+require a clarifying question.
 
-When one explicit write tool is missing, recovery uses Ollama's schema-constrained
-JSON output for that tool's arguments, then the ordinary scope, validation and receipt
-path. It never executes free-form model prose. This is a fallback only, consumes the
-same turn budget, uses temperature zero, and does not repeat a dispatched write.
+When one explicit write tool is missing and was offered for the request, recovery uses
+Ollama's schema-constrained JSON output for that tool's arguments, then the ordinary
+scope, validation and receipt path. It never executes free-form model prose. This is a
+fallback only, consumes the same turn budget, uses temperature zero, and does not
+repeat a dispatched write.
 See [Ollama structured outputs](https://docs.ollama.com/capabilities/structured-outputs).
 
 Successful light mutations invalidate the cached prompt catalog immediately, so the
@@ -188,9 +195,9 @@ not the same as end-to-end supported input size or acceptable voice latency.
 Qwen3 14B was restored at 32K afterward. No resident configuration changed.
 
 Schema validation accepts advertised JSON type unions while preserving strict boolean
-versus numeric checks. Text harvest quantities pass to the domain quantity parser;
-numeric quantities must still be positive. This keeps mixed-unit harvest input
-compatible with the action boundary.
+versus numeric checks. The records harvest schema still declares `qty` as a number and
+no text quantity parser exists, so "2 lb 7 oz" is rejected before dispatch; the union
+support is in place for a tool that chooses to advertise one.
 
 ## Resident trial
 

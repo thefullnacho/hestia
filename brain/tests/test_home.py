@@ -73,3 +73,15 @@ def test_successful_mutation_invalidates_prompt_catalog(monkeypatch):
     monkeypatch.setattr(home.httpx, 'get', lambda *a, **k: httpx.Response(200, json={'state': 'off'}))
     home.execute('turn_off', entity_id='light.kitchen')
     assert home._cache['t'] == 0
+
+
+def test_receipt_uses_friendly_name_when_ha_supplies_one(monkeypatch):
+    monkeypatch.setattr(home.httpx, "post", lambda *a, **k: _Resp())
+
+    class State(_Resp):
+        def json(self):
+            return {"state": "off", "attributes": {"friendly_name": "Kitchen lights"}}
+    monkeypatch.setattr(home.httpx, "get", lambda *a, **k: State())
+    out = home.execute("turn_off", entity_id="light.light_kitchen_lights")
+    assert out == "Done — Kitchen lights is now off."
+    assert "light.light_kitchen_lights" not in out
