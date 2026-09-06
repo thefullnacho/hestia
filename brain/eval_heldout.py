@@ -26,9 +26,8 @@ import httpx
 
 import config  # noqa: E402
 
-config.load_secrets()
-
-import hestia  # noqa: E402
+from eval_support import first_message, fixtures, hestia
+import asyncio
 
 OLLAMA = "http://127.0.0.1:11434"
 REPEATS = int(os.environ.get("EVAL_REPEATS", "1"))
@@ -47,17 +46,9 @@ def load_cases() -> list[dict]:
 
 
 def fire(model: str, prompt: str) -> tuple[str, dict]:
-    """One model turn via the real production scoping. Returns (tool_name|'∅', args)."""
-    body = {
-        "model": model,
-        "messages": [{"role": "system", "content": hestia._system_prompt(prompt)},
-                     {"role": "user", "content": prompt}],
-        "tools": hestia._request_schemas(prompt), "stream": False, "think": False,
-        "options": {"temperature": 0.3},
-    }
-    r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=300)
-    r.raise_for_status()
-    calls = (r.json()["message"].get("tool_calls") or [])
+    with fixtures():
+        msg, _ = asyncio.run(first_message(model, prompt))
+    calls = msg.get("tool_calls") or []
     if not calls:
         return "∅", {}
     fn = calls[0].get("function", {})
@@ -65,9 +56,9 @@ def fire(model: str, prompt: str) -> tuple[str, dict]:
     if isinstance(args, str):
         try:
             args = json.loads(args)
-        except Exception:  # noqa: BLE001
+        except ValueError:
             args = {}
-    return fn.get("name", "?"), args
+    return fn.get("name", "?"), args if isinstance(args, dict) else {}
 
 
 def eval_model(model: str, cases: list[dict]) -> None:
@@ -108,8 +99,6 @@ def eval_model(model: str, cases: list[dict]) -> None:
             print(f)
         if len(fails) > 20:
             print(f"    ... +{len(fails)-20} more")
-    import subprocess
-    subprocess.run(["ollama", "stop", model], capture_output=True)
 
 
 def main() -> None:

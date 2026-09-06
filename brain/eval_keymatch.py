@@ -31,10 +31,8 @@ import httpx
 
 import config  # noqa: E402 — puts brain/ on sys.path
 
-config.load_secrets()
-
-import hestia  # noqa: E402 — real _build_system_prompt + _request_schemas
-import tools   # noqa: E402
+from eval_support import first_message, fixtures, hestia
+import asyncio
 
 OLLAMA = "http://127.0.0.1:11434"
 REPEATS = int(os.environ.get("EVAL_REPEATS", "5"))
@@ -79,26 +77,10 @@ CASES = [
 
 
 def first_tool(model: str, prompt: str) -> tuple[str, int]:
-    """One model turn. Return (first tool name or '∅:final', n_tools_offered)."""
-    schemas = hestia._request_schemas(prompt)
-    system_prompt = asyncio.run(hestia._build_system_prompt(prompt))
-    body = {
-        "model": model,
-        "messages": [{"role": "system", "content": system_prompt},
-                     {"role": "user", "content": prompt}],
-        "tools": schemas, "stream": False, "think": False,
-        # Explicit, not left to each model's undocumented default context — the full
-        # unscoped tool surface + system prompt runs ~5.7k tokens, which silently
-        # 400s on models whose default ctx is smaller than qwen3:14b's.
-        "options": {"temperature": 0.3, "num_ctx": 8192},
-    }
-    r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=300)
-    r.raise_for_status()
-    msg = r.json()["message"]
+    with fixtures():
+        msg, offered = asyncio.run(first_message(model, prompt))
     calls = msg.get("tool_calls") or []
-    if not calls:
-        return "∅:final", len(schemas)
-    return calls[0].get("function", {}).get("name", "?"), len(schemas)
+    return (calls[0].get("function", {}).get("name", "?") if calls else "∅:final", offered)
 
 
 def eval_model(model: str) -> None:
@@ -121,8 +103,6 @@ def eval_model(model: str) -> None:
         dist = "  ".join(f"{k}×{v}" for k, v in sorted(picks.items(), key=lambda x: -x[1]))
         print(f"  {flag} {case['name']:<40} {hits}/{REPEATS}  [offered {offered}]  {dist}")
     print(f"  ── key-match {total_ok/len(CASES)*100:.0f}%   ({total_ok:.1f}/{len(CASES)} cases)")
-    import subprocess
-    subprocess.run(["ollama", "stop", model], capture_output=True)
 
 
 def main() -> None:

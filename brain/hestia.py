@@ -22,6 +22,8 @@ import time
 import uuid
 import wave
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 
 import httpx
 from fastapi import FastAPI, File, Form, Request, UploadFile
@@ -64,6 +66,28 @@ TOOL_BUDGET = float(os.environ.get("HESTIA_TOOL_BUDGET", "20"))
 TOOL_WORKERS = max(1, int(os.environ.get("HESTIA_TOOL_WORKERS", "8")))
 # qwen3 thinking mode: off by default (fast, no eval gain). HESTIA_THINK=1 to enable.
 THINK = os.environ.get("HESTIA_THINK", "0") not in ("0", "", "false", "False")
+
+@dataclass
+class TurnTrace:
+    """Request-local measurements. No prompts, arguments or household data in metrics."""
+    request_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    model: str = MODEL
+    think: bool = THINK
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    model_calls: int = 0
+    context_seconds: float = 0.0
+    total_seconds: float = 0.0
+    backend: dict = field(default_factory=dict)
+    tools: list = field(default_factory=list)
+
+    def usage(self) -> dict:
+        return {"prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens,
+                "total_tokens": self.prompt_tokens + self.completion_tokens}
+
+
+_trace: ContextVar[TurnTrace | None] = ContextVar("turn_trace", default=None)
+
 
 # Voice services (the same Wyoming STT/TTS the HA Assist pipeline uses). The chat client's mic
 # posts audio to the brain, which proxies to these — one hop for the phone, same as the text
@@ -210,13 +234,21 @@ def _almanac_pages() -> str:
 async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dict:
     # think=False keeps qwen3 in fast mode (thinking on cost ~4s/turn for no eval gain;
     # see brain/eval_models.py — qwen3:14b no-think scored 100%/100% English at 1.5s).
-    body = {"model": MODEL, "messages": messages,
+    trace = _trace.get()
+    body = {"model": trace.model if trace else MODEL, "messages": messages,
             "tools": tools.SCHEMAS if schemas is None else schemas,
-            "stream": False, "think": THINK,
+            "stream": False, "think": trace.think if trace else THINK,
             "options": {"temperature": 0.3, "num_ctx": NUM_CTX}}
     r = await client.post("/api/chat", json=body)
     r.raise_for_status()
-    return r.json()["message"]
+    payload = r.json()
+    if trace:
+        trace.model_calls += 1
+        trace.prompt_tokens += payload.get("prompt_eval_count", 0)
+        trace.completion_tokens += payload.get("eval_count", 0)
+        for key in ("load_duration", "prompt_eval_duration", "eval_duration", "total_duration"):
+            trace.backend[key] = trace.backend.get(key, 0) + payload.get(key, 0)
+    return payload["message"]
 
 
 # A soil-STATE readout ("what's the moisture", "are the beds dry", "soil readings") is
@@ -299,7 +331,23 @@ async def _run_tool(name: str, args: dict, budget: float) -> tuple[str, str]:
         return f"Error: {name} timed out after {budget:.0f}s (backend slow/unreachable).", "timeout"
 
 
-async def run_agent(messages: list[dict]) -> str:
+async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> str:
+    trace = trace or TurnTrace()
+    token = _trace.set(trace)
+    started = time.monotonic()
+    try:
+        return await _agent_loop(messages)
+    finally:
+        trace.total_seconds = time.monotonic() - started
+        _log(json.dumps({"request_id": trace.request_id, "model": trace.model,
+                         "seconds": round(trace.total_seconds, 3),
+                         "context_seconds": round(trace.context_seconds, 3),
+                         "model_calls": trace.model_calls, "usage": trace.usage(),
+                         "backend_ns": trace.backend}))
+        _trace.reset(token)
+
+
+async def _agent_loop(messages: list[dict]) -> str:
     """Recall memory, then loop tool-calls against Ollama until a final answer.
 
     Hard-bounded so a hung backend can't hang the request (2026-06-11: a stuck SearXNG made one
@@ -309,9 +357,12 @@ async def run_agent(messages: list[dict]) -> str:
     the journal so a misfire is one `journalctl` away.
     """
     user_text = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
+    context_started = time.monotonic()
     convo = [m for m in messages if m.get("role") != "system"]
     convo = [{"role": "system", "content": await _build_system_prompt(user_text)}, *convo]
     schemas = _request_schemas(user_text)
+    if trace := _trace.get():
+        trace.context_seconds = time.monotonic() - context_started
 
     t0 = time.monotonic()
     deadline = t0 + TURN_BUDGET
@@ -375,6 +426,8 @@ async def run_agent(messages: list[dict]) -> str:
             except Exception as e:  # noqa: BLE001 — executor failures still become tool results
                 result = f"Error: {name} failed before it could run: {e}"
                 _log(f"step {step} tool={name} args={_short(args)} EXECUTOR ERROR {type(e).__name__}")
+            if trace := _trace.get():
+                trace.tools.append({"name": name, "seconds": time.monotonic() - ts})
             seen[sig] = str(result)
             last_result = str(result)
             convo.append({"role": "tool", "tool_name": name, "content": str(result)})
@@ -387,13 +440,13 @@ async def run_agent(messages: list[dict]) -> str:
     return "I wasn't able to finish that in a reasonable number of steps — can you narrow it down?"
 
 
-def _completion(content: str) -> dict:
+def _completion(content: str, trace: TurnTrace | None = None) -> dict:
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex[:12]}", "object": "chat.completion",
-        "created": int(time.time()), "model": MODEL,
+        "created": int(time.time()), "model": trace.model if trace else MODEL,
         "choices": [{"index": 0, "message": {"role": "assistant", "content": content},
                      "finish_reason": "stop"}],
-        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+        "usage": trace.usage() if trace else {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
     }
 
 
@@ -523,8 +576,9 @@ def _note_task(messages: list[dict], content: str) -> BackgroundTask | None:
 async def chat_completions(request: Request):
     body = await request.json()
     messages = body.get("messages") or []
-    content = await run_agent(messages)
-    comp = _completion(content)
+    trace = TurnTrace()
+    content = await run_agent(messages, trace=trace)
+    comp = _completion(content, trace)
     note = _note_task(messages, content)
 
     if body.get("stream"):
