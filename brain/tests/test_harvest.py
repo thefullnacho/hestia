@@ -148,6 +148,65 @@ def test_tool_requires_the_amount(db):
     assert out.startswith("Error:") and "quantity" in out
 
 
+# ----- compound weights (voice hands over '2 lb 7 oz', not one qty+unit) -----
+
+def test_compound_weight_parses_to_the_finer_unit():
+    assert records_store.parse_qty_unit("2 lb 7 oz", None) == (39.0, "oz")
+    assert records_store.parse_qty_unit(2, "lb 7 oz") == (39.0, "oz")
+    assert records_store.parse_qty_unit("1 kg 200 g", None) == (1200.0, "g")
+
+
+def test_plain_amounts_pass_through_untouched():
+    """A single unit isn't compound — no rounding/unit-swap surprise on the common case."""
+    assert records_store.parse_qty_unit(4.8, "lb") == (4.8, "lb")
+    assert records_store.parse_qty_unit("4.8", "lb") == (4.8, "lb")
+    assert records_store.parse_qty_unit(6, None) == (6.0, None)
+
+
+def test_tool_logs_a_compound_weight_given_as_text(db):
+    out = tools.dispatch("records", {"action": "harvest", "bed": "Bed 1",
+                                     "crop": "Tomatoes", "qty": "2 lb 7 oz"})
+    assert "Logged 39 oz of Tomatoes from Bed 1" in out
+    ev = db.recent_events(kind="harvest")[0]
+    assert ev["attrs"]["qty"] == 39
+    assert ev["attrs"]["unit"] == "oz"
+    assert round(ev["attrs"]["grams"]) == 1106
+
+
+def test_tool_rejects_a_genuinely_unparseable_quantity(db):
+    out = tools.dispatch("records", {"action": "harvest", "bed": "Bed 4",
+                                     "crop": "Tomatoes", "qty": "a lot"})
+    assert out.startswith("Error:") and "quantity" in out
+
+
+# ----- fuzzy bed matching (a spoken bed name isn't always the exact roster name) -----
+
+def test_harvest_bed_matches_a_colloquial_reference(db):
+    db.upsert_entity("place", "Hot Peppers Round Bed")
+    out = tools.dispatch("records", {"action": "harvest", "bed": "the hot pepper bed",
+                                     "crop": "Hot Peppers", "qty": 1.7, "unit": "oz"})
+    assert "⚠" not in out                          # attached, not minted
+    ev = db.recent_events(kind="harvest")[0]
+    assert ev["subject"] == "Hot Peppers Round Bed"   # joined to the real place, not a new one
+    prof = db.entity_profile("Hot Peppers Round Bed")
+    assert any(e["kind"] == "harvest" for e in prof["recent"])
+
+
+def test_harvest_bed_still_warns_when_nothing_close_exists(db):
+    db.upsert_entity("place", "Bed 4")
+    out = tools.dispatch("records", {"action": "harvest", "bed": "the mystery bed",
+                                     "crop": "Tomatoes", "qty": 1, "unit": "lb"})
+    assert "⚠" in out and "wasn't a known bed" in out
+
+
+def test_harvest_bed_does_not_guess_between_two_similar_beds(db):
+    db.upsert_entity("place", "Carrots Round Bed")
+    db.upsert_entity("place", "Carrots Square Bed")
+    out = tools.dispatch("records", {"action": "harvest", "bed": "the carrots bed",
+                                     "crop": "Carrots", "qty": 2, "unit": "lb"})
+    assert "⚠" in out and "wasn't a known bed" in out  # ambiguous — mint + warn, never guess
+
+
 def test_yield_action_reads_back_the_season(db):
     db.log_harvest("Bed 4", "Tomatoes", 4, "lb")
     db.log_harvest("Bed 2", "Zucchini", 6)

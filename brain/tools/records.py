@@ -52,7 +52,7 @@ SCHEMA = {
                 "action": {"type": "string", "enum": ["remember", "log", "birth", "harvest", "yield", "recent", "entity", "relate", "due"]},
                 "bed": {"type": "string", "description": "for harvest/yield: the bed or zone picked from, e.g. 'Bed 4', 'Carrots Round Bed'"},
                 "crop": {"type": "string", "description": "for harvest/yield: what was picked, e.g. 'Tomatoes'"},
-                "qty": {"type": "number", "description": "for harvest: how much — the number only"},
+                "qty": {"type": ["number", "string"], "description": "for harvest: how much — a plain number, or the full amount as text ('2 lb 7 oz') when it's a mixed/compound weight that doesn't reduce to one unit"},
                 "unit": {"type": "string", "description": "for harvest: lb/oz/kg/g for weight, pint/quart for volume, or omit for a plain count"},
                 "year": {"type": "integer", "description": "for yield: season year (default this year)"},
                 "name": {"type": "string", "description": "entity name (remember/entity; the 'from' for relate; the puppy's name for birth)"},
@@ -105,7 +105,7 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
             to: str | None = None, since: str | None = None, limit: int = 20,
             dam: str | None = None, sire: str | None = None, sex: str | None = None,
             weight: str | None = None, color: str | None = None, litter: str | None = None,
-            bed: str | None = None, crop: str | None = None, qty: float | None = None,
+            bed: str | None = None, crop: str | None = None, qty: float | str | None = None,
             unit: str | None = None, year: int | None = None) -> str:
     try:
         # attrs validation is shared by the three actions that take it; a malformed string
@@ -119,7 +119,11 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
         if action == "harvest":
             if not bed or not crop or qty is None:
                 return "Error: harvest needs a bed, a crop, and a quantity (unit optional)."
-            q = float(qty)
+            try:
+                q, unit = store.parse_qty_unit(qty, unit)
+            except (TypeError, ValueError):
+                return ("Error: couldn't parse that quantity — give it as a number (4.8), or "
+                        "the full amount as text ('2 lb 7 oz') for a mixed weight.")
             if not q > 0:  # also rejects NaN, which compares False to everything
                 return "Error: quantity must be a positive number."
             r = store.log_harvest(bed, crop, q, unit=unit, ts=ts, detail=detail)

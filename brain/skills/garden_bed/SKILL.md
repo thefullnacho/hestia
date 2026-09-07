@@ -43,4 +43,13 @@ do not load it to answer a question.)
   - If they don't say a number, ask for one — a harvest without an amount isn't worth logging.
   - If they don't name a bed but the crop grows in exactly one, use that bed. If it grows in
     several (tomatoes are in Bed 1 and Bed 4), ask which.
+  - A mixed weight ("2 lb 7 ounces") is still a number — pass it as text in `qty` ('2 lb 7 oz')
+    rather than doing the conversion yourself or dropping the odd unit; the tool does the math.
+  - A bed name doesn't have to match the roster word-for-word ("the hot pepper bed" for "Hot
+    Peppers Round Bed") — call the tool with what they said; the bed lookup is tolerant of that.
+  - **Always end this turn by either calling `records.harvest` or asking one clarifying
+    question — never a bare acknowledgment ("got it", "logged") with no tool call.** If a name
+    or amount is odd but you have a reasonable reading of it, log it (the tool will say if it
+    minted an unrecognized bed, and you can correct it from there) rather than silently doing
+    nothing while sounding like you did something.
   - "How did the tomatoes do?" / "how much have we picked?" → `records.yield`.

@@ -143,8 +143,28 @@ def upsert_entity(kind: str, name: str, aliases: list[str] | None = None,
         return _row_entity(row)
 
 
+# Filler words stripped before the kind-scoped fuzzy match below, so a spoken "the hot pepper
+# bed" reduces to its content words ("hot", "pepper") before comparing against candidate names.
+_FUZZY_STOPWORDS = {"the", "a", "an", "bed", "beds", "zone", "round", "area"}
+
+
+def _fuzzy_kind_match(c: sqlite3.Connection, name: str, kind: str) -> dict | None:
+    """Token-substring match scoped to `kind`: every significant word of `name` (stopwords
+    stripped) must appear somewhere in a candidate's name. Handles a spoken reference like 'the
+    hot pepper bed' matching the canonical 'Hot Peppers Round Bed' despite the missing word and
+    the plural mismatch — a plain substring check would fail both directions. Ambiguous (more
+    than one candidate matches, or nothing is left after stopwords) returns None, so the caller
+    falls back to minting (with its own 'wasn't a known bed' warning) rather than guessing wrong."""
+    tokens = [t for t in re.findall(r"[a-z0-9]+", name.lower()) if t not in _FUZZY_STOPWORDS]
+    if not tokens:
+        return None
+    rows = c.execute("SELECT * FROM entities WHERE kind=?", (kind,)).fetchall()
+    hits = [r for r in rows if all(t in r["name"].lower() for t in tokens)]
+    return _row_entity(hits[0]) if len(hits) == 1 else None
+
+
 def resolve(name: str, conn: sqlite3.Connection | None = None,
-            kind: str | None = None) -> dict | None:
+            kind: str | None = None, fuzzy: bool = False) -> dict | None:
     """Find an entity by alias (exact, case-insensitive) or fuzzy name match.
 
     Pass `kind` to scope the lookup to one entity kind and match ONLY on an exact handle — an
@@ -152,7 +172,13 @@ def resolve(name: str, conn: sqlite3.Connection | None = None,
     typed into a Shortcut is deliberate, so a brand-new subject mints cleanly instead of
     false-attaching by substring — a new wildlife 'Park' won't grab the 'Park/Orchard Zone' place,
     a new pup 'Lil'/'Bo' won't grab 'Lily'/'Bodhi'. Called without `kind` (the conversational
-    path), behaviour is unchanged: alias-exact, then loosely fuzzy so 'the beets bed' still matches."""
+    path), behaviour is unchanged: alias-exact, then loosely fuzzy so 'the beets bed' still matches.
+
+    Pass `kind` AND `fuzzy=True` for a middle ground: the exact-handle match is tried first (as
+    always), and only on a miss does it fall back to the stopword-stripped token match above —
+    still scoped to `kind` so it can't cross-attach to an unrelated entity, but tolerant of a
+    colloquial phrasing that isn't a byte-for-byte alias. Used by harvest logging, where a spoken
+    bed name is common but exact-only matching was silently forcing a mint-or-guess choice."""
     own = conn is None
     c = conn or _conn()
     try:
@@ -174,18 +200,21 @@ def resolve(name: str, conn: sqlite3.Connection | None = None,
         # subject mints rather than gluing onto a longer existing name.
         r = c.execute("SELECT * FROM entities WHERE kind=? AND name=? COLLATE NOCASE LIMIT 1",
                       (kind, name)).fetchone()
-        return _row_entity(r) if r else None
+        if r:
+            return _row_entity(r)
+        return _fuzzy_kind_match(c, name, kind) if fuzzy else None
     finally:
         if own:
             c.close()
 
 
 def _resolve_or_create(c: sqlite3.Connection, name: str, kind: str,
-                       strict: bool = False) -> int:
+                       strict: bool = False, fuzzy: bool = False) -> int:
     """Find an entity by name, or mint it with `kind`. When `strict`, the lookup is scoped to
     `kind` and prefers an exact name match (see resolve()), so the auto-mint path won't
-    cross-attach a new subject to an unrelated entity. Loose by default for the other callers."""
-    e = resolve(name, conn=c, kind=kind if strict else None)
+    cross-attach a new subject to an unrelated entity. Loose by default for the other callers.
+    `fuzzy` (only meaningful alongside `strict`) allows a kind-scoped token match on an exact miss."""
+    e = resolve(name, conn=c, kind=kind if strict else None, fuzzy=fuzzy)
     if e:
         return e["id"]
     cur = c.execute("INSERT INTO entities(kind,name,attrs,created_at) VALUES(?,?,?,?)",
@@ -208,10 +237,14 @@ def add_relation(from_name: str, rel: str, to_name: str) -> str:
 def log_event(kind: str, subject: str | None = None, action: str | None = None,
               detail: str | None = None, location: str | None = None,
               ts: str | None = None, attrs: dict | None = None,
-              subject_kind: str | None = None, strict_subject: bool = False) -> dict:
+              subject_kind: str | None = None, strict_subject: bool = False,
+              fuzzy_subject: bool = False) -> dict:
     """Record one timestamped event. Auto-creates the subject entity if new. Set `strict_subject`
     to scope that auto-create to `subject_kind` and prefer an exact match (used by the photo
-    intake so a new subject mints cleanly instead of false-attaching across kinds)."""
+    intake so a new subject mints cleanly instead of false-attaching across kinds). Set
+    `fuzzy_subject` alongside it to allow a kind-scoped token match on an exact miss (used by
+    harvest logging, where a colloquial bed name is common and exact-only was forcing a
+    mint-or-guess choice)."""
     with _conn() as c:
         eid = None
         created = False
@@ -220,8 +253,9 @@ def log_event(kind: str, subject: str | None = None, action: str | None = None,
             # Did the subject already exist? Mirror _resolve_or_create's lookup so `created`
             # tells the caller a brand-new entity was minted (a likely typo'd/compound subject)
             # instead of attaching to an existing record — caught loudly at the photo intake.
-            created = resolve(subject, conn=c, kind=skind if strict_subject else None) is None
-            eid = _resolve_or_create(c, subject, skind, strict=strict_subject)
+            created = resolve(subject, conn=c, kind=skind if strict_subject else None,
+                              fuzzy=fuzzy_subject) is None
+            eid = _resolve_or_create(c, subject, skind, strict=strict_subject, fuzzy=fuzzy_subject)
         cur = c.execute(
             "INSERT INTO events(ts,kind,entity_id,action,detail,location,attrs,created_at) "
             "VALUES(?,?,?,?,?,?,?,?)",
@@ -339,17 +373,50 @@ def normalize_unit(unit: str | None) -> tuple[str, str]:
     return "other", u
 
 
+_WEIGHT_TOKEN = re.compile(r"(\d+(?:\.\d+)?)\s*([a-zA-Z]+)")
+
+
+def _parse_compound_weight(text: str) -> tuple[float, str] | None:
+    """Parse a spoken compound weight like '2 lb 7 oz' or '1 kg 200 g' into one (qty,
+    canonical_unit), converted entirely to the finer unit present (oz for a lb+oz mix, g for a
+    kg+g mix) rather than truncated to one term. None if fewer than two recognized weight tokens
+    are found — a plain single-unit amount isn't compound, and the caller leaves it untouched."""
+    parts = [(float(n), u.strip().lower()) for n, u in _WEIGHT_TOKEN.findall(text or "")
+             if u.strip().lower() in _WEIGHT_G]
+    if len(parts) < 2:
+        return None
+    grams = sum(n * _WEIGHT_G[u] for n, u in parts)
+    canon_units = {_WEIGHT_CANON[u] for _, u in parts}
+    fine = "oz" if "lb" in canon_units else "g" if "kg" in canon_units else next(iter(canon_units))
+    return round(grams / _WEIGHT_G[fine], 2), fine
+
+
+def parse_qty_unit(qty: float | str, unit: str | None) -> tuple[float, str | None]:
+    """Resolve a harvest amount that may not land cleanly in the schema's plain qty+unit shape —
+    voice transcription of a mixed weight ('2 lb 7 oz') can turn up as a compound string in
+    either field. Joins both into one string and looks for a compound weight first; a plain
+    number falls through unchanged, so the common case never round-trips through this at all.
+    Raises ValueError/TypeError on genuinely unparseable input, same as a bare float(qty) would."""
+    combined = f"{qty} {unit or ''}".strip()
+    compound = _parse_compound_weight(combined)
+    if compound:
+        return compound
+    return float(qty), unit
+
+
 def log_harvest(bed: str, crop: str, qty: float, unit: str | None = None,
                 ts: str | None = None, detail: str | None = None) -> dict:
     """Record picking `qty` `unit` of `crop` from `bed`. The bed is the event subject (a
-    `place`), so yields roll up per bed for the almanac's year-over-year comparison."""
+    `place`), so yields roll up per bed for the almanac's year-over-year comparison. Bed
+    resolution is kind-scoped but fuzzy (see resolve()), so a colloquial bed name still attaches
+    to the real place instead of forcing an exact match or minting a duplicate."""
     qty = float(qty)
     cls, canon = normalize_unit(unit)
     grams = qty * _WEIGHT_G[(unit or "").strip().lower()] if cls == "weight" else None
     amount = f"{qty:g} {canon}".strip() if cls != "count" else f"{qty:g}"
     return log_event("harvest", subject=bed, action="harvested",
                      detail=detail or f"{amount} {crop}".strip(),
-                     subject_kind="place", strict_subject=True,
+                     subject_kind="place", strict_subject=True, fuzzy_subject=True,
                      ts=ts, attrs={"crop": crop, "qty": qty, "unit": canon,
                                    "unit_class": cls, "grams": grams})
 
