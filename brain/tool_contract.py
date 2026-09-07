@@ -10,6 +10,7 @@ MUTATIONS = {
     'records': {'remember', 'log', 'birth', 'harvest', 'relate'},
     'memory': {'write'}, 'recipe': {'save', 'import_url'}, 'media': {'add'},
     'reminder': {'create', 'cancel'}, 'shopping': {'add', 'remove', 'clear'},
+    'calendar': {'add'},
 }
 REQUIRED = {
     ('home', 'turn_on'): ('entity_id',), ('home', 'turn_off'): ('entity_id',),
@@ -21,6 +22,7 @@ REQUIRED = {
     ('recipe', 'save'): ('name', 'content'), ('recipe', 'lookup'): ('name',), ('recipe', 'import_url'): ('url',),
     ('reminder', 'create'): ('when',), ('reminder', 'cancel'): ('id',),
     ('shopping', 'add'): ('items',), ('shopping', 'remove'): ('items',),
+    ('calendar', 'add'): ('title', 'when'),
     ('search', 'search'): ('query',), ('search', 'fetch'): ('url',),
 }
 
@@ -116,7 +118,7 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
     if outcome != 'ok' or text.startswith('Operation outcome unknown'):
         return ToolResult('unknown', text, operation_id, 'outcome_unknown')
     if not mutation(name, args):
-        failed = text.startswith(('Error', 'Shopping list backend error', 'Home Assistant returned'))
+        failed = text.startswith(('Error', 'Shopping list backend error', 'Calendar backend error', 'Home Assistant returned'))
         return ToolResult('failed' if failed else 'succeeded', text, operation_id,
                           'backend_error' if failed else '', failed)
     success = {
@@ -124,13 +126,14 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
         'memory': ('Remembered ',), 'recipe': ('Drafted ',),
         'reminder': ('Reminder #', 'Reminder cancelled.'),
         'shopping': ('Added to ', 'Already on it:', 'Took off ', 'Cleared '),
+        'calendar': ('Added to the calendar:',),
         'home': ('Done ', 'Sent '), 'media': ('Added ', 'Queued ', 'Already '),
     }
     if (text.startswith(success.get(name, ())) or
             (name == 'media' and 'is already in the library' in text and 'search' in text)):
         return ToolResult('succeeded', text, operation_id)
     # These paths reject before dispatch or before their store write.
-    if name == 'reminder' and text.startswith(("I couldn't read", 'No pending reminder', 'Which reminder')):
+    if name in ('reminder', 'calendar') and text.startswith(("I couldn't read", 'No pending reminder', 'Which reminder')):
         return ToolResult('failed', text, operation_id, 'invalid_target_or_time')
     return ToolResult('unknown', text, operation_id, 'unverified_write')
 

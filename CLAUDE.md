@@ -35,7 +35,7 @@ bulk-touched. Control those one at a time, by name.
 | Path | What |
 |---|---|
 | `brain/hestia.py` | FastAPI app, `POST /v1/chat/completions`, the agent loop |
-| `brain/tools/` | One module per scoped tool: home, media, memory, records, recipe, reminder, search, shopping, status, weather. `skill.py` dispatches skill packs |
+| `brain/tools/` | One module per scoped tool: calendar, home, media, memory, records, recipe, reminder, search, shopping, status, weather. `skill.py` dispatches skill packs |
 | `brain/skills/` | The brain's own skill packs (almanac, garden_bed, home_control, media, recipe, whelping, wildlife). **Not** Claude Code skills |
 | `brain/*_store.py` | SQLite stores — records, memory, reminders |
 | `brain/voice/` | Whisper STT, Chatterbox-Turbo TTS, Piper CPU fallback. Separate venv and pyproject |

@@ -7,6 +7,39 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-07 — calendar tool, on the shopping-list pattern
+
+**Hestia asked for a calendar; the roadmap had it queued since July.** Storage is Home Assistant's
+Local Calendar integration (set up by the operator, one calendar, populated with birthdays, a
+recurring trash day, a repair, and a weekly swim). The brain side is a new `calendar` tool that
+follows `shopping` exactly: HA is the single source of truth, the tool relays, nothing phones home.
+
+**What the tool does.** `show` with the user's range phrase ('today', 'this week', 'next week',
+'this weekend', 'Saturday', 'September 14'), or nothing for the next 7 days; `add` with a title
+and the user's date phrase verbatim. Date math lives in the tool: the reminder tool's parser is
+now shared (`parse_when`) and grew weekday names ('Saturday at 10', 'next tuesday 2pm'), so a
+phrase means the same day whether it becomes a reminder or an event. A phrase with no clock
+time files an all-day event; a timed one defaults to an hour. Recurrence is HA's job (it owns
+the `.ics`), and edits and deletions stay in the HA app: there is no delete service, and a
+calendar the model could silently rewrite is worse than one it can only append to.
+
+**Briefing.** A new calendar section lists today's events and a heads-up for tomorrow's, as
+facts the model narrates. The recurring trash-day event is exactly the kind of row the
+determinism invariant wants: a timer, not a memory.
+
+**Wiring.** Tool registered (eleven now), `tool_contract` knows `add` is a mutation with a
+recognized receipt, intent scoping in `hestia.py` advertises the tool on calendar words, and the
+system prompt tells the model when it is a calendar entry versus a reminder. Calendars are
+discovered from HA (`calendar.*`, cached 10 min) unless `HESTIA_CALENDAR_ENTITIES` pins them;
+new events go on the first. Tests in `brain/tests/test_calendar.py`. Verified against HA
+read-only (`show` returned the live events); `add` was verified against the stub only, since
+there is no way to delete a test event from the brain side.
+
+**Not built, on purpose.** Google/iCloud sync (phones home). Phone-native calendar sync is a
+Radicale-on-hl-relay job for later if the HA app's calendar view is not enough.
+
+---
+
 ## 2026-09-01 — harvest-log audit uncovers a silent tool-call miss; ships NFC capture as the fix
 
 **Chat-logged harvests didn't match what the user actually said.** Asked to validate a morning

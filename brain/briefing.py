@@ -28,6 +28,7 @@ import reminders_store                 # noqa: E402
 import briefing_store                  # noqa: E402
 import daily_facts                     # noqa: E402 — shared scheduled-workflow collectors
 from tools import weather              # noqa: E402
+from tools import calendar as calendar_tool  # noqa: E402 — today's events, no model
 
 HA_URL = os.environ.get("HA_URL", "http://hl-relay:8124").rstrip("/")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
@@ -108,6 +109,27 @@ def _reminder_facts(now: dt.datetime) -> list[str]:
     return out
 
 
+def _calendar_facts(now: dt.datetime) -> list[str]:
+    """Today's events from the household calendar (HA Local Calendar), plus a heads-up for
+    tomorrow's. A recurring 'trash day' lives here as a row in an .ics file, not as
+    something the model is asked to remember."""
+    today = now.date()
+    start = dt.datetime.combine(today, dt.time())
+    out = []
+    for ev in calendar_tool.events(start, start + dt.timedelta(days=2)):
+        day = ev["start"].date()
+        if day < today:
+            day = today  # a multi-day event that started earlier is still on today
+        when = "today" if day == today else "tomorrow"
+        if ev["all_day"]:
+            out.append(f"On the calendar {when}: {ev['summary']} (all day).")
+        else:
+            t = ev["start"].strftime("%-I:%M %p").lower()
+            where = f" at {ev['location']}" if ev["location"] else ""
+            out.append(f"On the calendar {when} at {t}: {ev['summary']}{where}.")
+    return out
+
+
 def _media_facts(now: dt.datetime) -> list[str]:
     """Titles the *arr stack imported in the last MEDIA_WINDOW_H hours — i.e. new on Plex."""
     titles = daily_facts.media_arrivals(now, MEDIA_WINDOW_H)
@@ -126,6 +148,7 @@ def build_facts(now: dt.datetime | None = None) -> list[str]:
                            ("garden", _garden_facts),
                            ("maintenance", _records_facts),
                            ("reminders", lambda: _reminder_facts(now)),
+                           ("calendar", lambda: _calendar_facts(now)),
                            ("media arrivals", lambda: _media_facts(now))):
         try:
             facts.extend(section())

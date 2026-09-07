@@ -17,9 +17,10 @@ the long version; [MEMORY-DESIGN.md](MEMORY-DESIGN.md) covers the memory plan.)
 
 - **A brain** (`brain/`) — an OpenAI-compatible endpoint (`POST /v1/chat/completions`) wrapping a
   local LLM (Ollama, `qwen3:14b`) with an agent loop. Every client speaks one dialect.
-- **Ten scoped tools** — `home` (control Home Assistant), `media` (Plex + *arr), `memory`,
-  `records`, `recipe` (the household's recipe collection), `reminder`, `search`, `shopping`
-  (the household shopping list, backed by HA's todo list), `status`, `weather`. There is
+- **Eleven scoped tools** — `calendar` (the household calendar, backed by HA's Local Calendar),
+  `home` (control Home Assistant), `media` (Plex + *arr), `memory`, `records`, `recipe` (the
+  household's recipe collection), `reminder`, `search`, `shopping` (the household shopping list,
+  backed by HA's todo list), `status`, `weather`. There is
   deliberately **no shell tool**: the brain can act in your house but cannot run arbitrary
   commands.
 - **Memory that grows** — markdown soft-facts plus a SQLite record of the things in your life
@@ -38,6 +39,10 @@ the long version; [MEMORY-DESIGN.md](MEMORY-DESIGN.md) covers the memory plan.)
   and anything the garden pest model flagged overnight (`brain/briefing.py`, `hestia-briefing.timer`;
   a timer fires it, the model only narrates — and there's a fallback if the model is down)
 - "We're out of olive oil" by voice → the shopping list (HA `todo.shopping_list`), deduped
+- "Put the vet on the calendar for Tuesday at 2" → an event in HA's Local Calendar, visible in
+  the HA app on every phone; the tool resolves the date, and the morning briefing reads the
+  day's events back. Trash day is a recurring row in an `.ics` file, not a fact the model is
+  asked to remember
 - "Vaccinated the dogs today" / "got a new puppy, Biscuit, she's a corgi" → real entities and a
   dated event log in SQLite
 - Growing-degree-day pest watch for the garden (`brain/pest_watch.py`, biofix observed in the field)
@@ -70,7 +75,7 @@ Hestia is part of the **Forager / Homesteader Labs** constellation, alongside `f
   agent sets `continue_conversation` when it expects a follow-up, so multi-step exchanges
   (recipes, especially) don't need re-waking.
 - **Phase 4 — The seam (memory + tools)** ✅ *core in place, still growing* — the brain is a
-  tool-calling agent with the ten tools above plus deterministic skill injection, and **HA's
+  tool-calling agent with the eleven tools above plus deterministic skill injection, and **HA's
   conversation agent points at Hestia**, so Assist and voice route through the brain (which can
   control HA back). It also gets smarter over time via the note-taker (see *Memory & learning*).
   Next: vision (Eyes).

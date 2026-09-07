@@ -362,6 +362,7 @@ def _is_soil_readout(user_text: str) -> bool:
 _INTENT_TOOLS = {
     'home': r"\b(?:light|lights|lamp|lamps)\b|\bturn\b[^.!?]{0,120}\b(?:on|off)\b",
     'reminder': r"\b(?:remind|reminder|timer|alarm)\b",
+    'calendar': r"\b(?:calendar|schedule|scheduled|appointment|appointments|event|events|birthday|birthdays|anniversary|coming up|this week|next week|weekend)\b",
     'shopping': r"\b(?:shopping|grocery|groceries|out of|buy)\b|\badd\b.+\blist\b",
     'memory': r"\b(?:remember|recall|preference|prefer|previously told)\b",
     'records': r"\b(?:log|record|harvest|harvested|picked|vaccinated|thinned)\b",
@@ -391,6 +392,7 @@ def _required_writes(text: str) -> set[str]:
         'home': start + r"turn\b[^.!?]{0,120}\b(?:on|off)\b",
         'reminder': start + r"(?:remind me|set (?:a |an )?(?:timer|reminder))\b",
         'shopping': start + r"add\b[^.!?]*\b(?:shopping|grocery) list\b",
+        'calendar': start + r"(?:add|put|schedule)\b[^.!?]*\bcalendar\b",
     }
     found = {name for name, pattern in patterns.items() if re.search(pattern, text, re.I)}
     # The home tool only actuates lights: "turn on the news" is not a write it could attempt.
@@ -707,7 +709,7 @@ async def _agent_loop(messages: list[dict]) -> str:
                 and not re.search(r"\b(?:and|then|also|if|when|before|after|while)\b", user_text, re.I)):
             return _trace.get().actions[-1].data
         read_names = {c['function'].get('name') for c in calls}
-        if (read_names <= {'home', 'weather', 'memory', 'records', 'status', 'shopping'}
+        if (read_names <= {'home', 'weather', 'memory', 'records', 'status', 'shopping', 'calendar'}
                 and all(not mutation(c['function'].get('name'), c['function'].get('arguments')) for c in calls)
                 and not (_trace.get() and _trace.get().actions)
                 and not re.search(r"\b(?:and|then|also|remind|save|add|turn|log|record)\b", user_text, re.I)):

@@ -45,6 +45,16 @@ SCHEMA = {
 _TIME_RE = re.compile(r"^(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?$", re.I)
 # A leading relative day, so the TOOL (not the model) does the date math.
 _DAY_RE = re.compile(r"^(today|tonight|tomorrow|tmrw|tom)\b[\s,]*(?:at\s+)?(.*)$", re.I)
+# A weekday name, optionally led by "next"/"this", so "Saturday at 10" or "next tuesday 2pm"
+# resolves in the TOOL: the soonest such day ahead. "next" means that same soonest occurrence;
+# the tool echoes the resolved date, so a correction beats guessing at a week-after rule.
+_WEEKDAYS: dict[str, int] = {}
+for _i, _name in enumerate(("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")):
+    _WEEKDAYS[_name] = _i
+    _WEEKDAYS[_name[:3]] = _i
+_WEEKDAYS.update({"tues": 1, "thur": 3, "thurs": 3})
+_WEEKDAY_RE = re.compile(
+    r"^(?:next\s+)?(" + "|".join(sorted(_WEEKDAYS, key=len, reverse=True)) + r")\b[\s,]*(?:at\s+)?(.*)$", re.I)
 # Fuzzy dayparts -> a default hour, so "tomorrow morning" resolves deterministically.
 _DAYPART = {"morning": 9, "noon": 12, "midday": 12, "afternoon": 15,
             "evening": 18, "night": 21, "tonight": 21}
@@ -180,8 +190,21 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     named = _named_date(s, now)
     if named is not None:
         return named
-    # 4) optional relative-day prefix -> a day offset + the remaining time phrase.
+    # 4) a weekday name ('saturday', 'next tuesday at 2pm', 'fri 10am') -> the soonest such
+    #    day ahead, 9am when no time is given; today only if the time is still ahead.
     s = s.replace("this ", "").strip()
+    m = _WEEKDAY_RE.match(s)
+    if m:
+        rest = re.sub(r"^at\s+", "", m.group(2).strip())
+        clk = _clock(rest) if rest else (_DEFAULT_HOUR, 0)
+        if clk is None:
+            return None
+        ahead = (_WEEKDAYS[m.group(1).lower()] - now.weekday()) % 7
+        cand = now.replace(hour=clk[0], minute=clk[1], second=0, microsecond=0) + dt.timedelta(days=ahead)
+        if cand <= now:
+            cand += dt.timedelta(days=7)
+        return cand
+    # 5) optional relative-day prefix -> a day offset + the remaining time phrase.
     plus = 0
     tonight = False
     m = _DAY_RE.match(s)
@@ -193,7 +216,7 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
             rest = "night"
         s = rest
     s = re.sub(r"^at\s+", "", s).strip()  # "at 7:00" with no day word
-    # 5) a fuzzy daypart or explicit clock time.
+    # 6) a fuzzy daypart or explicit clock time.
     clk = _clock(s)
     if clk is None:
         return None
@@ -204,6 +227,11 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     if cand <= now:  # time already passed today and no explicit 'tomorrow' -> next day
         cand += dt.timedelta(days=1)
     return cand
+
+
+# The one date parser in the house. The calendar tool imports it so "Tuesday at 2" means the
+# same day whether it becomes a reminder or an event.
+parse_when = _parse_when
 
 
 def _fmt(d: dt.datetime) -> str:

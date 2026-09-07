@@ -38,6 +38,12 @@ NOW = dt.datetime(2026, 6, 28, 12, 0)
     # "tonight at <bare hour>" means evening: bare 4-11 after 'tonight' reads as PM.
     ("tonight at 9",            dt.datetime(2026, 6, 28, 21, 0)),
     ("tonight at 6:30",         dt.datetime(2026, 6, 28, 18, 30)),
+    # Weekday names -> the soonest such day ahead (NOW is a Sunday); 9am when no time given.
+    ("saturday",                dt.datetime(2026, 7, 4, 9, 0)),
+    ("next tuesday at 2pm",     dt.datetime(2026, 6, 30, 14, 0)),
+    ("fri 10am",                dt.datetime(2026, 7, 3, 10, 0)),
+    ("sunday at 3pm",           dt.datetime(2026, 6, 28, 15, 0)),   # today, still ahead
+    ("sunday",                  dt.datetime(2026, 7, 5, 9, 0)),     # today's 9am passed -> next week
     ("tonight at 4",            dt.datetime(2026, 6, 28, 16, 0)),
     ("tonight at 9pm",          dt.datetime(2026, 6, 28, 21, 0)),  # explicit pm, unchanged
     ("tonight at 9am",          dt.datetime(2026, 6, 29, 9, 0)),   # explicit am stays literal

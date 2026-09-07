@@ -22,8 +22,8 @@ So:
 
 **There is no shell / `bash` tool, by design.** An unauthenticated brain with arbitrary shell
 access would be a far bigger liability than a denylist could contain, so the production toolset is
-ten scoped, non-arbitrary tools (`home, media, memory, records, recipe, reminder, search,
-shopping, status, weather`) and nothing that runs free-form commands. The standing rule in
+eleven scoped, non-arbitrary tools (`calendar, home, media, memory, records, recipe, reminder,
+search, shopping, status, weather`) and nothing that runs free-form commands. The standing rule in
 `brain/tools/__init__.py` is: **do not reintroduce a general shell tool.** If you fork and add one,
 you own that risk — and you should not run that fork anywhere reachable by an untrusted network.
 
