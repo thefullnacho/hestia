@@ -38,6 +38,24 @@ there is no way to delete a test event from the brain side.
 **Not built, on purpose.** Google/iCloud sync (phones home). Phone-native calendar sync is a
 Radicale-on-hl-relay job for later if the HA app's calendar view is not enough.
 
+**Also committed at wrap:** the harvest fix that had been sitting uncommitted since the 09-01
+audit (compound weights like "2 lb 7 oz", tolerant spoken bed names, and the garden_bed rule
+that a harvest turn ends in a tool call or a question, never a bare "logged"). Suite green with
+it.
+
+**Model note.** The brain is on the gemma4:12b trial drop-in. Operator's read after a night of
+use: liking it, a bit of an overtalker and a touch too bubbly. Tone is a prompt.py job, not a
+model swap; giving it a week of ordinary use before touching it.
+
+**In flight / next:**
+- `[non-production]` First real calendar `add` by voice, then check it appears in the HA app.
+  The write path was verified against a stub only, since the brain cannot delete a test event.
+- `[non-production]` Read the Gemma tone question again after a week of use and decide whether
+  to sand the persona lines in `brain/prompt.py`.
+- Next build: nothing queued from this session. The roadmap's endorsed list is now fully
+  shipped; candidates are semantic recall (the brain named its own keyword-recall gap) and the
+  puppy-weight watcher ahead of the late-September litter.
+
 ---
 
 ## 2026-09-01 — harvest-log audit uncovers a silent tool-call miss; ships NFC capture as the fix
