@@ -56,6 +56,11 @@ let it report an unreadable phrase; and "next <weekday>" now means that day of n
 week (Monday-based, the same week the "next week" range uses), so said on a Monday it is eight
 days out, not tomorrow. Replayed live: the recycling event filed for Tue Sep 15 in one tool call.
 
+**Briefing confirmed.** The 7:10 briefing on 2026-09-07 carried the calendar section; operator's
+words: "folded into the daily briefing very cleanly." Watch item: the weekly trash event spans
+8am to 8pm, and if that reads as noise when spoken, the fix is the event's shape in HA, not
+the brain.
+
 **In flight / next:**
 - `[non-production]` Read the Gemma tone question again after a week of use and decide whether
   to sand the persona lines in `brain/prompt.py`.
