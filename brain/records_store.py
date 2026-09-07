@@ -559,7 +559,8 @@ def due_assets(now: dt.datetime | None = None) -> list[dict]:
             attrs = json.loads(r["attrs"] or "{}")
             interval = attrs.get("interval_days")
             annual = attrs.get("annual_service_date")
-            if not interval and not annual:
+            dates = attrs.get("service_dates")
+            if not interval and not annual and not dates:
                 continue
             last = c.execute(
                 "SELECT ts FROM events WHERE entity_id=? AND kind IN "
@@ -575,6 +576,25 @@ def due_assets(now: dt.datetime | None = None) -> list[dict]:
             if interval and age >= interval:
                 out.append({**common, "interval_days": interval,
                             "schedule": f"every {interval} days"})
+            if dates:
+                # Multiple fixed dates need one completion per occurrence, not per year.
+                try:
+                    if not isinstance(dates, list):
+                        raise ValueError("service_dates must be a list")
+                    month_days = sorted({tuple(map(int, value.split("-"))) for value in dates})
+                    start = dt.date.fromisoformat(attrs.get("service_schedule_start", r["created_at"][:10]))
+                    candidates = [dt.date(year, month, day)
+                                  for year in (now.year - 1, now.year)
+                                  for month, day in month_days]
+                    eligible = [date for date in candidates if start <= date <= now.date()]
+                    due = max(eligible) if eligible else None
+                    labels = [f"{dt.date(2000, month, day).strftime('%B')} {day}"
+                              for month, day in month_days]
+                except (ValueError, TypeError, AttributeError):
+                    due = None
+                if due and (not last or dt.datetime.fromisoformat(last["ts"]).date() < due):
+                    out.append({**common, "interval_days": None, "due_date": due.isoformat(),
+                                "schedule": "each year on " + " and ".join(labels)})
             if annual:
                 # Fixed calendar date, not 365 days after the last service. An early
                 # service in this calendar year satisfies this year's annual check.

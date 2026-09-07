@@ -7,6 +7,15 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-07 - multiple fixed maintenance dates
+
+Added multiple fixed dates per year to maintenance schedules. Each occurrence needs
+its own service completion; overdue work carries forward, and schedule activation
+does not invent past missed checks. Updated the private NFC sheet and closed the
+remaining maintenance-cadence review in the operator queue. All 31 focused records,
+maintenance API, and NFC tests passed.
+
+
 ## 2026-09-07 - seasonal maintenance and operator follow-through
 
 Added fixed annual maintenance dates alongside elapsed-day intervals. Service completion

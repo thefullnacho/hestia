@@ -130,3 +130,19 @@ def test_annual_service_ignores_usage_and_accepts_early_service(db):
     assert db.due_assets(dt.datetime(2026, 10, 1))
     db.log_event('service', subject='Seasonal machine', ts='2026-09-28T12:00:00', subject_kind='asset')
     assert db.due_assets(dt.datetime(2026, 10, 1)) == []
+
+
+
+def test_multiple_service_dates_require_separate_completions(db):
+    db.upsert_entity('asset', 'Washer', attrs={
+        'service_dates': ['01-04', '06-01'], 'service_schedule_start': '2026-09-07'})
+    assert db.due_assets(dt.datetime(2027, 1, 3)) == []
+    assert db.due_assets(dt.datetime(2027, 1, 4))[0]['due_date'] == '2027-01-04'
+    db.log_event('service', subject='Washer', ts='2027-01-04T12:00:00', subject_kind='asset')
+    assert db.due_assets(dt.datetime(2027, 5, 31)) == []
+    assert db.due_assets(dt.datetime(2027, 6, 1))[0]['due_date'] == '2027-06-01'
+    db.log_event('use', subject='Washer', ts='2027-06-02T12:00:00', subject_kind='asset')
+    assert db.due_assets(dt.datetime(2028, 1, 3))[0]['due_date'] == '2027-06-01'
+    db.log_event('service', subject='Washer', ts='2028-01-03T12:00:00', subject_kind='asset')
+    assert db.due_assets(dt.datetime(2028, 1, 3)) == []
+    assert db.due_assets(dt.datetime(2028, 1, 4))[0]['due_date'] == '2028-01-04'

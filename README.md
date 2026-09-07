@@ -301,3 +301,8 @@ The check becomes due on that date and remains overdue across New Year until ser
 A service logged in the due year (including an early check) satisfies that year's check;
 the next annual date does not move. Usage and photo logs never count as maintenance.
 The briefing, records tool, and maintenance dashboard share this calculation.
+
+For multiple fixed dates per year, use `service_dates: ["01-04", "06-01"]` and
+`service_schedule_start: "YYYY-MM-DD"`. Each occurrence requires service on or after
+its due date; completing one does not clear the next. The start date avoids
+creating retroactive obligations when a schedule is first configured.
