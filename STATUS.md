@@ -7,6 +7,19 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-07 - NFC rollout verified and session wrapped
+
+Operator wrote five maintenance tags and verified that every link opens the correct
+asset page. This confirms tag routing; it does not claim service work was submitted.
+All maintenance cadences are now confirmed, superseding the earlier open interval note.
+The setup sheet includes the final schedules.
+
+[non-production] Three outdoor-equipment tags remain. Operator plans to finish them
+during the September 8 watering round; the existing queue item carries the details.
+Gemma observation continues, with the tone review still September 14 at 15:00.
+No additional build work was requested.
+
+
 ## 2026-09-07 - multiple fixed maintenance dates
 
 Added multiple fixed dates per year to maintenance schedules. Each occurrence needs
