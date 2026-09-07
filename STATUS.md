@@ -47,9 +47,16 @@ it.
 use: liking it, a bit of an overtalker and a touch too bubbly. Tone is a prompt.py job, not a
 model swap; giving it a week of ordinary use before touching it.
 
+**First real add, and one miss (same morning).** The operator's test event landed. Then "add
+Take out the Recycling to the calendar for next Tuesday" got a clarifying question instead of
+an event: the trace shows the model never called the tool, it decided "next Tuesday" was
+ambiguous on its own (a good failure mode, but an unneeded one, the parser already read it).
+Two fixes: the schema and prompt now say relative phrases are not ambiguous, call the tool and
+let it report an unreadable phrase; and "next <weekday>" now means that day of next calendar
+week (Monday-based, the same week the "next week" range uses), so said on a Monday it is eight
+days out, not tomorrow. Replayed live: the recycling event filed for Tue Sep 15 in one tool call.
+
 **In flight / next:**
-- `[non-production]` First real calendar `add` by voice, then check it appears in the HA app.
-  The write path was verified against a stub only, since the brain cannot delete a test event.
 - `[non-production]` Read the Gemma tone question again after a week of use and decide whether
   to sand the persona lines in `brain/prompt.py`.
 - Next build: nothing queued from this session. The roadmap's endorsed list is now fully

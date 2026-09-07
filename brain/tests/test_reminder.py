@@ -44,6 +44,7 @@ NOW = dt.datetime(2026, 6, 28, 12, 0)
     ("fri 10am",                dt.datetime(2026, 7, 3, 10, 0)),
     ("sunday at 3pm",           dt.datetime(2026, 6, 28, 15, 0)),   # today, still ahead
     ("sunday",                  dt.datetime(2026, 7, 5, 9, 0)),     # today's 9am passed -> next week
+    ("next sunday",             dt.datetime(2026, 7, 5, 9, 0)),     # sunday of next week
     ("tonight at 4",            dt.datetime(2026, 6, 28, 16, 0)),
     ("tonight at 9pm",          dt.datetime(2026, 6, 28, 21, 0)),  # explicit pm, unchanged
     ("tonight at 9am",          dt.datetime(2026, 6, 29, 9, 0)),   # explicit am stays literal
@@ -116,3 +117,16 @@ def test_stored_row_is_naive_local(db):
     row = [r for r in reminders_store.pending() if r["text"] == "tz check"][0]
     assert "+" not in row["due_at"]
     assert dt.datetime.fromisoformat(row["due_at"]).tzinfo is None
+
+
+def test_next_weekday_means_next_calendar_week():
+    """Said on a Monday, 'next Tuesday' is eight days out, not tomorrow; 'Tuesday' is tomorrow.
+    The live miss: 'add recycling to the calendar for next Tuesday' on Mon 2026-09-07."""
+    monday = dt.datetime(2026, 9, 7, 7, 0)
+    assert reminder.parse_when("next tuesday", monday) == dt.datetime(2026, 9, 15, 9, 0)
+    assert reminder.parse_when("tuesday", monday) == dt.datetime(2026, 9, 8, 9, 0)
+    assert reminder.parse_when("next friday at 3pm", monday) == dt.datetime(2026, 9, 18, 15, 0)
+    assert reminder.parse_when("friday", monday) == dt.datetime(2026, 9, 11, 9, 0)
+    # From a Saturday, 'next monday' and 'monday' agree: both are the coming Monday.
+    saturday = dt.datetime(2026, 9, 12, 7, 0)
+    assert reminder.parse_when("next monday", saturday) == reminder.parse_when("monday", saturday) == dt.datetime(2026, 9, 14, 9, 0)

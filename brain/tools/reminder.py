@@ -46,15 +46,17 @@ _TIME_RE = re.compile(r"^(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?$", re.I)
 # A leading relative day, so the TOOL (not the model) does the date math.
 _DAY_RE = re.compile(r"^(today|tonight|tomorrow|tmrw|tom)\b[\s,]*(?:at\s+)?(.*)$", re.I)
 # A weekday name, optionally led by "next"/"this", so "Saturday at 10" or "next tuesday 2pm"
-# resolves in the TOOL: the soonest such day ahead. "next" means that same soonest occurrence;
-# the tool echoes the resolved date, so a correction beats guessing at a week-after rule.
+# resolves in the TOOL. A bare or "this" weekday is the soonest one ahead; "next <weekday>" is
+# that day of NEXT calendar week (Monday-based, the same week the calendar's "next week" range
+# uses), so "next Tuesday" said on a Monday is eight days out, not tomorrow. The tool echoes
+# the resolved date either way, so a wrong guess is one correction away.
 _WEEKDAYS: dict[str, int] = {}
 for _i, _name in enumerate(("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")):
     _WEEKDAYS[_name] = _i
     _WEEKDAYS[_name[:3]] = _i
 _WEEKDAYS.update({"tues": 1, "thur": 3, "thurs": 3})
 _WEEKDAY_RE = re.compile(
-    r"^(?:next\s+)?(" + "|".join(sorted(_WEEKDAYS, key=len, reverse=True)) + r")\b[\s,]*(?:at\s+)?(.*)$", re.I)
+    r"^(?P<next>next\s+)?(?P<day>" + "|".join(sorted(_WEEKDAYS, key=len, reverse=True)) + r")\b[\s,]*(?:at\s+)?(?P<rest>.*)$", re.I)
 # Fuzzy dayparts -> a default hour, so "tomorrow morning" resolves deterministically.
 _DAYPART = {"morning": 9, "noon": 12, "midday": 12, "afternoon": 15,
             "evening": 18, "night": 21, "tonight": 21}
@@ -190,17 +192,21 @@ def _parse_when(when: str, now: dt.datetime | None = None) -> dt.datetime | None
     named = _named_date(s, now)
     if named is not None:
         return named
-    # 4) a weekday name ('saturday', 'next tuesday at 2pm', 'fri 10am') -> the soonest such
-    #    day ahead, 9am when no time is given; today only if the time is still ahead.
+    # 4) a weekday name ('saturday', 'next tuesday at 2pm', 'fri 10am'), 9am when no time is
+    #    given. Bare: the soonest such day ahead (today only if the time is still ahead).
+    #    'next': that weekday of next calendar week.
     s = s.replace("this ", "").strip()
     m = _WEEKDAY_RE.match(s)
     if m:
-        rest = re.sub(r"^at\s+", "", m.group(2).strip())
+        rest = re.sub(r"^at\s+", "", m.group("rest").strip())
         clk = _clock(rest) if rest else (_DEFAULT_HOUR, 0)
         if clk is None:
             return None
-        ahead = (_WEEKDAYS[m.group(1).lower()] - now.weekday()) % 7
-        cand = now.replace(hour=clk[0], minute=clk[1], second=0, microsecond=0) + dt.timedelta(days=ahead)
+        target = _WEEKDAYS[m.group("day").lower()]
+        base = now.replace(hour=clk[0], minute=clk[1], second=0, microsecond=0)
+        if m.group("next"):
+            return base + dt.timedelta(days=7 - now.weekday() + target)
+        cand = base + dt.timedelta(days=(target - now.weekday()) % 7)
         if cand <= now:
             cand += dt.timedelta(days=7)
         return cand

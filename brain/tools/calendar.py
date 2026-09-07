@@ -41,7 +41,11 @@ SCHEMA = {
                         "the date itself; do NOT calculate or reformat it. A phrase with no clock "
                         "time makes an all-day event. Use this for appointments, birthdays, "
                         "visits, repairs, anything that happens on a date; use 'reminder' instead "
-                        "when the user wants a phone ping at a time. Changing or removing an "
+                        "when the user wants a phone ping at a time. Relative phrases ('next "
+                        "Tuesday', 'this weekend', 'a week from Friday', 'tomorrow') are NOT "
+                        "ambiguous: pass them through and call the tool. It resolves the date "
+                        "and echoes it back, and it says so if a phrase is unreadable, so never "
+                        "ask the user to rephrase a date before trying. Changing or removing an "
                         "event is done in the Home Assistant app, not here."),
         "parameters": {
             "type": "object",
