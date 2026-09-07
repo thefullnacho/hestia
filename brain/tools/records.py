@@ -254,7 +254,7 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
             if not d:
                 return "Nothing is overdue."
             return "Overdue:\n" + "\n".join(
-                f"  {x['name']}: every {x['interval_days']}d, "
+                f"  {x['name']}: {x.get('schedule') or str(x['interval_days']) + 'd'}, "
                 + (f"last {x['last']} ({x['days_since']}d ago)" if x['days_since'] is not None else "never logged")
                 for x in d)
 

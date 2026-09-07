@@ -94,7 +94,8 @@ def _records_facts() -> list[str]:
     out = []
     for a in records_store.due_assets():
         since = f"{a['days_since']} days ago" if a["days_since"] is not None else "never"
-        out.append(f"Due: {a['name']} (every {a['interval_days']} days, last done {since}).")
+        schedule = a.get("schedule") or f"every {a['interval_days']} days"
+        out.append(f"Due: {a['name']} ({schedule}, last done {since}).")
     return out
 
 

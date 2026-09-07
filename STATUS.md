@@ -7,6 +7,24 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-07 - seasonal maintenance and operator follow-through
+
+Added fixed annual maintenance dates alongside elapsed-day intervals. Service completion
+satisfies that year's check without shifting next year's date; overdue checks carry
+across New Year. Briefing, records output, and dashboard show the schedule explicitly.
+Regression coverage includes due-day boundaries, early completion, next-year recurrence,
+and usage logs that must not clear maintenance. Full regression suite passed.
+Brain restarted healthy on Gemma; the matching Glance template was deployed and restarted.
+
+Operator confirmed improved chat reliability and the Voice PE DHCP reservation.
+The Gemma trial continues with positive feedback on speed and accuracy. Authorized
+note-taker backlog cleanup completed; approved memory was not changed.
+
+[non-production] Finish writing and scanning the maintenance NFC tags using the prepared
+one-sheet. The washing-machine interval remains unconfirmed. Gemma tone review remains
+September 14 at 15:00. Personal schedules and setup materials remain private.
+
+
 ## 2026-09-07 — calendar tool, on the shopping-list pattern
 
 **Hestia asked for a calendar; the roadmap had it queued since July.** Storage is Home Assistant's

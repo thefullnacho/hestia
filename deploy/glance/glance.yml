@@ -203,7 +203,7 @@ pages:
                 <li>
                   <p class="size-h5 color-primary">{{ .String "name" }}</p>
                   <ul class="list-horizontal-text size-h6 color-subdue">
-                    <li>every {{ .Int "interval_days" }}d</li>
+                    <li>{{ if .String "schedule" }}{{ .String "schedule" }}{{ else }}every {{ .Int "interval_days" }}d{{ end }}</li>
                     <li>{{ $last := .String "last" }}{{ if eq $last "never" }}never logged{{ else }}last {{ $last }} ({{ .Int "days_since" }}d ago){{ end }}</li>
                   </ul>
                 </li>

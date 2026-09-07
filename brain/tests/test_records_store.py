@@ -110,3 +110,23 @@ def test_asset_never_serviced_is_due(db):
     db.upsert_entity("asset", "Gutters", attrs={"interval_days": 180})
     due = {d["name"]: d for d in db.due_assets()}
     assert "Gutters" in due and due["Gutters"]["last"] == "never"
+
+
+def test_annual_service_stays_on_calendar_date(db):
+    db.upsert_entity('asset', 'Seasonal machine', attrs={'annual_service_date': '10-01', 'annual_service_start_year': 2026})
+    assert db.due_assets(dt.datetime(2026, 9, 30)) == []
+    due = db.due_assets(dt.datetime(2026, 10, 1))
+    assert due[0]['schedule'] == 'annually on October 1'
+    assert db.due_assets(dt.datetime(2027, 1, 1))[0]['due_date'] == '2026-10-01'
+    db.log_event('service', subject='Seasonal machine', ts='2026-10-03T12:00:00', subject_kind='asset')
+    assert db.due_assets(dt.datetime(2026, 10, 4)) == []
+    assert db.due_assets(dt.datetime(2027, 9, 30)) == []
+    assert db.due_assets(dt.datetime(2027, 10, 1))[0]['due_date'] == '2027-10-01'
+
+
+def test_annual_service_ignores_usage_and_accepts_early_service(db):
+    db.upsert_entity('asset', 'Seasonal machine', attrs={'annual_service_date': '10-01', 'annual_service_start_year': 2026})
+    db.log_event('use', subject='Seasonal machine', ts='2026-09-25T12:00:00', subject_kind='asset')
+    assert db.due_assets(dt.datetime(2026, 10, 1))
+    db.log_event('service', subject='Seasonal machine', ts='2026-09-28T12:00:00', subject_kind='asset')
+    assert db.due_assets(dt.datetime(2026, 10, 1)) == []

@@ -546,18 +546,20 @@ def entity_profile(name: str) -> dict | None:
                 "recent": [dict(e) for e in evs]}
 
 
-def due_assets() -> list[dict]:
-    """Assets with attrs.interval_days whose last SERVICE event is older than the interval.
+def due_assets(now: dt.datetime | None = None) -> list[dict]:
+    """Interval or annual calendar maintenance due, derived from SERVICE events.
+    annual_service_date is MM-DD; overdue annual checks carry into the next year.
     Only `_SERVICE_KINDS` count: the clock measures time since the asset was last worked on,
     not since anything at all happened to it. Photographing the mower (a `photo` event, which
     the asset-domain photo intake files against the asset itself) must not mark it maintained."""
-    now = dt.datetime.now()
+    now = now or dt.datetime.now()
     out = []
     with _conn() as c:
         for r in c.execute("SELECT * FROM entities WHERE kind='asset'").fetchall():
             attrs = json.loads(r["attrs"] or "{}")
             interval = attrs.get("interval_days")
-            if not interval:
+            annual = attrs.get("annual_service_date")
+            if not interval and not annual:
                 continue
             last = c.execute(
                 "SELECT ts FROM events WHERE entity_id=? AND kind IN "
@@ -568,9 +570,27 @@ def due_assets() -> list[dict]:
                 last_str = last["ts"][:10]
             else:
                 age, last_str = 10**6, "never"
-            if age >= interval:
-                out.append({"name": r["name"], "interval_days": interval,
-                            "days_since": age if last_str != "never" else None, "last": last_str})
+            common = {"name": r["name"], "days_since": age if last_str != "never" else None,
+                      "last": last_str}
+            if interval and age >= interval:
+                out.append({**common, "interval_days": interval,
+                            "schedule": f"every {interval} days"})
+            if annual:
+                # Fixed calendar date, not 365 days after the last service. An early
+                # service in this calendar year satisfies this year's annual check.
+                try:
+                    month, day = map(int, annual.split("-"))
+                    due = dt.date(now.year, month, day)
+                    if due > now.date():
+                        due = due.replace(year=now.year - 1)
+                    first_year = int(attrs.get("annual_service_start_year", r["created_at"][:4]))
+                    if due.year < first_year:
+                        continue
+                except (ValueError, TypeError, AttributeError):
+                    continue
+                if now.date() >= due and (not last or dt.datetime.fromisoformat(last["ts"]).year < due.year):
+                    out.append({**common, "interval_days": None, "due_date": due.isoformat(),
+                                "schedule": f"annually on {due.strftime('%B')} {due.day}"})
     return out
 
 

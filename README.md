@@ -292,3 +292,12 @@ and can control your Home Assistant devices, so it must stay on a private networ
 and must never be exposed to the public internet. It deliberately has no shell tool.
 
 © 2026 TheFullNacho and contributors.
+
+### Seasonal maintenance
+
+Asset `interval_days` tracks elapsed days since service. For a fixed yearly check,
+set `annual_service_date` to `MM-DD` and `annual_service_start_year` to its first year.
+The check becomes due on that date and remains overdue across New Year until serviced.
+A service logged in the due year (including an early check) satisfies that year's check;
+the next annual date does not move. Usage and photo logs never count as maintenance.
+The briefing, records tool, and maintenance dashboard share this calculation.
