@@ -1,6 +1,7 @@
 # B-hyve local discovery
 
-Status: exploratory tooling only. No integration or valve control is deployed.
+Status: exploratory discovery and read-only status tooling. No integration or valve
+control is deployed.
 
 `bhyve_probe.py` scans advertisements for the B-hyve service or a B-hyve name,
 including devices that advertise no service UUIDs. A name match is only a candidate;
@@ -39,3 +40,32 @@ actuation and expiry separately. An unanswered status request is inconclusive;
 do not silently fall back to setup or provisioning commands.
 
 The brain's tool set and existing irrigation configuration remain unchanged.
+
+## Minimal local status query
+
+`bhyve_status.py` implements only the session handshake and a fixed get-status
+request. It does not import upstream executable code or contain clock, program,
+provisioning, or valve commands. It requires `bleak` and `cryptography` in an
+isolated environment. Pass an owner-only JSON file containing `address` and a
+32-character hexadecimal `network_key`:
+
+```sh
+python deploy/bhyve_status.py --key-file '<private credential file>'
+```
+
+Credential retrieval is separate from this script. It makes no cloud requests.
+Keep credentials and raw device records outside version control. Never print keys
+or place them in command arguments. The script reports only status or an error type.
+
+Responses must pass the outer checksum, envelope-length check, inner CRC, and
+status-field parsing. A supplied device identity must match the selected address.
+Silence, unknown framing, or malformed replies remain inconclusive. Unknown run-state
+values are reported as unknown. Device time is reported as supplied, not corrected.
+
+The code bounds the scan, connection, total session duration, and notification
+buffer. The connection context closes on failure as well as success. Focused tests
+cover bad keys, corrupt replies, identity mismatches, unknown states, silence,
+multi-block watering responses, and the exact handshake/status-only write sequence.
+
+Status reading does not establish that timed valve control or schedule execution
+is reliable. Those require separate validation before any automation is deployed.

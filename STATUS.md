@@ -7,6 +7,23 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-08 - local B-hyve status verified
+
+Added a standalone read-only BLE status tool. It sends only a session handshake and
+a fixed status request, validates both response checksums and status fields, and
+reports missing or unknown data explicitly. Live verification returned a validated
+idle status without the upstream clock/program setup sequence.
+
+The operator authorized the one-time credential lookup. That setup step is complete;
+credentials remain private and the status tool makes no cloud requests. The matching
+operator queue items are complete.
+
+Nine focused discovery/protocol tests pass. Cryptography is a locked development
+dependency for the synthetic protocol tests. No brain integration, recurring
+polling, valve control, or schedule changes were deployed. Next: separately validate
+short timed actuation, explicit stop, and automatic expiry before considering control.
+
+
 ## 2026-09-08 - BLE discovery working
 
 Extended the discovery probe to include B-hyve names when advertisements omit
