@@ -24,9 +24,11 @@ async def probe(scanner, client_class, *, address=None, seconds=12):
     for device, advertisement in advertisements.values():
         services = [s.lower() for s in advertisement.service_uuids or []]
         match = address is not None and device.address.casefold() == address.casefold()
-        if BHYVE_SERVICE in services or match:
+        name = advertisement.local_name or device.name or ""
+        named_bhyve = name.casefold().startswith(("bhyve", "b-hyve"))
+        if BHYVE_SERVICE in services or named_bhyve or match:
             candidates.append({"address": device.address,
-                               "name": advertisement.local_name or device.name,
+                               "name": name,
                                "rssi": advertisement.rssi,
                                "advertised_services": services})
         if match:
@@ -42,6 +44,7 @@ async def probe(scanner, client_class, *, address=None, seconds=12):
     async with client_class(target, timeout=10, pair=False) as client:
         characteristics = {c.uuid.lower() for s in client.services for c in s.characteristics}
         result.update(connected=True,
+                      service_uuids=[s.uuid for s in client.services],
                       expected_characteristics={label: uuid in characteristics
                                                 for uuid, label in EXPECTED_CHARS.items()})
     return result

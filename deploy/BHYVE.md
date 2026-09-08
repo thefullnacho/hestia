@@ -2,7 +2,9 @@
 
 Status: exploratory tooling only. No integration or valve control is deployed.
 
-`bhyve_probe.py` scans advertisements for the B-hyve service. With an explicit
+`bhyve_probe.py` scans advertisements for the B-hyve service or a B-hyve name,
+including devices that advertise no service UUIDs. A name match is only a candidate;
+it does not establish whether the device is a timer or hub. With an explicit
 address, it connects to that observed device and lists whether the expected GATT
 characteristics exist. It does not pair, authenticate, read characteristics,
 subscribe to notifications, or send application commands. Service discovery alone

@@ -33,7 +33,8 @@ def test_services_only_and_disconnect():
         def __init__(self, device, *, timeout, pair):
             assert pair is False
             assert device.address == "AA:BB"
-            self.services = [NS(characteristics=[NS(uuid=u) for u in probe.EXPECTED_CHARS])]
+            self.services = [NS(uuid=probe.BHYVE_SERVICE,
+                                characteristics=[NS(uuid=u) for u in probe.EXPECTED_CHARS])]
         async def __aenter__(self):
             calls.append("connect")
             return self
@@ -52,3 +53,16 @@ def test_unknown_target_never_connects():
         pytest.fail("unknown target must not connect")
     with pytest.raises(RuntimeError, match="not observed"):
         asyncio.run(probe.probe(Scanner, forbidden, address="CC:DD"))
+
+
+def test_named_device_without_advertised_services():
+    class NameScanner:
+        @staticmethod
+        async def discover(**kwargs):
+            return {"test": (NS(address="AA:BB", name="bhyve_example"),
+                             NS(service_uuids=[], local_name=None, rssi=-60))}
+    def forbidden(*args, **kwargs):
+        pytest.fail("name discovery must not connect")
+    result = asyncio.run(probe.probe(NameScanner, forbidden))
+    assert result["candidates"][0]["name"] == "bhyve_example"
+    assert result["protocol_compatibility"] == "untested"

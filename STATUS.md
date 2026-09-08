@@ -7,6 +7,21 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-08 - BLE discovery working
+
+Extended the discovery probe to include B-hyve names when advertisements omit
+service UUIDs, and to report discovered service UUIDs. Name matches remain candidates,
+not proof of a particular device type. All four focused tests pass.
+
+Discovery and GATT inspection are working. Authenticated status decoding, firmware
+compatibility, and valve control remain unverified. No application commands or
+irrigation configuration changes were made.
+
+Next: obtain a BLE key through an approved private path, then test a minimal status
+query without the upstream setup sequence. [non-production] A one-time external
+credential lookup needs an explicit decision under the local-only rule; queued at 15:00.
+
+
 ## 2026-09-08 - Bluetooth host access checked
 
 Remote access is working after correcting the login identity. Hardware inventory
