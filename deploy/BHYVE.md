@@ -78,3 +78,10 @@ This establishes one start-and-expire cycle, not unattended-control reliability.
 Explicit stop, interrupted connections, and repeated runs still need validation.
 No general control command or automatic watering integration is deployed; the
 committed status tool remains read-only.
+
+A subsequent authorized 60-second test confirmed watering with 60 seconds reported
+remaining, but the midpoint query reported idle after approximately 30 seconds.
+Physical actuation was confirmed by the operator. The BLE session disconnected
+before the final query; the attempted fallback stop could not be sent. A fresh
+read-only connection confirmed idle. Full-minute runtime is therefore unverified.
+Investigate the early idle report and connection lifetime before further actuation.

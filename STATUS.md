@@ -7,6 +7,19 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-08 - longer watering test exposes unresolved behavior
+
+An authorized 60-second test initially returned a validated watering status with
+60 seconds remaining. The operator confirmed physical actuation. A midpoint read
+reported idle by approximately 30 seconds, so full-minute execution is not proven.
+The BLE connection then dropped before the final read; fallback stop transmission
+failed on that connection. A new read-only connection confirmed idle afterward.
+
+No additional watering run was started. Next: reconcile physical duration with the
+early idle response and investigate connection lifetime before more control tests.
+The read-only tool and brain runtime were unchanged.
+
+
 ## 2026-09-08 - local timed watering cycle verified
 
 Completed one operator-authorized 10-second BLE valve test. A validated status reply
