@@ -7,6 +7,17 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-08 - Bluetooth host access checked
+
+Remote access is working after correcting the login identity. Hardware inventory
+still exposes no Bluetooth controller on either checked host. The discovery probe
+has not reached a device; protocol compatibility remains untested.
+
+[non-production] Enable Bluetooth in firmware settings at 15:00 or the next
+convenient reboot. The private queue replaces the resolved access question with
+this physical step. Next: verify adapter visibility and run discovery.
+
+
 ## 2026-09-08 - B-hyve discovery probe prepared
 
 Added a bounded BLE discovery probe and an operator runbook. The probe can inspect
