@@ -7,6 +7,36 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-08 - B-hyve discovery probe prepared
+
+Added a bounded BLE discovery probe and an operator runbook. The probe can inspect
+advertisements and GATT characteristic availability without pairing or sending
+application commands. Three focused tests pass. No valve control is deployed.
+
+Upstream source review found that its high-level status method sets the clock and
+disables programs during setup unless a configured program mask restores them.
+The runbook records this behavior so discovery does not accidentally alter schedules.
+
+Live discovery remains blocked on access to a Bluetooth-capable host. Firmware and
+protocol compatibility are unverified. Next: run discovery on an accessible adapter,
+then review authenticated status queries separately from setup and actuation.
+
+[non-production] Operator input needed at 15:00 to identify an accessible Bluetooth
+host for the probe; the private queue carries access details.
+
+
+## 2026-09-08 - garden integration context review
+
+Reviewed the existing garden integration without changing runtime behavior. The
+tracked garden documentation describes six Ecowitt moisture channels exposed through
+Home Assistant; the brain reads those states and garden-watch applies deterministic
+weather and moisture rules. Garden records already support observations and harvests.
+
+Historical measurement retention and its connection to recorded garden actions remain
+unverified. The next concrete investigation is to check existing history coverage before
+designing additional collection. No implementation or hardware rollout was performed.
+
+
 ## 2026-09-07 - NFC rollout verified and session wrapped
 
 Operator wrote five maintenance tags and verified that every link opens the correct
