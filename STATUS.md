@@ -7,6 +7,29 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-08 - a clean full minute, and control that is built instead of hardcoded
+
+A 60-second run on another zone held on a single connection, reporting watering at every
+ten-second checkpoint and idle after expiry, with no fallback stop needed. That answers
+the connection-lifetime question raised by the previous run. Reported seconds remaining
+does not count down, it echoes the requested duration, so it is not a progress signal.
+The earlier early-idle reading is still unexplained and has appeared on one zone only.
+
+Added a local control tool. Manual-mode commands are now built from a zone and a duration
+instead of fixed frames, so runs longer than 127 seconds encode correctly, and the built
+frames reproduce the two verified on hardware byte for byte. Stop turns out to be the same
+command with a zero duration. Actuation refuses to proceed without an explicit
+acknowledgement, starts only from a validated idle reading, watches the run throughout,
+and sends a stop if it cannot confirm idle. Focused tests drive a fake manifold that
+rejects any frame other than get-status or a manual-mode command for the requested zone.
+The full suite passes.
+
+Still unverified on hardware: explicit stop mid-run, and any duration above 127 seconds.
+[non-production] Both need one attended run with water going, queued against the morning
+watering round. No brain tool, Home Assistant entity, recurring schedule or cloud client
+was added. Next: those two tests, then zone-to-bed mapping and irrigation events in records.
+
+
 ## 2026-09-08 - longer watering test exposes unresolved behavior
 
 An authorized 60-second test initially returned a validated watering status with

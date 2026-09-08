@@ -1,7 +1,7 @@
-# B-hyve local discovery
+# B-hyve local control
 
-Status: exploratory discovery and read-only status tooling. No integration or valve
-control is deployed.
+Status: discovery, read-only status, and an attended local control tool. Nothing is
+wired to the brain, Home Assistant, or a recurring schedule, and no cloud client exists.
 
 `bhyve_probe.py` scans advertisements for the B-hyve service or a B-hyve name,
 including devices that advertise no service UUIDs. A name match is only a candidate;
@@ -85,3 +85,41 @@ Physical actuation was confirmed by the operator. The BLE session disconnected
 before the final query; the attempted fallback stop could not be sent. A fresh
 read-only connection confirmed idle. Full-minute runtime is therefore unverified.
 Investigate the early idle report and connection lifetime before further actuation.
+
+A separate 60-second run on another zone then completed cleanly on one connection,
+with watering confirmed at every ten-second checkpoint and idle after expiry. No
+fallback stop was needed. Connection lifetime is therefore not a general limit. The
+reported seconds-remaining value does not count down: it echoes the requested
+duration for the whole run, so it cannot be used as progress or as a check on elapsed
+time. The earlier early-idle reading remains unexplained and has been seen on one
+zone only.
+
+## Local control
+
+`bhyve_control.py` builds manual-mode commands from a zone and a duration rather than
+sending fixed frames, so durations above 127 seconds encode as multi-byte varints with
+every nested length recomputed. Its output for the two cases already exercised on
+hardware is byte-identical to the frames used then. Stop is the same manual command
+with a zero duration, not a separate command.
+
+```sh
+python deploy/bhyve_control.py --key-file '<private credential file>' --log '<private log>' \
+  --confirm-water water --zone 3 --seconds 180 --stop-after 45
+python deploy/bhyve_control.py --key-file '<private credential file>' \
+  --confirm-water stop --zone 3
+```
+
+Actuation refuses to run without `--confirm-water`. A run starts only from a validated
+idle reading, aborts if another zone answers, polls throughout, and sends a stop if it
+cannot confirm idle at the end. The file contains no clock, program, provisioning or
+arming command. Credentials are read from an owner-only file and are never printed.
+
+Tests drive a fake manifold that decrypts every write and fails on any frame that is
+not get-status or a manual-mode command for the requested zone. They cover duration
+encoding across the one-byte boundary, refusal of impossible zones and durations, an
+already-busy manifold, silent and unknown replies, explicit stop inside a run, and the
+stop that follows an unconfirmed expiry.
+
+Unverified on hardware: explicit stop mid-run, and any duration above 127 seconds.
+Both need one attended test. Nothing here is wired to the brain, Home Assistant, or a
+recurring schedule.
