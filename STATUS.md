@@ -7,6 +7,18 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-08 - local timed watering cycle verified
+
+Completed one operator-authorized 10-second BLE valve test. A validated status reply
+first confirmed idle, then confirmed the requested zone watering with the supplied
+duration, then confirmed idle after expiry. No fallback stop was needed or sent.
+The command worked without the upstream clock/program setup sequence.
+
+Updated the runbook with the narrow result and remaining validation. Explicit stop,
+connection-loss behavior, and repeatability remain untested. No recurring watering
+or general control integration was deployed. Next: validate explicit stop separately.
+
+
 ## 2026-09-08 - local B-hyve status verified
 
 Added a standalone read-only BLE status tool. It sends only a session handshake and

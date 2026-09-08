@@ -67,5 +67,14 @@ buffer. The connection context closes on failure as well as success. Focused tes
 cover bad keys, corrupt replies, identity mismatches, unknown states, silence,
 multi-block watering responses, and the exact handshake/status-only write sequence.
 
-Status reading does not establish that timed valve control or schedule execution
-is reliable. Those require separate validation before any automation is deployed.
+## Timed actuation validation
+
+One operator-authorized 10-second test on 2026-09-08 confirmed a transition from
+idle to the requested watering zone, followed by idle after expiry. The minimal
+manual-mode command worked without the upstream arming sequence. The fallback stop
+was not needed and was not sent.
+
+This establishes one start-and-expire cycle, not unattended-control reliability.
+Explicit stop, interrupted connections, and repeated runs still need validation.
+No general control command or automatic watering integration is deployed; the
+committed status tool remains read-only.
