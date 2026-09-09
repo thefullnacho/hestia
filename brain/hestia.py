@@ -1068,13 +1068,14 @@ async def ingest_photo(request: Request):
 
 
 @app.get("/nfc")
-async def nfc_capture(token: str = "", kind: str = "", subject: str = ""):
+async def nfc_capture(token: str = "", kind: str = "", subject: str = "",
+                      source: str = "", sprinkler: str = ""):
     """Render the capture form for a scanned tag. Never touches the model — see nfc.py."""
     if not NFC_TOKEN or token != NFC_TOKEN:
         return HTMLResponse(nfc.bad_token_page(), status_code=401)
     if not subject:
         return HTMLResponse(nfc.error_page("Tag URL is missing 'subject'.", "400"), status_code=400)
-    return HTMLResponse(nfc.capture_form(kind, subject, token))
+    return HTMLResponse(nfc.capture_form(kind, subject, token, source, sprinkler))
 
 
 @app.post("/nfc/log")
@@ -1097,6 +1098,10 @@ async def nfc_log(request: Request):
     elif kind == "service":
         body, status = await asyncio.to_thread(
             nfc.log_service_tag, subject, str(form.get("note") or ""))
+    elif kind == "watering":
+        body, status = await asyncio.to_thread(
+            nfc.log_watering_tag, subject, str(form.get("minutes") or ""),
+            str(form.get("source") or ""), str(form.get("sprinkler") or ""))
     elif kind == "use":
         body, status = await asyncio.to_thread(
             nfc.log_use_tag, subject, str(form.get("minutes") or ""), str(form.get("note") or ""))

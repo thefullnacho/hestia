@@ -504,7 +504,7 @@ def harvested_recently(item: str, days: int = 10) -> dict | None:
 # Hi-Rise sheet gives 1.5-1.7 in/hr over a 16-18 ft circle at 25-30 PSI; the midpoints are
 # used because a house bib usually runs well above 25 PSI, and three digits of false
 # precision would be worse than carrying a known range.
-SPRINKLERS = {"hi-rise": {"rate_in_hr": 1.6, "diameter_ft": 17.0}}
+SPRINKLERS = {"hi-rise": {"label": "Hi-Rise", "rate_in_hr": 1.6, "diameter_ft": 17.0}}
 
 # One inch of water over one square foot: 144 cubic inches, 231 to the gallon.
 _GALLONS_PER_INCH_SQFT = 144 / 231

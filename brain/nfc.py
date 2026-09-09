@@ -10,9 +10,16 @@ written (or exactly what was wrong), synchronously, in the response.
 A tag encodes a URL like `/nfc?token=...&kind=harvest&subject=Bed+2` (garden beds),
 `/nfc?token=...&kind=service&subject=Furnace+Filter` (assets — resets the `due` clock, see
 `records_store.due_assets`), or `/nfc?token=...&kind=use&subject=Weedwhacker` (assets whose
-maintenance isn't calendar-based — just a running log of minutes run, no due date implied).
-`subject` is the bed/asset name; GET renders the capture form with it locked in, POST /nfc/log
-does the write and renders the confirmation.
+maintenance isn't calendar-based — just a running log of minutes run, no due date implied), or
+`/nfc?token=...&kind=watering&subject=Back+Fence&source=zone3&sprinkler=hi-rise` (a stake in the
+ground where a hose-fed sprinkler gets set down).
+`subject` is the bed/asset/place name; GET renders the capture form with it locked in, POST
+/nfc/log does the write and renders the confirmation.
+
+A watering tag carries its own `source` and `sprinkler` because the stake never moves and the
+answers never change, which leaves one prefilled field between a scan and a logged run. That
+matters more here than anywhere else: watering is the job most likely to be done with wet hands,
+in a hurry, before coffee.
 """
 from __future__ import annotations
 
@@ -22,6 +29,9 @@ import html
 import records_store as store
 
 UNITS = ["lb", "oz", "kg", "g", "each", "pint", "quart", "basket"]
+
+# The standing cycle length. Prefilled so the common case is scan, glance, tap.
+DEFAULT_WATERING_MINUTES = 15
 
 
 def _page(body: str, title: str = "Hestia") -> str:
@@ -56,7 +66,8 @@ def bad_token_page() -> str:
     return error_page("Missing or bad token. Re-scan the tag, or check secrets/nfc.env.", "401")
 
 
-def capture_form(kind: str, subject: str, token: str) -> str:
+def capture_form(kind: str, subject: str, token: str,
+                 source: str = "", sprinkler: str = "") -> str:
     if kind == "harvest":
         fields = f"""
         <label for="crop">Crop</label>
@@ -81,13 +92,36 @@ def capture_form(kind: str, subject: str, token: str) -> str:
         <input id="note" name="note" type="text" placeholder="e.g. front + back yard" autocomplete="off">
         """
         button = "Log run"
+    elif kind == "watering":
+        if sprinkler and sprinkler.lower() not in store.SPRINKLERS:
+            return error_page(f"Tag names an unknown sprinkler '{html.escape(sprinkler)}'.", "400")
+        # A tag that already knows its sprinkler asks nothing about it; one that doesn't
+        # offers the choice rather than silently assuming a rate that was never applied.
+        if sprinkler:
+            picker = f'<input type="hidden" name="sprinkler" value="{html.escape(sprinkler)}">'
+        else:
+            options = "".join(
+                f'<option value="{html.escape(k)}">{html.escape(v.get("label") or k)}</option>'
+                for k, v in store.SPRINKLERS.items())
+            picker = f"""
+        <label for="sprinkler">Sprinkler</label>
+        <select id="sprinkler" name="sprinkler">
+          <option value="">None (drip or soaker)</option>{options}</select>"""
+        fields = f"""
+        <label for="minutes">Minutes</label>
+        <input id="minutes" name="minutes" type="number" step="any" inputmode="decimal"
+               value="{DEFAULT_WATERING_MINUTES}" autofocus required>{picker}
+        <input type="hidden" name="source" value="{html.escape(source)}">
+        """
+        button = "Log watering"
     else:
         return error_page(f"Unknown kind '{html.escape(kind)}' — tag should encode "
-                          "kind=harvest, kind=service, or kind=use.", "400")
+                          "kind=harvest, kind=service, kind=use, or kind=watering.", "400")
 
     safe_subject = html.escape(subject)
+    heading = {"harvest": "Harvest", "watering": "Watering"}.get(kind, "Service")
     return _page(f"""
-    <h1>{"Harvest" if kind == "harvest" else "Service"}</h1>
+    <h1>{heading}</h1>
     <div class="subject">{safe_subject}</div>
     <form method="post" action="/nfc/log">
       <input type="hidden" name="token" value="{html.escape(token)}">
@@ -137,6 +171,28 @@ def log_service_tag(subject: str, note: str) -> tuple[str, int]:
     r = store.log_event("service", subject=subject, action="serviced", detail=detail,
                         subject_kind="asset", strict_subject=True)
     return _confirm("Logged service", f"{subject} — {detail}", r.get("created", False), subject), 200
+
+
+def log_watering_tag(subject: str, minutes: str, source: str = "",
+                     sprinkler: str = "") -> tuple[str, int]:
+    """Write a watering run for a place and render the confirmation. The derived depth and
+    volume are shown back so an estimate is visibly an estimate at the moment it is made,
+    not a number discovered later in a report. Returns (html, status)."""
+    try:
+        m = float(minutes)
+    except (TypeError, ValueError):
+        return error_page("Minutes must be a number.", "400"), 400
+    if not m > 0:
+        return error_page("Minutes must be a positive number.", "400"), 400
+    sprinkler = (sprinkler or "").strip().lower()
+    if sprinkler and sprinkler not in store.SPRINKLERS:
+        return error_page(f"Unknown sprinkler '{html.escape(sprinkler)}'.", "400"), 400
+    seconds = int(round(m * 60))
+    inches, gallons = store.water_applied(seconds, sprinkler)
+    r = store.log_watering(subject, seconds, source=(source or "").strip()[:32] or None,
+                           sprinkler=sprinkler or None)
+    detail = subject if inches is None else f"{subject} — {inches:g} in, {gallons:g} gal (estimated)"
+    return _confirm(f"Logged {m:g} min watering", detail, r.get("created", False), subject), 200
 
 
 def log_use_tag(subject: str, minutes: str, note: str) -> tuple[str, int]:

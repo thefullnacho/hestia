@@ -7,6 +7,26 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-09 - a watering tap, and a stake to put it on
+
+Added `kind=watering` to the NFC path. A tag carries its own source and sprinkler, because
+a stake in the ground never moves and those answers never change, so a scan lands on a form
+with one prefilled field and a button. That matters more here than on any other tag:
+watering gets done with wet hands, in a hurry, before coffee. The derived depth and volume
+are shown back on the confirmation, so an estimate is visibly an estimate at the moment it
+is made rather than a number discovered later in a report. A tag naming a sprinkler with no
+known rate is refused rather than logged with the rate quietly dropped.
+
+Added `hardware/nfc-stake.scad`, a parametric printed stake with the tag sealed in a pocket
+under a cap instead of stuck to the surface. Surface stickers are what fail outdoors: the
+antenna is aluminium on film, and once water gets under an edge it corrodes and the tag dies
+silently. Prints flat, no supports, PETG or ASA because PLA will not last a season in the
+sun. The name is both the embossed label and the event subject, so the two cannot drift.
+
+Twenty-six NFC tests, full suite passes. Still waiting on the eight zone-3 position names
+before any tag gets written. No brain tool, no Home Assistant entity, no schedule.
+
+
 ## 2026-09-09 - water becomes a record
 
 Added watering to the records substrate. A run is logged against a place, not a valve,
