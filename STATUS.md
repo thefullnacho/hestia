@@ -7,6 +7,29 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-09 - eighteen positions, eighteen stakes
+
+The paper journal gave up the position names, and there are eighteen, not eight. Nine fed
+from the smart timer and moved by hand, nine straight off the far tap. Added
+`hardware/make_tags.py`: it reads a positions file and emits a stake per position plus the
+tag URL for each, so a name is typed once and becomes the embossed label, the tag subject
+and the records entity together. All eighteen render in about seven seconds.
+
+Names longer than one line split at the space that leaves the halves most even, with ties
+going to the later space so the first line carries more. A name containing a `#` is URL
+encoded, which matters more than it looks: unencoded it would truncate the tag URL at the
+fragment and the scan would arrive with no source and no sprinkler, logging a run with
+neither. Verified end to end through the live routes.
+
+The URL file holds the NFC token on every line, so it is written owner-only, never printed,
+and lives under the gitignored data directory along with the positions themselves.
+
+Open and assumed, flagged rather than silently baked in: the timer-fed group is recorded as
+zone 3, which leaves zones 1 and 2 unaccounted for, and every position is currently marked
+as Hi-Rise watered. Anything actually watered by a hose at the base should lose its
+sprinkler field so it logs minutes and claims no depth.
+
+
 ## 2026-09-09 - a watering tap, and a stake to put it on
 
 Added `kind=watering` to the NFC path. A tag carries its own source and sprinkler, because

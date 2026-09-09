@@ -25,7 +25,27 @@ no support. Two parts: the stake and a cap disc.
 - Print one before printing nine, and check the pocket against the tags you actually
   bought.
 
-### Rendering
+### A whole set at once
+
+`make_tags.py` reads a positions file and emits one stake per position plus the URL to
+write on each tag, so the name is typed once and ends up as the embossed label, the tag's
+`subject`, and the entity in records without a chance to drift.
+
+```sh
+python hardware/make_tags.py --positions data/irrigation-positions.json \
+    --base-url https://<brain host> --stl-dir data/stakes --url-file data/stake-urls.txt
+```
+
+See `positions.example.json` for the shape. Leave `sprinkler` out for anything not watered
+by a sprinkler: a run with no known rate logs its minutes and claims no depth, which beats
+inventing inches for a hose laid at the base of a tree. Positions and the URL file both
+hold household detail and a live token, so they live under the gitignored `data/`.
+
+The URL file is written owner-only and never printed, because every line contains the NFC
+token. The label is uppercased for legibility while the subject keeps the original casing;
+entity resolution is case-insensitive, so the two still land on one record.
+
+### Rendering one
 
 ```sh
 openscad -o back-fence.stl -D 'part="stake"' -D 'name="BACK FENCE"' hardware/nfc-stake.scad

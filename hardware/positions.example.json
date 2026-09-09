@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Back Fence",
+    "source": "zone3",
+    "sprinkler": "hi-rise"
+  },
+  {
+    "name": "Orchard Row",
+    "source": "spigot",
+    "sprinkler": "hi-rise"
+  },
+  {
+    "name": "Raised Bed 2",
+    "source": "zone4"
+  }
+]
