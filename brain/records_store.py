@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import os
 import re
 import sqlite3
@@ -493,6 +494,109 @@ def harvested_recently(item: str, days: int = 10) -> dict | None:
             "total_qty": round(total, 2) if cls != "weight" else None,
             "pickings": len(hits),
             "days_ago": (dt.datetime.now() - dt.datetime.fromisoformat(top_r["ts"])).days}
+
+
+# ----- watering ---------------------------------------------------------------
+
+# Hand-placed sprinklers: inches per hour over the wetted circle, and the circle's
+# diameter. These are manufacturer figures, not measurements, so everything derived from
+# them is tagged basis="spec" and never blends with a catch-cup reading. The Gardeners.com
+# Hi-Rise sheet gives 1.5-1.7 in/hr over a 16-18 ft circle at 25-30 PSI; the midpoints are
+# used because a house bib usually runs well above 25 PSI, and three digits of false
+# precision would be worse than carrying a known range.
+SPRINKLERS = {"hi-rise": {"rate_in_hr": 1.6, "diameter_ft": 17.0}}
+
+# One inch of water over one square foot: 144 cubic inches, 231 to the gallon.
+_GALLONS_PER_INCH_SQFT = 144 / 231
+
+
+def water_applied(seconds: int, sprinkler: str | None = None, rate_in_hr: float | None = None,
+                  diameter_ft: float | None = None) -> tuple[float | None, float | None]:
+    """Depth applied and volume delivered for one run, or Nones when the application rate
+    isn't known. Drip lines and soaker hose have no meaningful precipitation rate, so those
+    beds log a duration and nothing else instead of an invented depth — the same refusal
+    log_harvest makes when it won't turn a count into a weight. Volume additionally needs a
+    wetted diameter, so a known rate with unknown coverage still yields inches."""
+    spec = SPRINKLERS.get((sprinkler or "").lower(), {})
+    rate = rate_in_hr if rate_in_hr is not None else spec.get("rate_in_hr")
+    diameter = diameter_ft if diameter_ft is not None else spec.get("diameter_ft")
+    if not rate or seconds <= 0:
+        return None, None
+    inches = rate * seconds / 3600
+    if not diameter:
+        return round(inches, 3), None
+    area = math.pi * (diameter / 2) ** 2
+    return round(inches, 3), round(inches * area * _GALLONS_PER_INCH_SQFT, 1)
+
+
+def log_watering(place: str, seconds: int, source: str | None = None,
+                 sprinkler: str | None = None, rate_in_hr: float | None = None,
+                 diameter_ft: float | None = None, basis: str = "spec",
+                 ts: str | None = None, detail: str | None = None) -> dict:
+    """Record watering `place` for `seconds`, however the water got there — a manifold zone,
+    a hose-fed sprinkler carried to a spot, or a can. The place is the event subject (a
+    `place`, resolved the same kind-scoped fuzzy way harvest beds are), so water and yield
+    land on the same entity and the almanac can put one against the other without a join.
+
+    A zone number is not a place: zone 3 feeds a sprinkler that stands in eight different
+    spots, so `source` records the plumbing and `place` records the ground that got wet.
+    Depth and volume appear only when an application rate is known, carrying the basis they
+    came from so a spec sheet never reads back as a measurement."""
+    seconds = int(seconds)
+    if seconds <= 0:
+        raise ValueError("Watering needs a positive duration")
+    inches, gallons = water_applied(seconds, sprinkler, rate_in_hr, diameter_ft)
+    amount = f"{seconds / 60:g} min"
+    if inches:
+        amount += f", {inches:g} in"
+    if gallons:
+        amount += f" ({gallons:g} gal)"
+    return log_event("watering", subject=place, action="watered",
+                     detail=detail or amount, subject_kind="place",
+                     strict_subject=True, fuzzy_subject=True, ts=ts,
+                     attrs={"seconds": seconds, "source": source, "sprinkler": sprinkler,
+                            "inches": inches, "gallons": gallons,
+                            "basis": basis if inches is not None else None})
+
+
+def water_totals(year: int | None = None, place: str | None = None) -> list[dict]:
+    """Water applied per place this season, wettest first. Runs whose depth is unknown still
+    count their minutes, and are reported as `unmeasured` rather than being dropped or
+    silently treated as zero — otherwise a drip bed looks unwatered next to a sprinkler."""
+    year = year or int(_now()[:4])
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT e.attrs, e.ts, en.name AS place FROM events e "
+            "LEFT JOIN entities en ON en.id=e.entity_id "
+            "WHERE e.kind='watering' AND substr(e.ts,1,4)=?", (str(year),)).fetchall()
+    agg: dict = {}
+    for r in rows:
+        a = json.loads(r["attrs"] or "{}")
+        name = r["place"] or "?"
+        if place and name.lower() != place.lower():
+            continue
+        e = agg.setdefault(name, {"place": name, "runs": 0, "unmeasured": 0, "minutes": 0.0,
+                                  "inches": 0.0, "gallons": 0.0, "sources": set(),
+                                  "first": r["ts"], "last": r["ts"]})
+        e["runs"] += 1
+        e["minutes"] += float(a.get("seconds") or 0) / 60
+        if a.get("inches") is None:
+            e["unmeasured"] += 1
+        e["inches"] += float(a.get("inches") or 0)
+        e["gallons"] += float(a.get("gallons") or 0)
+        if a.get("source"):
+            e["sources"].add(a["source"])
+        e["first"] = min(e["first"], r["ts"])
+        e["last"] = max(e["last"], r["ts"])
+    out = []
+    for e in agg.values():
+        e["sources"] = sorted(e["sources"])
+        e["minutes"] = round(e["minutes"], 1)
+        e["inches"] = round(e["inches"], 2)
+        e["gallons"] = round(e["gallons"], 1)
+        out.append(e)
+    out.sort(key=lambda e: (e["gallons"], e["inches"], e["minutes"]), reverse=True)
+    return out
 
 
 def recent_events(kind: str | None = None, subject: str | None = None,

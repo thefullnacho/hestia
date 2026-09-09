@@ -7,6 +7,32 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-09 - water becomes a record
+
+Added watering to the records substrate. A run is logged against a place, not a valve,
+because zone 3 feeds a sprinkler that stands in eight different spots and a zone number
+is therefore not a location. The plumbing goes in a source field instead. Water and
+harvest now share one entity, so the almanac can put applied water against yield without
+a join.
+
+Depth and volume are only recorded when an application rate is actually known, tagged
+with the basis they came from so a manufacturer's figure never reads back as a
+measurement. Drip and soaker beds log their minutes and claim no depth, the same refusal
+harvest makes when it will not turn a count into a weight. Season totals report an
+unmeasured count rather than dropping those runs or treating them as zero.
+
+The Gardeners.com Hi-Rise sheet gives 1.5 to 1.7 inches per hour over a 16 to 18 foot
+circle at 25 to 30 PSI. At the midpoints a 15-minute cycle is 0.4 inch and about 57
+gallons, so a full eight-position rotation is roughly 450 gallons, and both sprinklers
+together move about 900 gallons a pass. Those figures are spec-derived and stay marked as
+such until the queued catch-cup test either confirms or replaces them. Worth noting: 1.6
+inches per hour is faster than most soils absorb, so part of a 15-minute run may be
+running off. The existing moisture channels can answer that without buying anything.
+
+Fourteen focused tests, full suite passes. Still no brain tool, no Home Assistant entity,
+no schedule. Next: the eight zone-3 position names, then the capture path for them.
+
+
 ## 2026-09-08 - a clean full minute, and control that is built instead of hardcoded
 
 A 60-second run on another zone held on a single connection, reporting watering at every
