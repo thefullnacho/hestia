@@ -84,6 +84,15 @@ def snapshot(year: int, today: dt.date) -> dict:
         frost32 = freezes[-1] if freezes else None
     except Exception as e:  # noqa: BLE001 — the page renders without the comparison
         print(f"almanac: frost32 lookup failed: {e}", file=sys.stderr)
+    water = records_store.water_totals(year=year)
+    rain_in = None
+    if water:
+        # Same window as the watering record, so "applied" and "fell" can be read together.
+        try:
+            since = min(w["first"] for w in water)[:10]
+            rain_in = round(sum(r["rain"] for r in weather.history_days(since, today.isoformat())), 2)
+        except Exception as e:  # noqa: BLE001 — the page renders without the comparison
+            print(f"almanac: rain total failed: {e}", file=sys.stderr)
     return {
         "year": year, "zone": ZONE, "as_of": today.isoformat(),
         "biofix": state.get("biofix") if state.get("season") == str(year) else None,
@@ -97,6 +106,11 @@ def snapshot(year: int, today: dt.date) -> dict:
         # Yields are the season's hard numbers — the part of the page that makes the
         # year-over-year section worth reading once there are two seasons on file.
         "harvest": records_store.harvest_totals(year=year),
+        # Applied water, and the rain over the same span so the two are comparable. Depth is
+        # per place and never totalled across places: 0.4in on the peach and 0.4in on the
+        # strawberries is not 0.8in of anything. Volume is the only figure that adds up.
+        "water": water, "rain_in": rain_in,
+        "water_span": [min(w["first"] for w in water)[:10], today.isoformat()] if water else None,
         "journal_days": len(journal_days),
         "journal_span": [journal_days[0], journal_days[-1]] if journal_days else None,
     }
@@ -154,6 +168,36 @@ def render(snap: dict) -> str:
     else:
         L.append("*(no harvests logged yet)*")
 
+    L += ["", "## Water"]
+    water = snap.get("water") or []
+    if water:
+        rain = snap.get("rain_in")
+        span = snap.get("water_span")
+        runs = sum(w["runs"] for w in water)
+        gallons = round(sum(w["gallons"] for w in water))
+        head = f"**{len(water)} places, {runs} run(s), {gallons:,} gal applied**"
+        if span:
+            head += f" since {_fmt_day(span[0])}"
+        if rain is not None:
+            head += f"; **{rain:g} in of rain** fell over the same span"
+        L.append(head)
+        # One inline run rather than a bullet per place, for the same reason wildlife is
+        # collapsed: the whole page goes into the prompt, and there are eighteen places.
+        measured = [w for w in water if w["inches"]]
+        if measured:
+            bits = [f"{w['place']} {w['inches']:g}"
+                    + (f"+{rain:g}={round(w['inches'] + rain, 2):g}" if rain else "")
+                    for w in sorted(measured, key=lambda w: -w["inches"])]
+            L.append("**Applied, inches:** " + ", ".join(bits))
+        minutes_only = [w for w in water if w["unmeasured"]]
+        if minutes_only:
+            L.append("**Minutes only** (no sprinkler rate to go on): "
+                     + ", ".join(f"{w['place']} {w['minutes']:g}min" for w in minutes_only))
+        L.append("*Depth is per place and rain adds to each; depths across places never sum. "
+                 "Volumes are estimated from the sprinkler rate, not metered.*")
+    else:
+        L.append("*(no watering logged yet)*")
+
     L += ["", "## Wildlife"]
     if snap["species_seen"]:
         # One inline run, not a bullet per species. The whole page is injected into the
@@ -188,6 +232,13 @@ def render(snap: dict) -> str:
                       if s in snap["species_seen"]}
             if firsts:
                 bits.append("returning species: " + ", ".join(sorted(firsts)))
+            was_gal = round(sum(w["gallons"] for w in (p.get("water") or [])))
+            is_gal = round(sum(w["gallons"] for w in (snap.get("water") or [])))
+            if was_gal:
+                bits.append(f"water {was_gal:,} → {is_gal:,} gal "
+                            f"({(is_gal - was_gal) / was_gal * 100:+.0f}%)")
+            if p.get("rain_in") and snap.get("rain_in"):
+                bits.append(f"rain {p['rain_in']:g} → {snap['rain_in']:g} in")
             # Same crop, same unit class, both seasons — the comparison the yields exist for.
             now_h = {(h["crop"], h["unit_class"]): h for h in (snap.get("harvest") or [])}
             for ph in (p.get("harvest") or []):

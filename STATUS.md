@@ -7,6 +7,30 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-10 - water joins the almanac
+
+The almanac grew a Water section, so applied water and rainfall sit on the same page as
+yield. Rain is totalled over exactly the span the watering record covers, which is what
+makes the two numbers comparable at all.
+
+The care is in what does not get added up. Depth is per place: 0.4 inch on the peach and
+0.4 inch on the strawberries is not 0.8 inch of anything, so depths are never summed
+across places. Rain is added to each place instead, since it fell on all of them. Volume
+is the only figure that totals, and it is marked estimated because it comes from the
+sprinkler's rate sheet rather than a meter. Beds with no known rate are listed by minutes
+rather than dropped, so a drip bed does not read as unwatered next to a sprinkler.
+
+Rendered as one dense line per group rather than a bullet per place, for the same reason
+the wildlife section was collapsed: the page is injected into the prompt and there are
+eighteen places. Year over year now compares seasonal volume and rainfall.
+
+Confirmed by the operator: the timer-fed nine are all zone 3, all eighteen positions are
+Hi-Rise watered, and Pond is an area as well as a pond. The positions file needed no
+change. Three stakes are on the printer.
+
+Six new almanac tests, full suite passes.
+
+
 ## 2026-09-09 - eighteen positions, eighteen stakes
 
 The paper journal gave up the position names, and there are eighteen, not eight. Nine fed
