@@ -23,7 +23,19 @@
 
 set -uo pipefail
 
-REMOTE="${HESTIACTL_REMOTE:-youruser@hl-relay}"
+# Deployment-specific addresses live in the private bundle, never in the public tree.
+# Keys and shape: deploy/hosts.env.example. A real environment variable still wins.
+ENV_FILE="${HESTIACTL_ENV:-$(dirname "$(readlink -f "$0")")/../secrets/hosts.env}"
+if [[ -r $ENV_FILE ]]; then
+  set -a; . "$ENV_FILE"; set +a
+fi
+
+# No placeholder default for the remote: a fake-looking user@host produces a confusing
+# ssh failure instead of "you have not configured this", which is the same trap that
+# broke the backups. Unset means unset, and the commands that need it say so.
+REMOTE="${HESTIACTL_REMOTE:-}"
+# localhost is a real default for a single-box install. It is wrong wherever the brain
+# binds to a private interface instead, which is why the override exists.
 BRAIN_URL="${HESTIACTL_BRAIN_URL:-http://127.0.0.1:8730}"
 ARR_DIR="/opt/home/arr"
 
@@ -37,9 +49,14 @@ else
   GRN='' RED='' YLW='' DIM='' BLD='' RST=''
 fi
 
-rssh() { ssh -o BatchMode=yes -o ConnectTimeout=5 "$REMOTE" "$@"; }
-
 die() { echo "${RED}error:${RST} $*" >&2; exit 1; }
+
+need_remote() {
+  [[ -n $REMOTE ]] || die "no remote host configured. Set HESTIACTL_REMOTE=user@host in" \
+    "$ENV_FILE (see deploy/hosts.env.example)."
+}
+
+rssh() { need_remote; ssh -o BatchMode=yes -o ConnectTimeout=5 "$REMOTE" "$@"; }
 
 # Map friendly names -> (kind, real name). kind: local | arr | core
 resolve() {
@@ -74,7 +91,8 @@ cmd_status() {
       echo "${GRN}●${RST} $health"
     fi
   else
-    echo "${RED}●${RST} $BRAIN_URL/health unreachable"
+    echo "${RED}●${RST} $BRAIN_URL/health unreachable" \
+         "${DIM}(set HESTIACTL_BRAIN_URL in $ENV_FILE if the brain binds elsewhere)${RST}"
   fi
 
   echo "${BLD}── gpu box (systemd --user) ──────────${RST}"
@@ -88,6 +106,11 @@ cmd_status() {
 
   echo "${BLD}── hl-relay (docker) ─────────────────${RST}"
   local ps
+  if [[ -z $REMOTE ]]; then
+    echo "${RED}●${RST} no remote host configured" \
+         "${DIM}(set HESTIACTL_REMOTE in $ENV_FILE)${RST}"
+    return 1
+  fi
   if ! ps=$(rssh 'docker ps -a --format "{{.Names}}\t{{.Status}}"' 2>/dev/null); then
     echo "${RED}●${RST} ssh to $REMOTE failed"
     return 1
@@ -176,7 +199,7 @@ cmd_logs() {
   if [[ $kind == local ]]; then
     if [[ $follow == -f ]]; then journalctl --user -u "$name" -n 50 -f; else journalctl --user -u "$name" -n 100 --no-pager; fi
   else
-    if [[ $follow == -f ]]; then ssh -t "$REMOTE" "docker logs --tail 50 -f $name"; else rssh "docker logs --tail 100 $name" 2>&1; fi
+    if [[ $follow == -f ]]; then need_remote; ssh -t "$REMOTE" "docker logs --tail 50 -f $name"; else rssh "docker logs --tail 100 $name" 2>&1; fi
   fi
 }
 

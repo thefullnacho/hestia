@@ -7,6 +7,34 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-11 - hestiactl can reach the estate again
+
+`hestiactl health` had been pointing at localhost while the brain binds to a private
+address, exactly as the unauthenticated-brain invariant requires, so a documented command
+could not work here. It now reads the same private bundle the brain does, with the keys
+added to the tracked example.
+
+The remote host default was worse than missing: a placeholder `youruser@hl-relay` turns
+"you have not configured this" into a confusing ssh failure, which is the same trap that
+broke the backups. It is unset now, and the commands needing it say what to set and where.
+The brain URL keeps its localhost default, which is correct for a single-box install and
+wrong only where the brain binds elsewhere.
+
+Two secret bundles were group and world readable where the other six were owner-only, one
+of them the WireGuard config. Tightened to 600, and the directory to 700. Nothing outside
+the operator's own account reads them, and the home directory was already 750, so this
+closes a consistency gap rather than a live hole.
+
+With the tooling working, checked the thing it exists to check: the qBittorrent
+kill-switch is intact, VPN egress and host egress are different addresses. Gluetun has
+been reporting unhealthy for three months while actually working, so its healthcheck is
+the thing that is wrong, not the tunnel. Unresolved, noted here rather than fixed.
+
+Also restarted the brain, which had been running since Sep 8 and so did not know about
+watering tags. The eighteen tag URLs are generated and one was fetched against the live
+service to confirm the form renders with the subject, source and sprinkler locked in.
+
+
 ## 2026-09-11 - stake pocket resized for the real tags
 
 The first three stakes printed fine and the tag pocket was too small: the waterproof discs
