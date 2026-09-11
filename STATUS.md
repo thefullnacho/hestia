@@ -7,6 +7,30 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-11 - the stake measures what it claims
+
+Added a catch cup that slides onto a tab above the name, so a position reports what it
+actually received instead of what a rate sheet predicts. Collected depth equals applied
+depth only while the cross-section never changes with height, so the sides are straight
+and there is no funnel. Diameter sets how much water is caught, not what the depth reads.
+
+45mm across, 50mm deep, about 80ml. One 15-minute Hi-Rise cycle collects 10.2mm, so four
+cycles is 41mm and the cup carries a week of heavy watering plus rain before emptying.
+Rings every 5mm, doubled every 10mm. Prints opening up with the mount as a vertical
+through-slot, so nothing needs support. The tab sits above the text and doubles as a thumb
+pad for pushing the stake in; `cup_mount = false` removes it.
+
+This is the path off spec-derived numbers. Every watering becomes its own calibration, and
+a measured reading flips the stored basis from spec to measured, which is already supported
+end to end.
+
+The cup and cap are identical for every position, so the generator renders each once rather
+than eighteen times.
+
+Decided against a photo prompt on every tap: in a hot spell the sprinkler runs four times a
+week and that cadence is a flipbook, not a record. Weekly per position is the signal.
+
+
 ## 2026-09-11 - hestiactl can reach the estate again
 
 `hestiactl health` had been pointing at localhost while the brain binds to a private

@@ -56,7 +56,28 @@ entity resolution is case-insensitive, so the two still land on one record.
 ```sh
 openscad -o back-fence.stl -D 'part="stake"' -D 'name="BACK FENCE"' hardware/nfc-stake.scad
 openscad -o cap.stl        -D 'part="cap"'   hardware/nfc-stake.scad
+openscad -o cup.stl        -D 'part="cup"'   hardware/nfc-stake.scad
 ```
+
+### Catch cup
+
+An optional cup that slides onto the tab above the name, so what a position actually
+received is measured rather than inferred from a rate sheet. Collected depth equals
+applied depth, which is why the sides are straight and there is no funnel: any change in
+cross-section with height breaks that equality. Diameter only sets how much water is
+caught, not what the depth reads, so it is chosen for a rim that is easy to read.
+
+45mm across and 50mm deep, about 80ml. One 15-minute cycle of the Hi-Rise collects 10.2mm,
+so four cycles is 41mm and the cup holds a week of heavy watering plus rain before it needs
+emptying. Rings mark every 5mm off the floor and double up every 10mm; read the water line
+against them, or measure with a ruler.
+
+Prints opening up. The mount is a vertical through-slot, so nothing needs support. The tab
+sits above the text, so a mounted cup never covers the name, and it doubles as a thumb pad
+for pushing the stake in. Set `cup_mount = false` to leave it off.
+
+One cup and one cap serve every position, so `make_tags.py` renders them once rather than
+eighteen times. Pass `--no-parts` to skip them.
 
 Names longer than about ten characters should use both lines, because two lines at 6mm
 read from standing height and one line at 4mm does not:

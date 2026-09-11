@@ -61,6 +61,8 @@ def main() -> int:
     parser.add_argument("--url-file", required=True, type=Path,
                         help="Owner-only output; holds the token, so keep it out of git")
     parser.add_argument("--stl-dir", type=Path, help="Render a stake per position here")
+    parser.add_argument("--no-parts", action="store_true",
+                        help="Skip the shared cap and cup, which are identical for every stake")
     args = parser.parse_args()
 
     import config
@@ -95,6 +97,12 @@ def main() -> int:
         for position in positions:
             render(position["name"], args.stl_dir / f"{slug(position['name'])}.stl")
             rendered += 1
+        # One geometry each, shared by every position, so they render once and not eighteen times.
+        if not args.no_parts:
+            for part in ("cap", "cup"):
+                subprocess.run(["openscad", "-o", str(args.stl_dir / f"{part}.stl"),
+                                "-D", f'part="{part}"', str(SCAD)], check=True, capture_output=True)
+                rendered += 1
 
     # Deliberately no URL output: the token is in every one of them.
     print(json.dumps({"positions": len(positions), "urls_written": str(args.url_file),

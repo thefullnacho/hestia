@@ -11,7 +11,8 @@
 // Print in PETG or ASA, not PLA. PLA in full sun goes brittle inside one season and
 // these live outside all summer. 4 perimeters, >=25% infill, no other tuning needed.
 
-part = "all";        // "all" | "stake" | "cap"
+part = "all";        // "all" | "stake" | "cap" | "cup"
+cup_mount = true;    // add the tab a catch cup slides onto
 name  = "BACK FENCE"; // the position, in the words actually said out loud
 name2 = "";           // optional second line, so a long name stays readable
 
@@ -29,6 +30,16 @@ cap_gap    = 0.35; // press-fit clearance, tuned for a 0.4mm nozzle
 text_depth = 0.8;
 rib        = 3;    // stiffening rib down the spike, so it can be pushed not hammered
 
+// Catch cup. Straight sides are the whole point: collected depth equals applied depth only
+// if the cross-section never changes with height, so no taper and no funnel. Diameter sets
+// how much water is caught, not what depth reads, so it is chosen for a readable rim.
+tab_w      = 26;   // mount tab, above the text so the cup never covers the label
+tab_h      = 32;
+cup_id     = 45;   // inner diameter
+cup_depth  = 50;   // four 15-minute cycles is 41mm, so this holds a week with rain
+cup_wall   = 2;
+mark_every = 5;    // graduation rings, mm
+
 tag    = tag_d + fit;
 pocket = tag_h + cap_h;
 
@@ -40,9 +51,13 @@ longest = max(len(name), len(name2));
 size = min(10, (width - 8) / max(1, longest * 0.76));
 
 module outline() {
+    top = cup_mount ? tab_h : 0;
     offset(r = 2, $fn = 24) offset(delta = -2)
-        polygon([[-width/2, 0], [width/2, 0], [width/2, -head],
-                 [4, -length + 14], [0, -length], [-4, -length + 14], [-width/2, -head]]);
+        polygon(concat(cup_mount
+                    ? [[-tab_w/2, top], [tab_w/2, top], [tab_w/2, 0]] : [[-width/2, 0]],
+                [[width/2, 0], [width/2, -head],
+                 [4, -length + 14], [0, -length], [-4, -length + 14], [-width/2, -head]],
+                cup_mount ? [[-width/2, 0], [-tab_w/2, 0]] : []));
 }
 
 module stake() {
@@ -70,6 +85,33 @@ module cap() {
     cylinder(h = cap_h, d = tag - cap_gap, $fn = 64);
 }
 
+module cup() {
+    // Prints opening up: the mount is a vertical through-slot, so nothing needs support.
+    r = cup_id/2 + cup_wall;
+    total = cup_depth + cup_wall;
+    slot_y0 = r + 1.0;              // leave wall between the cup and the slot
+    slot_y1 = slot_y0 + thickness + 0.4;
+    difference() {
+        union() {
+            cylinder(h = total, d = cup_id + 2*cup_wall, $fn = 96);
+            translate([0, (r - 1.5 + slot_y1 + 2.5)/2, total/2])
+                cube([tab_w + 5, (slot_y1 + 2.5) - (r - 1.5), total], center = true);
+        }
+        translate([0, 0, cup_wall]) cylinder(h = total, d = cup_id, $fn = 96);
+        translate([0, (slot_y0 + slot_y1)/2, total/2])
+            cube([tab_w + 0.6, slot_y1 - slot_y0, total + 2], center = true);
+    }
+    // Every mark_every mm off the floor, doubled at each 10mm, read against the water line.
+    for (z = [mark_every : mark_every : cup_depth - mark_every])
+        translate([0, 0, cup_wall + z])
+            difference() {
+                cylinder(h = (z % 10 == 0) ? 1.2 : 0.6, d = cup_id, $fn = 96);
+                cylinder(h = 2, d = cup_id - 2.4, $fn = 96);
+            }
+}
+
 if (part == "all")   { stake(); translate([width, -20, 0]) cap(); }
+if (part == "all")   { stake(); translate([width + 30, -30, 0]) cup(); }
 if (part == "stake")   stake();
 if (part == "cap")     cap();
+if (part == "cup")     cup();
