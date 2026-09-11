@@ -22,8 +22,14 @@ no support. Two parts: the stake and a cap disc.
   outdoors all summer.
 - 4 perimeters, 25% infill or more. The rib down the spike is there so it can be pushed
   in by hand; it is not a tent peg, do not hammer it.
-- Print one before printing nine, and check the pocket against the tags you actually
-  bought.
+- Print one before printing the set, and check the pocket against the tags you actually
+  bought. **Measure them.** The pocket is cut for a 30mm waterproof disc 1.2mm thick
+  (`tag_d`, `tag_h`); a 25mm sticker and a 30mm encapsulated tag are both sold as "NFC
+  tag" and the difference is a reprint. If your tag is already waterproof and you would
+  rather leave it exposed, set `cap_h = 0` and it sits flush with no cap.
+- A brim is worth it. The part is long, thin and tapered, so the tip is a small contact
+  patch at the far end of a lot of plastic and it is the first thing to peel. Wiping the
+  plate with IPA first matters for the same reason.
 
 ### A whole set at once
 
@@ -65,8 +71,10 @@ records, so keep the two identical.
 
 ### Tags
 
-The pocket takes a 25mm round NTAG213 sticker, the common garden-variety one. Stick it to
-the pocket floor, a drop of superglue or clear silicone, then press the cap in.
+The pocket takes a 30mm round waterproof tag. Seat it on the pocket floor, a drop of
+superglue or clear silicone, then press the cap in. Check the diameter on the product page
+rather than trusting a photo: bare NTAG213 stickers are usually 25mm and encapsulated
+outdoor discs are usually 30mm.
 
 Encode the tag with the URL for that spot, for example
 `/nfc?token=...&kind=watering&subject=Back+Fence&source=zone3&sprinkler=hi-rise`. Putting

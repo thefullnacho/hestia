@@ -7,6 +7,26 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-11 - stake pocket resized for the real tags
+
+The first three stakes printed fine and the tag pocket was too small: the waterproof discs
+are 30mm, not the 25mm a bare sticker runs. Pocket is now driven by measured tag diameter
+and thickness rather than a single baked-in number, with the cap thickness separate so an
+already-waterproof tag can sit flush with no cap at all.
+
+Resizing the pocket pushed it up into the second line of text, so the head grew from 66mm
+to 72mm and the pocket moved down. Clearance is now 3.4mm to the text and 11.7mm of wall
+each side, with 2.6mm of floor under the tag. All eighteen re-rendered.
+
+The operator saw slight lift from the plate and put it down to plate prep, which is
+likely right. Noted in the runbook anyway that this part is long, thin and tapered, so the
+tip is a small contact patch at the end of a lot of plastic and is the first thing to
+peel. A brim is cheap insurance.
+
+Print settings and tag choice are now written down in `hardware/README.md` rather than
+living in one print's worth of memory.
+
+
 ## 2026-09-10 - water joins the almanac
 
 The almanac grew a Water section, so applied water and rainfall sit on the same page as

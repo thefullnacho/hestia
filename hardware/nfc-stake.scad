@@ -16,16 +16,23 @@ name  = "BACK FENCE"; // the position, in the words actually said out loud
 name2 = "";           // optional second line, so a long name stays readable
 
 width      = 54;   // head width
-head       = 66;   // head length, above the taper
+head       = 72;   // head length, above the taper
 length     = 200;  // total, tip included
 thickness  = 5;
-tag        = 27;   // NFC sticker diameter, 25mm disc plus clearance
-pocket     = 1.8;  // pocket depth; leaves 3.2mm of floor under the tag
+// Measure the tags you actually bought. Waterproof discs are commonly 30mm and run
+// thicker than a bare sticker, and a pocket cut for the wrong one is a reprint.
+tag_d      = 30;   // tag diameter
+tag_h      = 1.2;  // tag thickness
+cap_h      = 1.2;  // cap disc thickness; set to 0 for an already-waterproof tag left open
+fit        = 0.6;  // pocket clearance around the tag
 cap_gap    = 0.35; // press-fit clearance, tuned for a 0.4mm nozzle
 text_depth = 0.8;
 rib        = 3;    // stiffening rib down the spike, so it can be pushed not hammered
 
-pocket_y = -42;
+tag    = tag_d + fit;
+pocket = tag_h + cap_h;
+
+pocket_y = -45;
 // Shrink the name until it fits the head, rather than letting a long one run off the edge.
 // A second line is the better answer past about ten characters: two lines at 6mm read from
 // standing height, one line at 4mm does not.
@@ -60,7 +67,7 @@ module stake() {
 
 module cap() {
     // A drop of superglue or clear silicone in the pocket, then press this in.
-    cylinder(h = pocket - 0.2, d = tag - cap_gap, $fn = 64);
+    cylinder(h = cap_h, d = tag - cap_gap, $fn = 64);
 }
 
 if (part == "all")   { stake(); translate([width, -20, 0]) cap(); }
