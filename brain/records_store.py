@@ -559,6 +559,33 @@ def log_watering(place: str, seconds: int, source: str | None = None,
                             "basis": basis if inches is not None else None})
 
 
+def last_photo(subject: str) -> dict | None:
+    """The most recent photo filed against a place, pet or asset, or None if there is none.
+    The watering tap uses this to decide whether to ask for a picture, so "is a photo due"
+    stays a row lookup rather than anyone's judgement."""
+    with _conn() as c:
+        entity = resolve(subject, conn=c, kind="place", fuzzy=True) or resolve(subject, conn=c)
+        if not entity:
+            return None
+        row = c.execute("SELECT ts, attrs FROM events WHERE kind='photo' AND entity_id=? "
+                        "ORDER BY ts DESC LIMIT 1", (entity["id"],)).fetchone()
+        if not row:
+            return None
+        return {"ts": row["ts"], **json.loads(row["attrs"] or "{}")}
+
+
+def days_since_photo(subject: str, now: dt.datetime | None = None) -> float | None:
+    """Days since the last photo of `subject`, or None if it has never been photographed."""
+    last = last_photo(subject)
+    if not last:
+        return None
+    try:
+        taken = dt.datetime.fromisoformat(last["ts"])
+    except (TypeError, ValueError):
+        return None
+    return ((now or dt.datetime.now()) - taken).total_seconds() / 86400
+
+
 def water_totals(year: int | None = None, place: str | None = None) -> list[dict]:
     """Water applied per place this season, wettest first. Runs whose depth is unknown still
     count their minutes, and are reported as `unmeasured` rather than being dropped or

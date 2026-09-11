@@ -989,6 +989,45 @@ async def chat_completions(request: Request):
 
 
 
+def _file_photo(data: bytes, filename: str, subjects: list[str], domain: str,
+                caption: str) -> tuple[dict, int]:
+    """Save one image under PHOTO_DIR/<domain>/<subject>/ and log a photo event per subject.
+    Shared by the Shortcut intake and the NFC tap so that a stake in the ground carries one
+    credential and not two — the tag route authorises on the NFC token and calls this."""
+    if not data:
+        return {"error": "empty file"}, 400
+    if len(data) > _MAX_PHOTO_BYTES:
+        return {"error": "file too large"}, 413
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in _PHOTO_EXTS:
+        ext = ".jpg"
+    safe_domain = re.sub(r"[^a-z0-9]+", "-", domain).strip("-") or "misc"
+    stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    filed = []
+    for subject in subjects:
+        safe_subject = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") or "unknown"
+        dest_dir = PHOTO_DIR / safe_domain / safe_subject
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / f"{stamp}{ext}"
+        dest.write_bytes(data)
+        try:
+            rec = records_store.attach_photo(subject, str(dest), caption or None, domain)
+        except Exception as e:  # noqa: BLE001 — keep the file even if the record write hiccups
+            return {"error": f"saved file but record failed: {e}", "saved": str(dest)}, 500
+        filed.append({"subject": rec.get("subject", subject), "created": bool(rec.get("created")),
+                      "saved": str(dest)})
+
+    # Surface a mis-file loudly: a newly *created* entity usually means a typo'd or compound
+    # subject that matched no existing bed/pup — exactly the silent-junk failure we want caught.
+    new = [f["subject"] for f in filed if f["created"]]
+    warning = (f"⚠️ created NEW {'entity' if len(new) == 1 else 'entities'} "
+               + ", ".join(repr(n) for n in new)
+               + " — if that wasn't intended, the subject didn't match an existing record.") if new else None
+    return {"ok": True, "domain": domain, "bytes": len(data), "filed": filed, "warning": warning,
+            # back-compat: first subject's values, where older clients read them flat
+            "subject": filed[0]["subject"], "saved": filed[0]["saved"]}, 200
+
+
 @app.post("/ingest/photo")
 async def ingest_photo(request: Request):
     """Receive one photo (from an iOS Shortcut / Telegram bridge) and file it against an entity.
@@ -1030,41 +1069,12 @@ async def ingest_photo(request: Request):
     domain = (str(form.get("domain") or "pet")).strip().lower()
     caption = str(form.get("caption") or "")
 
-    ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in _PHOTO_EXTS:
-        ext = ".jpg"
     data = await file.read()
-    if not data:
-        return JSONResponse(status_code=400, content={"error": "empty file"})
-    if len(data) > _MAX_PHOTO_BYTES:
-        return JSONResponse(status_code=413, content={"error": "file too large"})
-
-    safe_domain = re.sub(r"[^a-z0-9]+", "-", domain).strip("-") or "misc"
-    stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    filed = []
-    for subject in subjects:
-        safe_subject = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") or "unknown"
-        dest_dir = PHOTO_DIR / safe_domain / safe_subject
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = dest_dir / f"{stamp}{ext}"
-        dest.write_bytes(data)
-        try:
-            rec = records_store.attach_photo(subject, str(dest), caption or None, domain)
-        except Exception as e:  # noqa: BLE001 — keep the file even if the record write hiccups
-            return JSONResponse(status_code=500,
-                                content={"error": f"saved file but record failed: {e}", "saved": str(dest)})
-        filed.append({"subject": rec.get("subject", subject), "created": bool(rec.get("created")),
-                      "saved": str(dest)})
-
-    # Surface a mis-file loudly: a newly *created* entity usually means a typo'd or compound
-    # subject that matched no existing bed/pup — exactly the silent-junk failure we want caught.
-    new = [f["subject"] for f in filed if f["created"]]
-    warning = (f"⚠️ created NEW {'entity' if len(new) == 1 else 'entities'} "
-               + ", ".join(repr(n) for n in new)
-               + " — if that wasn't intended, the subject didn't match an existing record.") if new else None
-    return {"ok": True, "domain": domain, "bytes": len(data), "filed": filed, "warning": warning,
-            # back-compat: first subject's values, where older clients read them flat
-            "subject": filed[0]["subject"], "saved": filed[0]["saved"]}
+    payload, status = await asyncio.to_thread(
+        _file_photo, data, file.filename or "", subjects, domain, caption)
+    if status != 200:
+        return JSONResponse(status_code=status, content=payload)
+    return payload
 
 
 @app.get("/nfc")
@@ -1101,12 +1111,32 @@ async def nfc_log(request: Request):
     elif kind == "watering":
         body, status = await asyncio.to_thread(
             nfc.log_watering_tag, subject, str(form.get("minutes") or ""),
-            str(form.get("source") or ""), str(form.get("sprinkler") or ""))
+            str(form.get("source") or ""), str(form.get("sprinkler") or ""), token)
     elif kind == "use":
         body, status = await asyncio.to_thread(
             nfc.log_use_tag, subject, str(form.get("minutes") or ""), str(form.get("note") or ""))
     else:
         body, status = nfc.error_page(f"Unknown kind '{kind}'.", "400"), 400
+    return HTMLResponse(body, status_code=status)
+
+
+@app.post("/nfc/photo")
+async def nfc_photo(request: Request):
+    """File one photo from a tag tap. Authorised by the NFC token rather than the ingest one,
+    so a programmed stake is worth exactly the access a stake should be worth."""
+    form = await request.form()
+    token = str(form.get("token") or "")
+    if not NFC_TOKEN or token != NFC_TOKEN:
+        return HTMLResponse(nfc.bad_token_page(), status_code=401)
+    subject = str(form.get("subject") or "").strip()
+    if not subject:
+        return HTMLResponse(nfc.error_page("Tag URL is missing 'subject'.", "400"), status_code=400)
+    upload = form.get("file")
+    if upload is None or isinstance(upload, str):
+        return HTMLResponse(nfc.error_page("No photo was attached.", "400"), status_code=400)
+    payload, status = await asyncio.to_thread(
+        _file_photo, await upload.read(), upload.filename or "", [subject], "garden", "")
+    body, status = nfc.photo_result(subject, payload, status)
     return HTMLResponse(body, status_code=status)
 
 

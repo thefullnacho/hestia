@@ -20,6 +20,11 @@ A watering tag carries its own `source` and `sprinkler` because the stake never 
 answers never change, which leaves one prefilled field between a scan and a logged run. That
 matters more here than anywhere else: watering is the job most likely to be done with wet hands,
 in a hurry, before coffee.
+
+The watering confirmation offers a camera when that place has not been photographed in
+`PHOTO_EVERY_DAYS`, posting to `/nfc/photo`, which authorises on the NFC token rather than the
+ingest one so a stake in the ground carries a single credential. The offer comes after the run
+is already written, so declining it never costs the logged watering.
 """
 from __future__ import annotations
 
@@ -32,6 +37,13 @@ UNITS = ["lb", "oz", "kg", "g", "each", "pint", "quart", "basket"]
 
 # The standing cycle length. Prefilled so the common case is scan, glance, tap.
 DEFAULT_WATERING_MINUTES = 15
+
+# How often a position is worth photographing. In a hot spell the sprinkler runs four times a
+# week, and four pictures a week of the same shrub is a flipbook, not a record. Weekly is the
+# cadence that shows a season. Asking only when one is due keeps the decision a row lookup
+# rather than the operator's judgement, which is the same reason schedules are not the model's
+# business either.
+PHOTO_EVERY_DAYS = 7
 
 
 def _page(body: str, title: str = "Hestia") -> str:
@@ -54,6 +66,7 @@ def _page(body: str, title: str = "Hestia") -> str:
   .warn {{ background: #5a3a10; color: #ffd699; padding: 14px; border-radius: 10px; margin-top: 18px; }}
   .err {{ background: #5a1010; color: #ffb3b3; padding: 14px; border-radius: 10px; }}
   .meta {{ color: #999; font-size: 0.95rem; margin-top: 6px; }}
+  .due {{ border-top: 1px solid #333; margin-top: 28px; padding-top: 8px; }}
 </style></head>
 <body>{body}</body></html>"""
 
@@ -133,7 +146,32 @@ def capture_form(kind: str, subject: str, token: str,
     """)
 
 
-def _confirm(headline: str, detail: str, created: bool, subject: str) -> str:
+def photo_due(subject: str) -> float | None:
+    """Days since this place was last photographed, if a new photo is due. None means it was
+    photographed recently enough to leave the operator alone."""
+    days = store.days_since_photo(subject)
+    if days is None:
+        return -1.0                      # never photographed: always worth the first one
+    return days if days >= PHOTO_EVERY_DAYS else None
+
+
+def _photo_form(subject: str, token: str, days: float) -> str:
+    """A camera button, shown only when one is due. `capture` opens the camera directly."""
+    safe_subject = html.escape(subject)
+    when = "no photo of this one yet" if days < 0 else f"last photo {days:.0f} days ago"
+    return f"""
+    <div class="due">
+      <form method="post" action="/nfc/photo" enctype="multipart/form-data">
+        <input type="hidden" name="token" value="{html.escape(token)}">
+        <input type="hidden" name="subject" value="{safe_subject}">
+        <label for="photo">Weekly photo &mdash; {when}</label>
+        <input id="photo" name="file" type="file" accept="image/*" capture="environment" required>
+        <button type="submit">Add photo</button>
+      </form>
+    </div>"""
+
+
+def _confirm(headline: str, detail: str, created: bool, subject: str, extra: str = "") -> str:
     now = dt.datetime.now().strftime("%b %-d, %Y %-I:%M %p")
     safe_subject = html.escape(subject)
     warn = (f'<div class="warn">⚠ \'{safe_subject}\' wasn\'t a known entity — created it new. '
@@ -144,6 +182,7 @@ def _confirm(headline: str, detail: str, created: bool, subject: str) -> str:
     <div class="meta">{html.escape(detail)}</div>
     <div class="meta">{now}</div>
     {warn}
+    {extra}
     """)
 
 
@@ -173,8 +212,18 @@ def log_service_tag(subject: str, note: str) -> tuple[str, int]:
     return _confirm("Logged service", f"{subject} — {detail}", r.get("created", False), subject), 200
 
 
+def photo_result(subject: str, payload: dict, status: int) -> tuple[str, int]:
+    """Render the outcome of a tag-tap photo. A failure says so rather than looking filed."""
+    if status != 200:
+        return error_page(html.escape(str(payload.get("error") or "Upload failed.")),
+                          str(status)), status
+    filed = (payload.get("filed") or [{}])[0]
+    return _confirm("Photo filed", f"{subject} — {payload.get('bytes', 0) // 1024} KB",
+                    bool(filed.get("created")), subject), 200
+
+
 def log_watering_tag(subject: str, minutes: str, source: str = "",
-                     sprinkler: str = "") -> tuple[str, int]:
+                     sprinkler: str = "", token: str = "") -> tuple[str, int]:
     """Write a watering run for a place and render the confirmation. The derived depth and
     volume are shown back so an estimate is visibly an estimate at the moment it is made,
     not a number discovered later in a report. Returns (html, status)."""
@@ -192,7 +241,11 @@ def log_watering_tag(subject: str, minutes: str, source: str = "",
     r = store.log_watering(subject, seconds, source=(source or "").strip()[:32] or None,
                            sprinkler=sprinkler or None)
     detail = subject if inches is None else f"{subject} — {inches:g} in, {gallons:g} gal (estimated)"
-    return _confirm(f"Logged {m:g} min watering", detail, r.get("created", False), subject), 200
+    # The run is already written. A due photo is an offer on the way out, never a gate.
+    due = photo_due(subject) if token else None
+    extra = _photo_form(subject, token, due) if due is not None else ""
+    return _confirm(f"Logged {m:g} min watering", detail,
+                    r.get("created", False), subject, extra), 200
 
 
 def log_use_tag(subject: str, minutes: str, note: str) -> tuple[str, int]:

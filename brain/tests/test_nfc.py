@@ -4,6 +4,8 @@ this endpoint exists to be immune to. Covers the pure logging helpers and the to
 validation at the /nfc + /nfc/log routes."""
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest
 
 
@@ -196,3 +198,89 @@ def test_an_unknown_kind_still_names_the_kinds_that_work(client):
     r = client.get("/nfc", params={"token": "test-token", "kind": "flooding",
                                    "subject": "Back Fence"})
     assert "kind=watering" in r.text
+
+
+# ----- the weekly photo, offered only when one is due ------------------------------------
+
+@pytest.fixture
+def photo_client(monkeypatch, tmp_path, db):
+    fastapi_testclient = pytest.importorskip("fastapi.testclient")
+    import hestia
+    monkeypatch.setattr(hestia, "NFC_TOKEN", "test-token")
+    monkeypatch.setattr(hestia, "INGEST_TOKEN", "a-different-token")
+    monkeypatch.setattr(hestia, "PHOTO_DIR", tmp_path / "photos")
+    return fastapi_testclient.TestClient(hestia.app)
+
+
+def _water(client, subject="Strawberries"):
+    return client.post("/nfc/log", data={"token": "test-token", "kind": "watering",
+                                         "subject": subject, "minutes": "15",
+                                         "source": "zone3", "sprinkler": "hi-rise"})
+
+
+def test_a_place_never_photographed_is_offered_the_camera(photo_client, db):
+    db.upsert_entity("place", "Strawberries")
+    body = _water(photo_client).text
+    assert 'action="/nfc/photo"' in body and 'capture="environment"' in body
+    assert "no photo of this one yet" in body
+
+
+def test_a_place_photographed_today_is_left_alone(photo_client, db):
+    db.upsert_entity("place", "Strawberries")
+    db.attach_photo("Strawberries", "/tmp/x.jpg", None, "garden")
+    body = _water(photo_client).text
+    assert 'action="/nfc/photo"' not in body
+
+
+@pytest.mark.parametrize("age_days,offered", [(6, False), (7, True), (30, True)])
+def test_the_camera_returns_after_a_week(photo_client, db, age_days, offered):
+    db.upsert_entity("place", "Strawberries")
+    taken = dt.datetime.now() - dt.timedelta(days=age_days, minutes=1)
+    db.log_event("photo", subject="Strawberries", action="photographed",
+                 subject_kind="place", strict_subject=True,
+                 ts=taken.isoformat(timespec="seconds"), attrs={"path": "/tmp/x.jpg"})
+    assert ('action="/nfc/photo"' in _water(photo_client).text) is offered
+
+
+def test_the_watering_page_never_carries_the_ingest_token(photo_client, db):
+    db.upsert_entity("place", "Strawberries")
+    # A stake in the ground is worth one credential, not two.
+    assert "a-different-token" not in _water(photo_client).text
+
+
+def test_a_tapped_photo_files_against_the_same_place(photo_client, db):
+    db.upsert_entity("place", "Strawberries")
+    r = photo_client.post("/nfc/photo",
+                          data={"token": "test-token", "subject": "Strawberries"},
+                          files={"file": ("shot.jpg", b"\xff\xd8ffdata", "image/jpeg")})
+    assert r.status_code == 200 and "Photo filed" in r.text
+    assert db.days_since_photo("Strawberries") is not None
+    # And the offer goes away now that one has been taken.
+    assert 'action="/nfc/photo"' not in _water(photo_client).text
+
+
+def test_a_tapped_photo_needs_the_nfc_token(photo_client, db):
+    r = photo_client.post("/nfc/photo",
+                          data={"token": "a-different-token", "subject": "Strawberries"},
+                          files={"file": ("shot.jpg", b"data", "image/jpeg")})
+    assert r.status_code == 401 and db.last_photo("Strawberries") is None
+
+
+def test_a_tapped_photo_with_nothing_attached_says_so(photo_client, db):
+    r = photo_client.post("/nfc/photo", data={"token": "test-token", "subject": "Strawberries"})
+    assert r.status_code == 400 and "No photo was attached" in r.text
+
+
+def test_an_empty_upload_reports_failure_rather_than_looking_filed(photo_client, db):
+    r = photo_client.post("/nfc/photo",
+                          data={"token": "test-token", "subject": "Strawberries"},
+                          files={"file": ("shot.jpg", b"", "image/jpeg")})
+    assert r.status_code == 400 and "Photo filed" not in r.text
+    assert db.last_photo("Strawberries") is None
+
+
+def test_the_watering_run_is_written_even_when_the_photo_is_skipped(photo_client, db):
+    db.upsert_entity("place", "Strawberries")
+    _water(photo_client)
+    # The offer is on the way out, never a gate in front of the thing being logged.
+    assert db.water_totals(place="Strawberries")[0]["runs"] == 1

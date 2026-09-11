@@ -7,6 +7,26 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-11 - the tap asks for a photo, but only when one is due
+
+The watering confirmation now offers a camera, and only when that place has not been
+photographed in seven days. Whether one is due is a row lookup rather than anyone's
+judgement, which is the same principle that keeps schedules out of the model: in a hot
+spell the sprinkler runs four times a week, and four pictures a week of the same shrub is
+a flipbook, not a record.
+
+The offer comes after the run is already written, so declining it never costs the logged
+watering. A place that has never been photographed is always asked.
+
+Uploads go to a new `/nfc/photo` authorised by the NFC token rather than the ingest one.
+A programmed stake is a credential in physical form, and it should be worth exactly one,
+not two. The file-and-record path is shared with the Shortcut intake rather than copied,
+so both routes file identically and a failed upload says so instead of looking filed.
+
+Thirty-seven NFC tests, full suite passes. Not yet deployed: the brain needs a restart
+before a tag will see any of this.
+
+
 ## 2026-09-11 - the stake measures what it claims
 
 Added a catch cup that slides onto a tab above the name, so a position reports what it
