@@ -7,6 +7,37 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-11 - session wrap: irrigation went from a BLE experiment to a capture path
+
+Three days of work on one thread. Orbit forces their cloud servers to drive a manifold
+sitting in this yard, so the point was to take it back locally and, having taken it back,
+make water leave a trace the way rain, heat and yield already do.
+
+Shipped: manual-mode commands built from zone and duration instead of hardcoded frames, so
+a run can outlast one byte. Watering as a record, attached to a place rather than a valve,
+because zone 3 feeds a sprinkler carried to eighteen different spots. NFC watering tags
+carrying their own source and sprinkler, one prefilled field between a wet hand and a
+logged run. A printed stake with the tag sealed inside, a catch cup so a position measures
+what it received instead of trusting a rate sheet, and a generator that turns a positions
+file into eighteen stakes and eighteen tag URLs. Applied water and rainfall in the almanac
+next to the yield. A weekly photo offered at the tap, only when one is due.
+
+The care throughout was in what does not get claimed. Depths are per place and never summed
+across places. Volume is marked estimated until a cup reading replaces it. Beds with no
+known rate log minutes and no depth. A sprinkler with no rate is refused rather than logged
+with the rate quietly dropped.
+
+Also fixed `hestiactl`, which could not reach the brain on the box it ships with, and
+tightened two secret bundles that were group-readable.
+
+[non-production] Open and queued: tomorrow's attended valve test for explicit stop and a run
+over 127 seconds, the catch-cup calibration on the same trip, printing the stake set,
+writing the eighteen tags, and checking the camera button opens a camera and not a library.
+
+Next concrete action: the valve test. Explicit stop is the one failure that leaves water
+running, so no valve control goes into the brain until it passes on hardware.
+
+
 ## 2026-09-11 - the tap asks for a photo, but only when one is due
 
 The watering confirmation now offers a camera, and only when that place has not been
