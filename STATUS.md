@@ -7,6 +7,32 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-09-30 - greenhouse door board, test 1 of the Homesteader Labs build loop
+
+The greenhouse temperature probe is too slow to warn before the heater loses, so the door gets a
+reed switch. Branch `greenhouse-door` (271b1e1), pushed, not merged.
+
+- **Board** (`deploy/esphome/greenhouse-door.yaml`): an Elegoo ESP32 dev board with the reed
+  switch and a DS18B20 on one board, so both readings share a clock. That gives the build log its
+  number: seconds for the switch to notice an open door, against minutes for the temperature.
+  Validated with `esphome config` on the 2025.12.7 pin; keys generated into the ignored
+  `secrets.yaml`.
+- **No alert logic on the board**, same as kennel-box. The alert is an HA automation in the
+  README, because it has to fire within seconds and the brain watchers run on a schedule.
+- **The working tree is on `greenhouse-door`** so the morning flash finds the file. Switching back
+  to main before the merge hides it.
+
+**Overlap to decide:** the build list includes a Pi Zero with a 2.13" e-paper "state of the day"
+display, and the Kindle board (2026-09-26) already shows the queue and the home's state on e-ink.
+
+**Next concrete action:** after the test night, pull the door and temperature history from HA
+within 10 days (the recorder purges raw states at 10) and compute the number.
+
+[non-production] Morning: flash, wire and mount the board, add it to HA, paste the alert
+automation. First cold night with the heater on: the 10-minute door test.
+
+---
+
 ## 2026-09-26 - the board: the operator's to-dos and the home's state on a Kindle by the door
 
 The queue of jobs that need the operator had grown to 71 open rows, 54 of them over a week
