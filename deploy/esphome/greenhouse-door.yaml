@@ -1,0 +1,73 @@
+# Greenhouse door: an Elegoo ESP32 dev board (ESP32-WROOM-32) on the greenhouse door frame. A reed
+# switch reports the door, a DS18B20 reports the air. Both sit on one board so the two readings
+# share a clock, which is the build log's number: seconds for the switch to notice an open door,
+# against minutes for the temperature to show it.
+#
+# Flash:   cd deploy/esphome && uvx --from esphome==2025.12.7 esphome run greenhouse-door.yaml --device /dev/ttyUSB0
+# Pinned with kennel-box: HA 2025.12 keys entities on the object_id that ESPHome 2026.x stopped
+# sending. Move both pins together when HA is upgraded.
+# Secrets: secrets.yaml (gitignored), shape in secrets.yaml.example
+#
+# Wiring
+#   Reed switch  one lead to GPIO27, the other to GND. The internal pull-up holds the pin high, so
+#                door shut (magnet on the switch, contacts closed) reads low and door open reads high.
+#   DS18B20      data to GPIO4, VDD to 3V3, GND to GND, and a 4.7 kΩ resistor from data to 3V3.
+#                A probe already mounted on a small breakout usually has the resistor on it.
+# GPIO4 and GPIO27 stay clear of the board's strapping pins (0, 2, 12, 15) and of 34 to 39,
+# which are input-only and have no pull-ups.
+
+esphome:
+  name: greenhouse-door
+  friendly_name: Greenhouse door
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret greenhouse_api_key
+
+ota:
+  - platform: esphome
+    password: !secret greenhouse_ota_password
+
+# No fallback hotspot, same as kennel-box: a board that loses Wi-Fi should sit quietly, not open
+# an access point in the yard.
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+binary_sensor:
+  - platform: gpio
+    name: Greenhouse door
+    device_class: door
+    # A normally-open reed switch reads high when the door opens, which HA shows as "Open".
+    # If it reads backwards, the switch is normally-closed: add `inverted: true` to the pin.
+    pin:
+      number: GPIO27
+      mode:
+        input: true
+        pullup: true
+    # A door rattling in the wind should not fire twice; 100 ms is far below what the alert needs.
+    filters:
+      - delayed_on_off: 100ms
+
+one_wire:
+  - platform: gpio
+    pin: GPIO4
+
+sensor:
+  - platform: dallas_temp
+    name: Greenhouse air temperature
+    # Every 10 s while the door test runs, so the lag can be read to the reading. Slow it to 60 s
+    # once the post has its number; HA does not need six points a minute all winter.
+    update_interval: 10s
+    resolution: 12
+  - platform: wifi_signal
+    name: Greenhouse door Wi-Fi signal
+    update_interval: 60s
+    entity_category: diagnostic
