@@ -7,6 +7,36 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-01 - greenhouse door board, bench test passes for the reed switch
+
+The board is flashed and on Wi-Fi, and the door switch reads true on the breadboard. Branch
+`greenhouse-door`, still not merged.
+
+- **Flash:** the first USB upload failed, first with no bootloader handshake and then with the
+  port busy, most likely ModemManager probing the freshly plugged-in CP2102. A retry seconds
+  later went through without holding BOOT. The README now says to retry.
+- **Reed switch on GPIO27:** OFF with the magnet on (door shut), ON apart, so no `inverted:`.
+  Holds were clean while the magnet was still. It chattered only when the magnet moved slowly
+  through the switching point, which the alert's 5-second hold absorbs.
+- **Switching distance:** closes at about 1¼ inches, side by side. The release distance is not
+  measured yet, and the 2-inch door test depends on it. The mounting rules that follow from it
+  are in the README: latch side, shut gap under ½ inch, same alignment as the bench.
+- **Wi-Fi on the bench:** -42 to -54 dB.
+- **DS18B20 not wired yet.** The log says "Found no devices", as expected.
+- The reed leads are too thin to grip a breadboard. They were wrapped round jumper pins for the
+  test; the mount needs a real connection.
+
+**Next concrete action:** wire the DS18B20 on GPIO4 and confirm the boot log finds it. Then HA,
+the DHCP reservation and the alert automation, tested with the magnet before anything goes on
+the door.
+
+[non-production] Morning, bench: measure the reed release distance, tin or crimp the reed leads,
+wire the DS18B20. 12:00 or 15:00: add it to HA, the DHCP reservation, paste and test the alert.
+Then mount it on the latch side and take the photos. Waiting: the first cold night with the
+heater on, for the 10-minute door test.
+
+---
+
 ## 2026-09-30 - greenhouse door board, test 1 of the Homesteader Labs build loop
 
 The greenhouse temperature probe is too slow to warn before the heater loses, so the door gets a

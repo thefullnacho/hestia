@@ -60,8 +60,25 @@ cd deploy/esphome
 uvx --from esphome==2025.12.7 esphome run greenhouse-door.yaml --device /dev/ttyUSB0   # first flash, over USB
 ```
 
+If the first upload fails with the port busy, run it again a few seconds later. ModemManager
+probes a freshly plugged-in serial device and can hold the port while it does.
+
 Then add it in HA (Settings, Devices and services, Add integration, ESPHome) with the board's IP
 and `greenhouse_api_key`, and set a DHCP reservation.
+
+### Mounting
+
+On the bench (2026-10-01) the switch closed with the magnet about 1¼ inches away, side by side.
+That sets the mount:
+
+- Switch on the frame, magnet on the door, on the **latch side**. Near the hinges a 2-inch
+  opening barely moves the magnet.
+- Keep the gap with the door shut under about ½ inch, well inside the switching distance, so a
+  door resting near the edge does not chatter.
+- Mount the pair in the same alignment as on the bench. A reed switch picks up much less at other
+  angles.
+- The reed leads are too thin to grip a breadboard. For the mount, tin them, or solder or crimp
+  them to female jumpers that push onto the D27 and GND pins.
 
 ### The alert
 
