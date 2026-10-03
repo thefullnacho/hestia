@@ -7,6 +7,40 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-03 - greenhouse door board, bench build done, phase two waits on parts
+
+Both sensors read on one board, the board is in HA, and the alert fires. Branch
+`greenhouse-door`, still not merged.
+
+- **DS18B20 found** 2026-10-02 12:23, after three breadboard faults: the probe's adapter board had
+  all three pins in one row, the jumpers went into its screw terminal beside the probe wires
+  instead of into the pin rows, and the dev board covered every hole on one side, so jumpers
+  "beside" its pins never reached them. Female jumpers straight onto the dev board's pins fixed
+  the last one. Reads about 72 °F indoors, every 10 s.
+- **In HA** 2026-10-03, with a DHCP reservation. HA prefixes each entity with the device name, as
+  with kennel-box, so the door is `binary_sensor.greenhouse_door_greenhouse_door`. The README's
+  alert watched `binary_sensor.greenhouse_door`, which does not exist; fixed before it was pasted.
+- **Alert on the bench:** door opened 09:18:01, the automation fired 09:18:06.3. That is 5.3 s
+  from open to alert, 5 s of it the hold. HA sent the push; that it reached the phone is not
+  confirmed.
+- **Rescanning the probe** needs a restart, because the 1-wire bus is only scanned at boot. A
+  serial EN pulse restarts the board cleanly. `esptool chip-id --after hard-reset` failed once
+  partway and left the board in the bootloader until the next pulse.
+
+**In flight:** waiting on weatherproofing parts in the mail. Phase two, mounting, starts when
+they land.
+
+**Next concrete action:** when the parts arrive, give the reed leads a real connection,
+weatherproof the joints, then mount on the door frame, latch side, per the README's Mounting
+section.
+
+[non-production] Waiting: the weatherproofing parts in the mail. Then, morning, hands: measure
+the reed release distance, connect and weatherproof the leads, mount it, photos (door and magnet
+alignment, wiring, the alert). Confirm the bench push reached the phone. Waiting after that: the
+first cold night with the heater on, for the 10-minute door test.
+
+---
+
 ## 2026-10-01 - greenhouse door board, bench test passes for the reed switch
 
 The board is flashed and on Wi-Fi, and the door switch reads true on the breadboard. Branch

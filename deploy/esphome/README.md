@@ -82,13 +82,17 @@ That sets the mount:
 
 ### The alert
 
+HA prefixes each entity with the device name, the same as kennel-box, so the board shows up as
+`binary_sensor.greenhouse_door_greenhouse_door`, `sensor.greenhouse_door_greenhouse_air_temperature`
+and `sensor.greenhouse_door_greenhouse_door_wi_fi_signal`.
+
 Paste into HA's automations (YAML mode). The 5 seconds stops a quick in-and-out from paging.
 
 ```yaml
 alias: Greenhouse door left open
 triggers:
   - trigger: state
-    entity_id: binary_sensor.greenhouse_door
+    entity_id: binary_sensor.greenhouse_door_greenhouse_door
     to: "on"
     for: "00:00:05"
 actions:
