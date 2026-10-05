@@ -7,7 +7,7 @@ house**. This off-site leg adds the third copy on a dedicated box in a datacente
 ## Topology
 
 ```
-GPU box ──02:00 ET push──▶ hl-relay:~/hestia-backups/<DATE>/   (hestia.db + memory/)   [home, leg 1+2]
+GPU box ──02:00 ET push──▶ hl-relay:~/hestia-backups/<DATE>/   (hestia.db + memory/ + extra/)   [home, leg 1+2]
                                       │
 dedi (youruser@offsite-host.example.net) ──03:30 ET PULL over Tailscale──┐
   1. ssh hl-relay → hl-relay-config-snapshot.sh <DATE>  (writes  …/<DATE>/config/)
@@ -46,12 +46,16 @@ export RESTIC_REPOSITORY=~/hestia-offsite/repo
 export RESTIC_PASSWORD_FILE=~/hestia-offsite/.restic-pass   # or paste from password manager
 restic snapshots                       # list available nights
 restic restore latest --target /tmp/r  # restores hestia-<DATE>.tar
-tar -xf /tmp/r/*.tar -C /tmp/r          # → /tmp/r/<DATE>/{hestia.db, memory/, config/}
+tar -xf /tmp/r/*.tar -C /tmp/r          # → /tmp/r/<DATE>/{hestia.db, memory/, extra/, config/}
 ```
 
 Then put state back:
 - **records DB** → `/tmp/r/<DATE>/hestia.db` → copy to the GPU box `~/hestia/data/hestia.db` (stop the brain first).
 - **memories** → `/tmp/r/<DATE>/memory/` → copy to `~/hestia/memory/`.
+- **extra dirs** (only if `HESTIA_BACKUP_EXTRA_DIRS` is set) → `/tmp/r/<DATE>/extra/<name>.tar.gz` holds the
+  directory by its own name, working tree and `.git` included. Restore with
+  `tar -xzf extra/<name>.tar.gz -C <parent of the original directory>`. A failed or oversized entry
+  makes the nightly run exit non-zero and page the phone, though the DB and memories still ship.
 - **HA** → `tar -xzf config/ha_config.tar.gz -C /opt/home/ha_config` on hl-relay (HA stopped).
 - **\*arr** → in each app's UI, System → Backup → Restore, upload `config/<app>/<app>_backup_*.zip`.
 - **adguard** → `tar -xzf config/adguard.tar.gz -C /opt/home/adguard/confdir`.
