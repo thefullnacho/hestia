@@ -7,6 +7,17 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-06 - extra-directory backup confirmed on the nightly run
+
+The 02:02 timer run shipped the extra directory without being started by hand: the journal line
+reads "backup ok ... extras: <name>". That closes the first "Not verified" item from the 2026-10-05
+entry. Still not verified: the off-site pull carrying `extra/` into restic.
+
+**Next concrete action:** check that the latest off-site snapshot lists `extra/`, then merge
+`feat/backup-extra-dirs` into main.
+
+---
+
 ## 2026-10-05 - nightly backup can ship operator-listed extra directories
 
 `HESTIA_BACKUP_EXTRA_DIRS` (off by default) makes the nightly run tar each listed directory into
