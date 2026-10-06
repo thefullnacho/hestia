@@ -16,7 +16,10 @@ Kindle today) fetches or is sent that image and nothing else. `png_bytes(device=
 returns the panel's native portrait orientation in 16 grays.
 
 The operator's queue is a markdown table the brain does not own. It is read from
-`BOARD_QUEUE` (default `data/board-queue.md`, typically a symlink), never written here.
+`BOARD_QUEUE` (default `data/board-queue.md`, typically a symlink). Only a confirmed Done or
+Trash edits it. Keep and Later never touch it: they are dates in a state file, so the table's
+layout stays the operator's. A column too long for the screen is paged: its foot is a tap
+target that turns to the next page, oldest rows first, with rows waved past served last.
 """
 from __future__ import annotations
 
@@ -171,8 +174,9 @@ def queue_items(text: str, today: dt.date) -> list[dict]:
 
 # Rows past REVIEW_DAYS get Keep / Done / Trash instead of a plain two-tap done. The backlog
 # is what gets ignored while new work is handled as it arrives, and an old row is as likely to
-# be done-but-never-logged as it is to be dead. "Keep" snoozes the question for REVIEW_DAYS;
-# the snooze is keyed on the row's exact text, so an edited row is asked about afresh.
+# be done-but-never-logged as it is to be dead. "Keep" snoozes the question for REVIEW_DAYS and
+# serves the row last for as long, so a reminder that stays real stops holding the front page;
+# the question snooze is keyed on the row's exact text, so an edited row is asked afresh.
 QUEUE_CHOICES = (("Keep", "keep"), ("Done", "done"), ("Trash", "trash"))
 TRASH_LOG = config.BOARD_REVIEW_STATE.with_name("board_trashed.tsv")
 
@@ -202,17 +206,65 @@ def keep_row(line: str, today: dt.date) -> None:
     config.BOARD_REVIEW_STATE.write_text(json.dumps(reviews))
 
 
+# "Later" waves a row past without closing it: the row stays open and on the board, but is
+# served after every row that has not been waved past, until the date runs out. Oldest-first
+# would otherwise hold the front page forever on reminders already seen. The state is keyed on
+# the row's stable id and kept beside the review state, not in the queue file.
+LATER_CHOICES = (("Later", "later"),)
+LATER_DAYS = int(os.environ.get("BOARD_LATER_DAYS", "7"))
+
+
+def _laters(today: dt.date) -> dict:
+    """Row id -> ISO date it is served last until. Spent and unreadable entries are left out."""
+    try:
+        raw = json.loads(config.BOARD_LATER_STATE.read_text())
+    except (FileNotFoundError, ValueError):
+        return {}
+    live = {}
+    for qid, until in (raw.items() if isinstance(raw, dict) else ()):
+        try:
+            if dt.date.fromisoformat(until) > today:
+                live[qid] = until
+        except (TypeError, ValueError):
+            continue
+    return live
+
+
+def later_row(qid: str, today: dt.date, days: int | None = None) -> dt.date:
+    """Serve a row last for `days` (default LATER_DAYS). Rewrites the file whole, so spent
+    entries are dropped as it goes."""
+    until = today + dt.timedelta(days=LATER_DAYS if days is None else days)
+    laters = _laters(today)
+    laters[qid] = until.isoformat()
+    path = config.BOARD_LATER_STATE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(laters))
+    tmp.replace(path)
+    return until
+
+
 def read_queue(today: dt.date) -> list[dict]:
+    """The served order: oldest first, with rows waved past behind the rest."""
     try:
         items = queue_items(BOARD_QUEUE.read_text(), today)
     except FileNotFoundError:
         return []
-    reviews = _reviews()
+    reviews, laters = _reviews(), _laters(today)
     for item in items:
+        until = laters.get(item["id"])
+        if until:
+            item["later"] = until
         if due_for_review(item, today, reviews):
             item["status"] = "review"
             item["choices"] = QUEUE_CHOICES
             item["detail"] = f"{item['title']} ({item['age']} days). Still real?"
+        else:
+            if until:
+                item["status"] = "later"
+            item["choices"] = LATER_CHOICES
+            item["detail"] = f"{item['title']}. Tap again to mark it done, or send it Later."
+    items.sort(key=lambda i: "later" in i)  # stable: age order holds inside each group
     return items
 
 
@@ -440,8 +492,28 @@ def draw_character(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], m:
         draw.text((x1 - 2, y0 - 8), "z", font=_font("bold", 16), fill=LIGHT)
 
 
+PAGE_RESERVE = 56  # under a paged column's rows: the tap target that turns the page
+
+
+def _paginate(heights: list[int], room: int) -> list[list[int]]:
+    """Item indexes per page, in order. Everything that fits in `room` is one page; otherwise
+    every page leaves PAGE_RESERVE for its tap target, so the pages are all the same size.
+    A page always holds at least one item, however tall."""
+    if sum(heights) <= room:
+        return [list(range(len(heights)))]
+    pages, cur, used = [], [], 0
+    for i, h in enumerate(heights):
+        if cur and used + h > room - PAGE_RESERVE:
+            pages.append(cur)
+            cur, used = [], 0
+        cur.append(i)
+        used += h
+    pages.append(cur)
+    return pages
+
+
 def _column(draw, x: int, y: int, w: int, bottom: int, label: str, items: list[dict], home: bool,
-            selected: str | None = None, hits: list | None = None) -> None:
+            selected: str | None = None, hits: list | None = None, page: int = 0) -> None:
     head = _font("bold", 22)
     draw.text((x, y), label, font=head, fill=INK)
     count = str(len(items))
@@ -451,20 +523,23 @@ def _column(draw, x: int, y: int, w: int, bottom: int, label: str, items: list[d
     y += 14
 
     title_f, sub_f = _font("medium", 21), _font("regular", 16)
-    more_f = _font("regular", 17)
-    reserve = 30  # room for "+N more"
-    shown = 0
-    for i, item in enumerate(items):
-        level = item.get("level", 1)
+    rows = []
+    for item in items:
         lines = _wrap(draw, item["title"], title_f, w - 22, 2)
         sub = item.get("sub") or ""
         if not home:
             sub = item["project"] + (f" · {item['age']}d" if item["age"] > STALE_DAYS else "")
-            if item.get("choices"):
+            if item.get("status") == "review":
                 sub += " · review"
-        h = len(lines) * 26 + (22 if sub else 0) + 14
-        if y + h > bottom - (reserve if i < len(items) - 1 else 0):
-            break
+            elif item.get("later"):
+                sub += " · later"
+        rows.append((lines, sub, len(lines) * 26 + (22 if sub else 0) + 14))
+    pages = _paginate([r[2] for r in rows], bottom - y)
+    page = max(0, min(page, len(pages) - 1))  # a queue that shrank must not strand a stale page
+    for i in pages[page]:
+        item = items[i]
+        level = item.get("level", 1)
+        lines, sub, h = rows[i]
         top = y
         chosen = item.get("key") is not None and item.get("key") == selected
         if chosen:
@@ -486,19 +561,29 @@ def _column(draw, x: int, y: int, w: int, bottom: int, label: str, items: list[d
             draw.text((x + 22, y + 1), sub, font=sub_f, fill=LIGHT if chosen else MID)
             y += 22
         y += 14
-        shown += 1
         if hits is not None:
             hits.append({"box": (x - 8, top - 7, x + w + 8, y - 7), "item": item})
-    if shown < len(items):
-        draw.text((x + 22, bottom - 24), f"+{len(items) - shown} more", font=more_f, fill=MID)
+    if len(pages) > 1:
+        # drawn as a button so it reads as something to touch; the last page turns to the first
+        step = "first" if page == len(pages) - 1 else "next"
+        btn = (x, bottom - PAGE_RESERVE + 6, x + w, bottom - 6)
+        draw.rectangle(btn, outline=MID, width=2)
+        text, more_f = f"{page + 1}/{len(pages)}  ·  {step} >", _font("medium", 19)
+        draw.text((x + (w - draw.textlength(text, font=more_f)) / 2, btn[1] + 9), text, font=more_f, fill=INK)
+        if hits is not None:
+            hits.append({"box": (x - 8, bottom - PAGE_RESERVE, x + w + 8, bottom),
+                         "item": {"key": f"page:{label}", "page": label, "at": page,
+                                  "pages": len(pages), "title": "more"}})
 
 
 def render(queue: list[dict], home: list[dict], now: dt.datetime, selected: str | None = None,
            note: str | None = None, hits: list | None = None,
-           memory: list[dict] | None = None) -> Image.Image:
+           memory: list[dict] | None = None, pages: dict | None = None) -> Image.Image:
     """`selected` is the key of a tapped item (drawn inverted), `note` a line for the foot of
     the board, and `hits`, when given, is filled with each drawn item's box for tap lookup.
-    A MEMORY column appears only while the inbox holds proposals."""
+    `pages` maps a column's label to the page it shows (0 when absent). A MEMORY column
+    appears only while the inbox holds proposals."""
+    pages = pages or {}
     img = Image.new("L", SIZE, PAPER)
     draw = ImageDraw.Draw(img)
     m = mood(home, now)
@@ -522,7 +607,7 @@ def render(queue: list[dict], home: list[dict], now: dt.datetime, selected: str 
         x = MARGIN + n * (col_w + GUTTER)
         if n:
             draw.line((x - GUTTER // 2, top, x - GUTTER // 2, bottom - 6), fill=LIGHT, width=1)
-        _column(draw, x, top, col_w, bottom, label, items, is_home, selected, hits)
+        _column(draw, x, top, col_w, bottom, label, items, is_home, selected, hits, pages.get(label, 0))
 
     stamp = f"updated {now.strftime('%H:%M')}"
     f = _font("regular", 15)
@@ -536,6 +621,8 @@ def render(queue: list[dict], home: list[dict], now: dt.datetime, selected: str 
         lines = _wrap(draw, note, nf, text_w, 3 if choices else 2)
         band = max(24 + 30 * len(lines), btn_h + 28 if choices else 0)
         draw.rectangle((0, SIZE[1] - band, SIZE[0], SIZE[1]), fill=INK)
+        if hits is not None:  # a page button under the band is hidden, so it must not answer taps
+            hits[:] = [h for h in hits if not (h["item"].get("page") and h["box"][3] > SIZE[1] - band)]
         for n, ln in enumerate(lines):
             draw.text((MARGIN, SIZE[1] - band + 12 + 30 * n), ln, font=nf, fill=PAPER)
         # buttons sit in the band, so they are hit-tested before the items underneath it
@@ -564,12 +651,12 @@ def for_device(img: Image.Image, device: str | None) -> Image.Image:
 
 
 def frame(device: str | None = None, now: dt.datetime | None = None, selected: str | None = None,
-          note: str | None = None) -> tuple[bytes, list[dict]]:
+          note: str | None = None, pages: dict | None = None) -> tuple[bytes, list[dict]]:
     """The board as PNG bytes plus the hit map, in board coordinates (landscape)."""
     now = now or dt.datetime.now().astimezone()
     hits: list[dict] = []
     img = for_device(render(read_queue(now.date()), home_items(now), now, selected, note, hits,
-                            read_memory()), device)
+                            read_memory(), pages), device)
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue(), hits
@@ -611,7 +698,8 @@ def snapshot(now: dt.datetime | None = None) -> dict:
         sub = i["project"] + (f" · {i['age']}d" if i["age"] > STALE_DAYS else "")
         return {"id": i["id"], "status": i["status"], "title": i["title"], "project": i["project"],
                 "added": i["added"], "age": i["age"], "column": i["column"],
-                "sub": sub + (" · review" if i.get("choices") else ""), "level": 1}
+                "sub": sub + (" · review" if i["status"] == "review" else " · later" if i.get("later") else ""),
+                "level": 1}
 
     return {"updated": now.isoformat(timespec="seconds"), "mood": m, "headline": headline(home, m),
             "columns": {"hands": [row(q) for q in queue if q["column"] == "hands"],
@@ -705,12 +793,12 @@ document.addEventListener("click", async (ev) => {{
 
 # ── acting on a row by id ────────────────────────────────────────────────────────────
 
-QUEUE_ACTIONS = ("done", "keep", "trash")
+QUEUE_ACTIONS = ("done", "keep", "trash", "later")
 
 
 def act_on_queue(qid: str, action: str, now: dt.datetime | None = None) -> str:
-    """Done, keep or trash one row by its stable id, against the file as it is now, not as
-    some page drew it. The same paths as a Kindle tap, so the file sees one kind of edit."""
+    """Done, keep, trash or later one row by its stable id, against the file as it is now, not
+    as some page drew it. The same paths as a Kindle tap, so the file sees one kind of edit."""
     if action not in QUEUE_ACTIONS:
         raise ValueError(f"action must be one of {', '.join(QUEUE_ACTIONS)}")
     now = now or dt.datetime.now().astimezone()
@@ -783,9 +871,13 @@ def complete(item: dict, choice: str | None = None, now: dt.datetime | None = No
             return f"Discarded: {item['title']}"
         raise ValueError("keep or discard?")
     if item.get("done") == "queue":
+        if choice == "later":
+            until = later_row(item["id"], now.date())
+            return f"Later: {item['title']}. Back of the queue until {until:%b} {until.day}"
         if choice == "keep":
             keep_row(item["line"], now.date())
-            return f"Kept: {item['title']}. Asking again in {REVIEW_DAYS} days"
+            later_row(item["id"], now.date(), REVIEW_DAYS)
+            return f"Kept: {item['title']}. Back of the queue, asking again in {REVIEW_DAYS} days"
         if choice == "trash":
             return f"Trashed: {trash_queue_row(item['line'])}"
         return f"Done: {close_queue_row(item['line'], now.date())}"

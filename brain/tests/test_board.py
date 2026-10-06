@@ -1,8 +1,17 @@
 import datetime as dt
+import json
+
+import pytest
 
 import board
 
 TODAY = dt.date(2026, 9, 26)
+
+
+@pytest.fixture(autouse=True)
+def _later_state(tmp_path, monkeypatch):
+    """Keep and Later write a state file: never the real one the live board reads."""
+    monkeypatch.setattr(board.config, "BOARD_LATER_STATE", tmp_path / "later.json")
 
 QUEUE = """# queue
 
@@ -115,13 +124,16 @@ def test_old_rows_ask_keep_done_trash_and_keep_snoozes(tmp_path, monkeypatch):
     monkeypatch.setattr(board.config, "BOARD_REVIEW_STATE", tmp_path / "review.json")
     items = {i["title"]: i for i in board.read_queue(TODAY)}
     old, young = items["Tailscale ACL restricting port 8730"], items["Check the marigold seed bag"]
-    assert old["choices"] == board.QUEUE_CHOICES and "choices" not in young
+    assert old["choices"] == board.QUEUE_CHOICES and young["choices"] == board.LATER_CHOICES
+    assert (old["status"], young["status"]) == ("review", "open")
 
     now = dt.datetime(2026, 9, 26, 9, 0)
     assert board.complete(old, "keep", now).startswith("Kept")
-    assert "choices" not in {i["title"]: i for i in board.read_queue(TODAY)}["Tailscale ACL restricting port 8730"]
+    kept = {i["title"]: i for i in board.read_queue(TODAY)}["Tailscale ACL restricting port 8730"]
+    assert kept["choices"] == board.LATER_CHOICES and kept["status"] == "later"  # not asked again yet
     later = TODAY + dt.timedelta(days=board.REVIEW_DAYS)
-    assert {i["title"]: i for i in board.read_queue(later)}["Tailscale ACL restricting port 8730"]["choices"]
+    back = {i["title"]: i for i in board.read_queue(later)}["Tailscale ACL restricting port 8730"]
+    assert back["choices"] == board.QUEUE_CHOICES and "later" not in back  # the question and the place return together
 
 
 def test_trash_deletes_without_a_shipped_entry(tmp_path, monkeypatch):
@@ -192,3 +204,97 @@ def test_page_shows_done_buttons_only_with_a_token(tmp_path, monkeypatch):
     now = dt.datetime(2026, 9, 26, 9, 0).astimezone()
     assert "<button" not in board.queue_page(now)
     assert board.queue_page(now, token="t").count("<button") == 3
+
+
+# ── later and paging ─────────────────────────────────────────────────────────────────────
+
+NOW = dt.datetime(2026, 9, 26, 9, 0)
+
+
+def _queue(n):
+    """n open rows, Job n the oldest at n days and Job 1 the newest, all under the review age."""
+    rows = "\n".join(f"| {(TODAY - dt.timedelta(days=i)).isoformat()} | p | **Job {i}** | 0 | |"
+                     for i in range(n, 0, -1))
+    return f"## Open\n\n| Added | Project | Item | Days open | Done |\n|---|---|---|---|---|\n{rows}\n\n## Shipped\n\n| Done | Project | What |\n|---|---|---|\n"
+
+
+def _scratch(tmp_path, monkeypatch, text):
+    q = tmp_path / "queue.md"
+    q.write_text(text)
+    monkeypatch.setattr(board, "BOARD_QUEUE", q)
+    monkeypatch.setattr(board.config, "BOARD_REVIEW_STATE", tmp_path / "review.json")
+    return q
+
+
+def test_later_serves_a_row_last_and_never_touches_the_queue_file(tmp_path, monkeypatch):
+    q = _scratch(tmp_path, monkeypatch, _queue(5))
+    before = q.read_text()
+    rows = board.read_queue(TODAY)
+    assert [r["title"] for r in rows] == ["Job 5", "Job 4", "Job 3", "Job 2", "Job 1"]
+    assert board.complete(rows[0], "later", NOW) == "Later: Job 5. Back of the queue until Oct 3"
+    served = board.read_queue(TODAY)
+    assert [r["title"] for r in served] == ["Job 4", "Job 3", "Job 2", "Job 1", "Job 5"]
+    assert (served[0]["status"], served[-1]["status"]) == ("open", "later")
+    # waved past again: behind the rest, and oldest-first among the waved
+    board.complete(served[0], "later", NOW)
+    assert [r["title"] for r in board.read_queue(TODAY)] == ["Job 3", "Job 2", "Job 1", "Job 5", "Job 4"]
+    assert q.read_text() == before  # the table is the operator's: only the state file knows
+    # and the date runs out: oldest-first again
+    spent = TODAY + dt.timedelta(days=board.LATER_DAYS)
+    assert [r["title"] for r in board.read_queue(spent)][:2] == ["Job 5", "Job 4"]
+
+
+def test_spent_and_garbled_later_entries_are_dropped(tmp_path):
+    path = tmp_path / "later.json"
+    path.write_text(json.dumps({"a": "2026-09-25", "b": "2026-09-27", "c": "nonsense", "d": 7}))
+    assert board._laters(TODAY) == {"b": "2026-09-27"}
+    board.later_row("e", TODAY)
+    assert set(json.loads(path.read_text())) == {"b", "e"}  # rewritten whole, spent ones gone
+    path.write_text("[1, 2]")
+    assert board._laters(TODAY) == {}
+    path.write_text("{not json")
+    assert board._laters(TODAY) == {}
+
+
+def test_later_by_id_for_the_phone_and_snapshot_says_so(tmp_path, monkeypatch):
+    _scratch(tmp_path, monkeypatch, _queue(3))
+    monkeypatch.setattr(board, "home_items", lambda now: [])
+    monkeypatch.setattr(board, "read_memory", lambda: [])
+    rows = board.read_queue(TODAY)
+    assert board.act_on_queue(rows[0]["id"], "later", NOW).startswith("Later: Job 3")
+    last = board.snapshot(NOW.astimezone())["columns"]["screen"][-1]
+    assert (last["title"], last["status"]) == ("Job 3", "later") and last["sub"].endswith("· later")
+
+
+def test_paginate_fits_one_page_or_reserves_room_on_every_page():
+    assert board._paginate([88] * 5, 440) == [[0, 1, 2, 3, 4]]
+    assert board._paginate([], 440) == [[]]
+    pages = board._paginate([88] * 12, 440)
+    assert [i for p in pages for i in p] == list(range(12))  # every row, in order, once
+    assert len(pages) == 3 and all(88 * len(p) <= 440 - board.PAGE_RESERVE for p in pages)
+    assert board._paginate([900, 50], 440) == [[0], [1]]     # a page always holds something
+
+
+def test_a_long_column_is_paged_oldest_first_and_its_foot_turns_the_page(tmp_path, monkeypatch):
+    _scratch(tmp_path, monkeypatch, _queue(13))
+    rows = board.read_queue(TODAY)
+    front, second, short, stale = [], [], [], []
+    board.render(rows, [], NOW, hits=front)
+    board.render(rows, [], NOW, hits=second, pages={"SCREEN": 1})
+    keys = lambda hits: [h["item"]["key"] for h in hits if h["item"].get("key", "").startswith("queue:")]
+    assert keys(front) + keys(second) == [r["key"] for r in rows]  # each row on one page, oldest first
+    foot = next(h["item"] for h in front if h["item"].get("page"))
+    assert (foot["page"], foot["at"], foot["pages"]) == ("SCREEN", 0, 2)
+    board.render(rows[:3], [], NOW, hits=short)
+    assert not any(h["item"].get("page") for h in short)           # no foot when it all fits
+    board.render(rows, [], NOW, hits=stale, pages={"SCREEN": 9})
+    assert keys(stale) == keys(second)                             # a page that is gone shows the last
+
+
+def test_the_selection_band_hides_the_page_feet_it_covers(tmp_path, monkeypatch):
+    _scratch(tmp_path, monkeypatch, _queue(13))
+    rows = board.read_queue(TODAY)
+    hits = []
+    board.render(rows, [], NOW, selected=rows[0]["key"], note=rows[0]["detail"], hits=hits)
+    assert not any(h["item"].get("page") for h in hits)
+    assert hits[0]["item"]["choice"] == "later"

@@ -7,6 +7,33 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-06 - the board pages, and a row can be waved past without closing it
+
+The board showed five rows a column and then a dead "+16 more" and "+23 more". The queue could
+only be worked from its oldest end, and the oldest rows were the reminders that were never
+getting done this week, so the front page stayed stuck on them.
+
+- **Paging** (`brain/board.py`, `brain/board_push.py`). A column that does not fit ends in a
+  bordered "1/5 · next >" button. Tapping it turns that column to its next page, oldest first,
+  and the last page turns back to the first. Columns turn independently, and HOME and MEMORY
+  use the same code. Pages snap back to the front `BOARD_PAGE_S` (90 s) after the last tap, so
+  an unattended board always shows page one. Swiping is not built: the touch parser reports
+  taps only, and a gesture is not something to ship untested on a panel I cannot hold.
+- **Later.** Selecting an ordinary queue row now shows a Later button beside the two-tap done.
+  Later keeps the row open and serves it after every row that has not been waved past, for
+  `BOARD_LATER_DAYS` (7), then it is back in age order. Keep on a "still real?" row now does
+  the same for the 14 days it already snoozed the question, so a reminder that stays real stops
+  holding the front page. Both are dates in a state file (`board_later.json`, keyed on the row's
+  stable id). The queue file is not written and its layout is unchanged; only a confirmed Done
+  or Trash edits it. `POST /queue/{id}/later` does the same through the token-gated API, and
+  `/queue.json` reports `status: "later"`.
+- Not changed: Done, Trash, and the phone page, which still has only its Done button.
+- 9 new tests; the full suite is 587 passing. Checked against a copy of the real queue (49 open
+  rows): every page rendered, and the real touch flow run with only the SSH send faked. Page
+  turns wrapped 5/5 to 1/5, Keep and Later moved rows to the back, and the queue file was
+  byte-identical afterwards. Not yet seen on the panel: the live checkout runs another branch,
+  so it takes effect when this branch is merged there and `hestia-board-push` is restarted.
+
 ## 2026-09-26 - the board: the operator's to-dos and the home's state on a Kindle by the door
 
 The queue of jobs that need the operator had grown to 71 open rows, 54 of them over a week

@@ -23,3 +23,14 @@ Operating notes:
   a computer starts a switch to USB drive mode that needs that UI and hangs on a gray screen.
 - A long press of the power button (20-40 s) reboots to the normal Kindle. The board service
   takes the screen back within about a minute once SSH answers.
+
+Using the board:
+
+- Tap a row to select it. A second tap within a minute marks it done. The black band at the
+  foot also offers **Later**, which keeps the row open but serves it after the rest for a week.
+  Old rows ask "still real?" with Keep (back of the queue for two weeks), Done or Trash.
+- A column that does not fit ends in a "1/5 · next >" button. Tap it for the next page, oldest
+  first. After the last page it returns to the first, and the board returns to page one after
+  90 seconds without a tap.
+- While a row is selected, or a result line is up, the black band covers the page buttons.
+  Tap anywhere else once to clear it.
