@@ -15,6 +15,12 @@ Taps, deterministic end to end:
   - tap it again       → within CONFIRM_S it is closed: a queue row moves to Shipped, a due
                          asset logs a service. Watch alerts can't be closed, only read.
   - tap anywhere else  → the selection clears; with nothing selected, it just redraws now
+  - Later / Keep       → a queue row stays open and goes to the back of the served order for a
+                         while (BOARD_LATER_DAYS, or REVIEW_DAYS for Keep), so a reminder
+                         already seen stops holding the front page. Nothing is written to the queue
+  - tap a column's foot → a column too long for the screen is paged, oldest first; the foot turns
+                         to the next page and the last page turns back to the first. Pages snap
+                         back to the front PAGE_S after the last tap
 
 Refresh: e-ink ghosts under partial updates, so a frame is a quiet partial refresh except the
 first of each hour, which flashes the panel clean.
@@ -46,6 +52,7 @@ EVERY_S = int(os.environ.get("BOARD_PUSH_EVERY_S", "300"))   # ambient, not an a
 RETRY_S = int(os.environ.get("BOARD_RETRY_S", "30"))         # while the Kindle is dark
 CONFIRM_S = int(os.environ.get("BOARD_CONFIRM_S", "60"))     # a selection this old is dropped
 NOTE_S = int(os.environ.get("BOARD_NOTE_S", "20"))           # how long "Done: …" stays up
+PAGE_S = int(os.environ.get("BOARD_PAGE_S", "90"))           # a turned page returns to the front
 TOUCH_DEV = "/dev/input/event0"                               # cyttsp on the Paperwhite 1
 
 # ServerAlive on every session: a WiFi drop must kill a dead connection in under a minute,
@@ -133,10 +140,13 @@ class Board:
         self.selected_at = 0.0
         self.note: str | None = None
         self.note_at = 0.0
+        self.pages: dict[str, int] = {}   # column label -> the page it shows; absent is the front
+        self.page_at = 0.0
 
     def draw(self, now: dt.datetime | None = None, force: bool = False) -> str:
         now = now or dt.datetime.now().astimezone()
-        png, hits = self.render("kindle", now, self.selected and self.selected["key"], self.note)
+        png, hits = self.render("kindle", now, self.selected and self.selected["key"], self.note,
+                                self.pages)
         digest = hashlib.sha256(png).hexdigest()
         prev = _load_state()
         flash = should_flash(prev, now)
@@ -155,26 +165,37 @@ class Board:
         return "flashed" if flash else "drawn"
 
     def expire(self, clock: float) -> bool:
-        """Drop a selection nobody confirmed, and a result line once it has been read. True
-        when the board needs a redraw."""
+        """Drop a selection nobody confirmed, a result line once it has been read, and turned
+        pages once nobody is touching them. True when the board needs a redraw."""
+        stale = False
         if self.selected and clock - self.selected_at > CONFIRM_S:
-            self.selected, self.note = None, None
-            return True
-        if not self.selected and self.note and clock - self.note_at > NOTE_S:
-            self.note = None
-            return True
-        return False
+            self.selected, self.note, stale = None, None, True
+        elif not self.selected and self.note and clock - self.note_at > NOTE_S:
+            self.note, stale = None, True
+        if self.pages and clock - self.page_at > PAGE_S:
+            self.pages, stale = {}, True
+        return stale
 
     def next_expiry(self) -> float | None:
+        due = []
         if self.selected:
-            return self.selected_at + CONFIRM_S + 0.5
-        if self.note:
-            return self.note_at + NOTE_S + 0.5
-        return None
+            due.append(self.selected_at + CONFIRM_S + 0.5)
+        elif self.note:
+            due.append(self.note_at + NOTE_S + 0.5)
+        if self.pages:
+            due.append(self.page_at + PAGE_S + 0.5)
+        return min(due) if due else None
 
     def tap(self, bx: int, by: int, clock: float) -> str:
         self.note_at = clock
+        if self.pages:  # still working through the pages: the front is not coming back yet
+            self.page_at = clock
         item = board.hit_at(self.hits, bx, by)
+        if item and item.get("page"):  # a column's foot: turn it, wrapping to the first page
+            self.pages[item["page"]] = (item["at"] + 1) % item["pages"]
+            self.page_at = clock
+            self.selected, self.note = None, None  # the rows under a selection just moved
+            return f"page {item['page']} {self.pages[item['page']] + 1}/{item['pages']}"
         if item and item.get("choice"):  # a button in the band: the answer, no second tap
             target, self.selected = item["target"], None
             try:

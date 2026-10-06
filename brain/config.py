@@ -48,6 +48,9 @@ BOX_STATE = Path(os.environ.get("BOX_STATE") or _STATE_HOME / "hestia" / "box_wa
 BOARD_PUSH_STATE = Path(os.environ.get("BOARD_PUSH_STATE") or _STATE_HOME / "hestia" / "board_push.json")
 # Board review: when each old queue row was last answered "keep", so it is asked again later, not daily.
 BOARD_REVIEW_STATE = Path(os.environ.get("BOARD_REVIEW_STATE") or _STATE_HOME / "hestia" / "board_review.json")
+# Board later: until when each queue row the operator waved past is served last. Disposable:
+# losing it puts every row back in age order.
+BOARD_LATER_STATE = Path(os.environ.get("BOARD_LATER_STATE") or _STATE_HOME / "hestia" / "board_later.json")
 # Pest-watch season state (biofix, cumulative GDD, per-season alert dedupe). Deliberately NOT
 # in the nightly backup: it's fully re-derivable — a fresh run re-finds the biofix and
 # back-fills GDD from the archive, and already-open windows re-mark silently.
