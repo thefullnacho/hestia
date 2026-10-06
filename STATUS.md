@@ -31,8 +31,11 @@ getting done this week, so the front page stayed stuck on them.
 - 9 new tests; the full suite is 587 passing. Checked against a copy of the real queue (49 open
   rows): every page rendered, and the real touch flow run with only the SSH send faked. Page
   turns wrapped 5/5 to 1/5, Keep and Later moved rows to the back, and the queue file was
-  byte-identical afterwards. Not yet seen on the panel: the live checkout runs another branch,
-  so it takes effect when this branch is merged there and `hestia-board-push` is restarted.
+  byte-identical afterwards.
+- Live from 06:45 on 2026-10-06: merged into the checkout the board runs from, the suite
+  passing there (587), `hestia-board-push` restarted. The first frame drew clean, the journal
+  showed no errors in the first minutes, and a render of the live board (real queue, real home
+  data) pages all three columns. Not yet exercised: the taps themselves on the physical panel.
 
 ---
 
