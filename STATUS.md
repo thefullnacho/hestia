@@ -7,6 +7,32 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-05 - nightly backup can ship operator-listed extra directories
+
+`HESTIA_BACKUP_EXTRA_DIRS` (off by default) makes the nightly run tar each listed directory into
+`extra/` beside the DB and memories, working tree and `.git` included. Each directory is capped at
+50 MB (`HESTIA_BACKUP_EXTRA_MAX_MB`).
+
+- **A bad entry never costs the DB its night.** A missing directory, one over the cap, a name
+  collision or a tar failure is collected, the good parts still ship, and the run then exits
+  non-zero so the failure alert pages the phone. Paths are read into an array, so a glob character
+  in the setting is treated as text.
+- **Verified 2026-10-05:** the staging block was tested in isolation on six cases (normal, missing,
+  over the cap, name collision, empty, glob character). Then the service ran once with one directory
+  set through a local systemd drop-in, the tarball was pulled back from the backup host and
+  unpacked, and the working tree and git history matched the original.
+- **Not verified:** tonight's 02:03 timer run, and the off-site pull carrying `extra/` into restic.
+- **Where the code is:** branch `feat/backup-extra-dirs`, pushed, not merged to main. This checkout
+  carries it through a local merge so the nightly run uses it. Restore steps are in
+  `deploy/backup/OFFSITE-RUNBOOK.md`.
+
+**Next concrete action:** read tomorrow's backup journal for the `extras:` note and check the
+off-site snapshot lists `extra/`, then merge `feat/backup-extra-dirs` into main.
+
+[non-production] Say go on merging `feat/backup-extra-dirs` into main.
+
+---
+
 ## 2026-10-03 - greenhouse door board, bench build done, phase two waits on parts
 
 Both sensors read on one board, the board is in HA, and the alert fires. Branch
