@@ -7,6 +7,30 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-08 - the peak titles are live, and the valve automation stays gated
+
+- **Live:** the Peak and Off-peak title fix is running on the Kindle (redrawn 15:35, after one failed
+  push while the panel was briefly unreachable that recovered on the next retry) and, after the brain
+  restart at 15:36, on the phone queue page and the board PNG. Against the live queue no served title
+  starts with the prefix. Both services run code newer than the merge and show no errors.
+- **Gate, no code change:** the operator reports that a manual zone 4 start over WiFi cuts the flow
+  after about 30 seconds while a Bluetooth start from the app runs the full cycle, and that the timer's
+  scroll wheel can flip minutes to hours. So the B-hyve run log is not proof of watering, and no
+  soil-driven zone 4 automation gets built until his three-way flow test (wheel, app over Bluetooth,
+  app over WiFi) is reported. Nothing in Hestia starts a valve today, and `deploy/BHYVE.md` records
+  that Hestia's own Bluetooth tool saw zone 4 report idle at about 30 seconds of a 60 second run on
+  2026-09-08, so the cutoff may belong to zone 4 or to the command rather than to WiFi. When the valve
+  gate is built it checks soil response after the run, not only the run record, which is what the
+  stale-sensor check in `garden_watch` is for.
+- **Next concrete action:** the operator's Keep check on the Kindle, then his three-way flow test
+  result, which decides whether the valve gate is worth building this season.
+
+[non-production] Report the three-way B-hyve flow test (it is on the drip teardown row); it decides
+whether zone 4 can be automated.
+[non-production] Press Keep on one old "still real?" row on the Kindle (already in the operator's queue).
+
+---
+
 ## 2026-10-08 - the board stops showing "Peak" and "Off-peak" in its row titles
 
 The operator's queue moved from clock times to two rhythm windows, so new rows open with `Peak,` or
