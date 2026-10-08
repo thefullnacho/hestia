@@ -21,6 +21,10 @@ healthy pups gain a little every day, flat or dropping is the earliest sign of a
 No LLM anywhere in this file. A fading neonate is a threshold problem and a threshold
 problem is a row and a comparison, which is the whole thesis of this repo.
 
+Each run also makes sure every tie on the books has its day-28 pregnancy-check and day-56
+whelp-watch reminders (`breeding_followups`), quietly and whether or not a litter is young:
+the backstop for a tie that never went through the `records` tool.
+
 A pup that has never been weighed at all cannot be compared to anything, so it is reported
 as unweighed rather than silently skipped — the failure this file exists to prevent is a
 number nobody looked at, and a pup nobody weighed is the same failure one step earlier.
@@ -37,6 +41,7 @@ import httpx
 import config  # puts brain/ on sys.path + owns paths
 
 config.load_secrets()
+import breeding_followups  # noqa: E402
 import records_store  # noqa: E402  (after config puts brain/ on the path)
 
 HA_URL = os.environ.get("HA_URL", "http://hl-relay:8124").rstrip("/")
@@ -172,8 +177,21 @@ def push(title: str, message: str) -> None:
                json={"title": title, "message": message}, timeout=15).raise_for_status()
 
 
+def follow_ups(dry_run: bool = False) -> None:
+    """Each run, make sure every tie on the books has its pregnancy-check and whelp-watch
+    reminders: the backstop for a tie that never went through the `records` tool. Quiet unless
+    it files one, and a failure here must not stop the pup alerts that follow."""
+    try:
+        for m in breeding_followups.ensure(dry_run=dry_run):
+            print(f"puppy-watch: {'would file' if dry_run else 'filed'} reminder: "
+                  f"{m['dam']} {m['what']} on {m['due_at'][:10]}")
+    except Exception as e:  # noqa: BLE001 (see the docstring)
+        print(f"puppy-watch: breeding follow-ups failed: {type(e).__name__}: {e}", file=sys.stderr)
+
+
 def main() -> int:
     dry_run = "--dry-run" in sys.argv
+    follow_ups(dry_run)
     try:
         alerts = build_alerts(persist=not dry_run)
     except Exception as e:  # noqa: BLE001 — a watcher that crashes is a watcher nobody notices

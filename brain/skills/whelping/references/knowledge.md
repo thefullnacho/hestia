@@ -3,8 +3,8 @@
 ## Our program (Lhasa Apso, a small/toy breed)
 The full, authoritative roster is in the WHO & WHAT block of the system prompt — read
 names, AKC numbers, DOBs, and litter counts from there, not from here. In brief:
-- **Lily** and **Fiona** are the **dams** (Fiona's first pairing with Bodhi is planned,
-  no litters yet). **Bodhi** is the **sire**. **Momo** is a retired/neutered male — not
+- **Lily** and **Fiona** are the **dams** (Fiona has been bred to Bodhi for her first
+  litter; her breeding and due dates are in `records`, not here). **Bodhi** is the **sire**. **Momo** is a retired/neutered male — not
   breeding. Operating belief: one sire can cover up to ~4 dams.
 - Litters and individual puppies are tracked in `records` (the `birth` action creates a
   pup and links its dam/sire; progeny totals are computed from the actual pups/litters).

@@ -18,6 +18,17 @@ the roster in the system prompt.
 3. State the red flags plainly so they know the line where it stops being a watch and
    becomes a vet call.
 
+## Logging a breeding (a tie)
+1. Call `records` `log`: `kind='breeding'`, `did='tied'`, `subject` = the dam, `detail` = the sire
+   and anything the operator said about it. Pass `ts` for a tie that was not just now: both
+   reminders count from it.
+2. The tool files the day-28 pregnancy check and the day-56 whelp-watch itself and says so in
+   its reply ("Reminders set: ..."). Read that back in a sentence. Do not use `reminder` for
+   these. A milestone already in the past is not filed, so a reply with no "Reminders set"
+   line means nothing was due to file, not that something failed.
+3. If the pregnancy check comes back negative, or the tie turns out to be wrong, cancel that
+   dam's pending reminders: `reminder` `list`, then `cancel` each by id.
+
 ## Logging a birth — the records discipline
 When a puppy is born ("Lily had a pup, 6 oz, male, by Bodhi"):
 1. Call `records` with `action='birth'`: `name` = the pup's name, `dam`, `sire`, and

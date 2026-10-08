@@ -7,7 +7,9 @@ chores, health records). Distinct from `memory`, which is for soft facts/prefere
 Actions:
   remember — create/update an entity (with aliases + attributes). "Momo is our oldest
              Lhasa Apso, born 2018." After this, 'Momo' resolves everywhere.
-  log      — record a timestamped event about a subject (sighting/chore/health/note).
+  log      — record a timestamped event about a subject (sighting/chore/health/breeding/note).
+             A tie (kind breeding, did tied) also files the dam's day-28 pregnancy check and
+             day-56 whelp-watch reminders, in code, and the reply says so.
   recent   — list recent events, optionally filtered by kind / subject / since.
   entity   — profile a named thing: its attributes, relations, and recent events.
   relate   — link two entities (e.g. a pup —sire→ Momo; a person —owns→ a pet).
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import json
 
+import breeding_followups
 import records_store as store
 
 SCHEMA = {
@@ -65,7 +68,7 @@ SCHEMA = {
                 "weight": {"type": "string", "description": "for birth: birth weight, e.g. '7.5 oz'"},
                 "color": {"type": "string", "description": "for birth: coat color/markings"},
                 "litter": {"type": "string", "description": "for birth: explicit litter name (optional; otherwise grouped by dam+sire+date)"},
-                "kind": {"type": "string", "description": "for remember: person|pet|place|species|asset. for log: sighting|chore|health|note"},
+                "kind": {"type": "string", "description": "for remember: person|pet|place|species|asset. for log: sighting|chore|health|breeding|note"},
                 "aliases": {"type": "array", "items": {"type": "string"}, "description": "other names for the entity (remember)"},
                 "attrs": {"type": "object", "description": "attributes — remember: e.g. breed, dob, relationship, interval_days (for an asset's service interval); log: e.g. count, species_specificity, confidence"},
                 "subject": {"type": "string", "description": "for log: what the event is about (a species, asset, or pet name)"},
@@ -82,6 +85,21 @@ SCHEMA = {
         },
     },
 }
+
+
+def _follow_ups() -> str:
+    """A tie just went on the books: file its pregnancy-check and whelp-watch reminders and say
+    so. The event is already written, so nothing here may fail the log; the twice-daily puppy
+    watch retries whatever this could not do."""
+    try:
+        made = breeding_followups.ensure()
+    except Exception as e:  # noqa: BLE001
+        return (f" The follow-up reminders could not be set ({type(e).__name__}); "
+                "the daily watch will retry them.")
+    if not made:
+        return ""
+    return " Reminders set: " + "; ".join(
+        f"{m['dam']} {m['what']} on {m['due_at'][:10]}" for m in made) + "."
 
 
 def _as_dict(x) -> dict | None:
@@ -202,7 +220,10 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
                 bits.append(f"· {did}")
             if location:
                 bits.append(f"@ {location}")
-            return " ".join(bits) + "."
+            reply = " ".join(bits) + "."
+            if kind == "breeding" or (did or "").lower() in breeding_followups.TIE_ACTIONS:
+                reply += _follow_ups()
+            return reply
 
         if action == "birth":
             if not name:

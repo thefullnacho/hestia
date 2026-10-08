@@ -7,6 +7,37 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-07 - a tie files its own pregnancy check and whelp-watch
+
+A dam's tie was logged a week late and no reminder followed. The day-28 pregnancy check and the
+day-56 whelp-watch for the previous litter had only existed because someone asked for them in
+conversation. Nothing in the code or the whelping skill created them, so a tie logged any other
+way got none. That is scheduling left to the model remembering, which is the thing this project
+does not do.
+
+- **`brain/breeding_followups.py`.** Reads the tie events on the books (a pet, not the sire; the
+  verbs tied, tie, bred, mated; a second tie within 10 days is the same breeding) and files the
+  day-28 and day-56 reminders as ordinary rows, spoken in the kitchen as well as pushed. It is
+  idempotent, never files a reminder whose time has passed, and skips a milestone someone already
+  set by hand for the same dam and day. `python breeding_followups.py --dry-run` shows what it
+  would do.
+- **Two triggers, one function.** The `records` tool calls it the moment a tie is logged, and its
+  reply says what was set. The twice-daily puppy watch calls it as a backstop for a tie that
+  never went through the tool (a retroactive entry, a script), whether or not a litter is young.
+  Neither can fail the log or the pup alerts. The puppy-watch timer unit is unchanged.
+- **The whelping skill** now says how to log a tie (kind breeding, did tied, `ts` = the real tie
+  date), that the reminders are filed by code and must not be made by hand, and to cancel them if
+  the pregnancy check is negative. A stale line saying a dam's first pairing was only planned is
+  corrected.
+- 13 new tests, with the three failure modes that matter broken on purpose to confirm they are
+  caught; the full suite is 591 passing. The current breeding's two reminders were filed against
+  the live database after a dry run showed exactly those two.
+- Merged into the checkout the brain and the puppy watch run from on 2026-10-07. The puppy watch
+  picks it up at its next run. The brain was stopped on purpose, so it picks it up when it is
+  next started. The filed reminders fire regardless, from the reminders timer.
+
+---
+
 ## 2026-10-06 - the board pages, and a row can be waved past without closing it
 
 The board showed five rows a column and then a dead "+16 more" and "+23 more". The queue could
