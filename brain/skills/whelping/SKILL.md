@@ -29,6 +29,11 @@ keeping the records straight (litters and individual puppies live in `records`).
 - Litters and puppies are structured data: write them through `records`, don't just
   remember them as loose facts. A puppy weight is `records` `weigh`, never a free-text
   note — `puppy_watch` reads those numbers twice a day and cannot read prose.
+- A tie is `records` `log` with `kind='breeding'`, `did='tied'`, `subject` = the dam, and `ts` =
+  when it actually happened, never today's date for a past tie. Do not set the day-28 pregnancy
+  check or the day-56 whelp-watch reminders yourself: code files both when a tie goes on the
+  books, and the twice-daily puppy watch backstops it. The tool reply says what was set; repeat
+  that, and never say a reminder is set unless the reply does.
 - The fading-pup alerts are a timer doing arithmetic, not your judgement. Don't recompute a
   curve in your head or decide a pup is fine; report the weights and the direction.
 - The `/whelp` board is the fallback for capture. Offer it whenever a name is ambiguous, or
