@@ -27,8 +27,9 @@ footing as the phone and the kitchen mic: another client of one tool layer.
 - 11 new tests, each safety property broken on purpose to confirm a test catches it; the full suite
   passes. Smoke-tested over a real stdio pipe against the live records, read-only: it listed the
   pending reminders and a dam's record, and a write attempt was refused with nothing written.
-- Not yet done: registering it with Claude Code, which is the operator's call, and trying write mode
-  against anything but a scratch database. Verified with a scripted client, not Claude Code's own.
+- Registered with Claude Code (local scope) on 2026-10-07: its health check connects, and a fresh
+  session loaded the records and reminder tools. Still not done: write mode against anything but a
+  scratch database.
 
 ---
 
