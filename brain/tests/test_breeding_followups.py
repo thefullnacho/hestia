@@ -82,7 +82,7 @@ def test_logging_a_tie_through_the_tool_sets_the_reminders_and_says_so(db):
     dam(db)
     when = (dt.datetime.now() - dt.timedelta(days=3)).replace(microsecond=0).isoformat()
     out = records.execute("log", kind="breeding", subject="Juniper", did="tied", ts=when)
-    assert out.startswith("Logged breeding · Juniper · tied.")
+    assert out.startswith("Logged breeding · Juniper · tied · ") and "(3 days ago)" in out
     assert "Reminders set: Juniper pregnancy check on" in out and "Juniper whelp-watch on" in out
     assert len(reminders_store.pending()) == 2
     assert "Reminders set" not in records.execute("log", kind="breeding", subject="Juniper", did="tied", ts=when)
@@ -97,7 +97,8 @@ def test_the_verb_alone_is_enough_even_if_the_kind_is_wrong(db):
 
 def test_other_logs_leave_reminders_alone(db):
     dam(db)
-    assert records.execute("log", kind="health", subject="Juniper", did="weighed") == "Logged health · Juniper · weighed."
+    out = records.execute("log", kind="health", subject="Juniper", did="weighed")
+    assert out.startswith("Logged health · Juniper · weighed · ") and out.endswith("(today).")
     assert reminders_store.pending() == []
 
 

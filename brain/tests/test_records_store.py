@@ -146,3 +146,8 @@ def test_multiple_service_dates_require_separate_completions(db):
     db.log_event('service', subject='Washer', ts='2028-01-03T12:00:00', subject_kind='asset')
     assert db.due_assets(dt.datetime(2028, 1, 3)) == []
     assert db.due_assets(dt.datetime(2028, 1, 4))[0]['due_date'] == '2028-01-04'
+
+
+def test_log_event_hands_back_the_timestamp_it_stored(db):
+    assert db.log_event("note", subject="x", ts="2026-01-02T03:04:05")["ts"] == "2026-01-02T03:04:05"
+    assert db.log_event("note", subject="x")["ts"] == db.recent_events(subject="x", limit=1)[0]["ts"]

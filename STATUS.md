@@ -7,6 +7,32 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-07 - a log says what it stored, so a wrong date or name is caught on the spot
+
+After any write the brain does not relay the model's words: it answers with the tool's own
+confirmation (the receipt), so whatever the tool returns is what is shown and spoken. The `records`
+log reply was only "Logged breeding · Juniper · tied." with no date and no detail, which is how a
+tie that was dictated as "potentially pregnant" read almost the same as a real one.
+
+- **The reply now says what landed.** `Logged breeding · Juniper · tied · Mar 2, 2026 12:00 PM
+  (5 days ago) · "Tie with Rowan."` The date is in words with how long ago it is, because the reply
+  is spoken in the kitchen, and a date in the wrong decade or the future reads as wrong. The start
+  of the detail (60 characters) and the place are echoed. A timestamp that is not a date is shown as
+  given instead of hidden. `log_event` now returns the timestamp it stored to make this possible.
+- **A name the records have never seen is flagged** with the same warning the harvest log and the
+  NFC forms already use, so a mistyped dog name no longer creates a new record in silence. (The
+  follow-up reminders only file for a known dam, so the warning is also why none were set.)
+- The reply still starts with "Logged ", which is how `tool_contract` recognises a successful write.
+- **What can be audited, as it stands.** The receipt text is kept per mutating call in
+  `operations.db` (tool, status, result), so with this change that store holds the date, subject,
+  verb and detail the model chose for each record log. It keeps only a digest of the arguments, so
+  receipts are the trail. The journal logs each tool call with its argument names, not values. Reads
+  are not tracked, and the request id appears in the journal but is not shown to the client.
+- 10 new tests; the echo's date, the new-name warning and the "Logged " prefix each broken on
+  purpose to confirm a test catches it.
+
+---
+
 ## 2026-10-07 - the operator's chat becomes a window onto the brain
 
 The friction was never that the brain is local, it was that real work kept moving to the operator's

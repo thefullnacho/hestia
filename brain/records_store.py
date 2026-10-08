@@ -257,11 +257,12 @@ def log_event(kind: str, subject: str | None = None, action: str | None = None,
             created = resolve(subject, conn=c, kind=skind if strict_subject else None,
                               fuzzy=fuzzy_subject) is None
             eid = _resolve_or_create(c, subject, skind, strict=strict_subject, fuzzy=fuzzy_subject)
+        when = ts or _now()
         cur = c.execute(
             "INSERT INTO events(ts,kind,entity_id,action,detail,location,attrs,created_at) "
             "VALUES(?,?,?,?,?,?,?,?)",
-            (ts or _now(), kind, eid, action, detail, location, json.dumps(attrs or {}), _now()))
-        return {"id": cur.lastrowid, "subject": subject, "kind": kind, "created": created}
+            (when, kind, eid, action, detail, location, json.dumps(attrs or {}), _now()))
+        return {"id": cur.lastrowid, "subject": subject, "kind": kind, "created": created, "ts": when}
 
 
 # domain (from the photo Shortcut) -> the entity kind to mint the subject as if it's new.

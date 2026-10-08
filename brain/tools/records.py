@@ -17,6 +17,7 @@ Actions:
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 
 import breeding_followups
@@ -85,6 +86,48 @@ SCHEMA = {
         },
     },
 }
+
+
+def _when(ts: str) -> str:
+    """The moment an event was stored, in words, with how long ago that is, so a wrong date
+    reads as wrong. Spoken on the kitchen mic as well as shown, so no ISO strings."""
+    try:
+        t = dt.datetime.fromisoformat(ts)
+    except ValueError:
+        return ts
+    if t.tzinfo:
+        t = t.astimezone().replace(tzinfo=None)
+    days = (dt.date.today() - t.date()).days
+    rel = ("today" if days == 0 else "yesterday" if days == 1 else "tomorrow" if days == -1
+           else f"{days} days ago" if days > 1 else f"in {-days} days")
+    stamp = f"{t:%b} {t.day}, {t.year}"
+    if len(ts) > 10:
+        stamp += f" {t:%I:%M %p}".replace(" 0", " ", 1)
+    return f"{stamp} ({rel})"
+
+
+def _stored(r: dict, did: str | None, detail: str | None, location: str | None) -> str:
+    """What was actually written, as the reply to a log. After a write the brain answers with
+    this text rather than the model's own words, so it is what the operator sees and hears:
+    the date the event landed on and the start of its detail are how a wrong date, a missing
+    detail or a mistyped name gets caught on the spot. It must keep starting with "Logged "
+    because that prefix is how tool_contract recognises a successful write."""
+    bits = [f"Logged {r['kind']}"]
+    if r["subject"]:
+        bits.append(f"· {r['subject']}")
+    if did:
+        bits.append(f"· {did}")
+    bits.append(f"· {_when(r['ts'])}")
+    snippet = " ".join((detail or "").split())
+    if snippet:
+        bits.append('· "' + (snippet if len(snippet) <= 60 else snippet[:57].rstrip() + "...") + '"')
+    if location:
+        bits.append(f"@ {location}")
+    reply = " ".join(bits) + "."
+    if r["created"] and r["subject"]:
+        reply += (f"  ⚠ '{r['subject']}' wasn't a known name, so a new record was created. "
+                  "Correct me if that's a mishear.")
+    return reply
 
 
 def _follow_ups() -> str:
@@ -211,16 +254,9 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
             # small model that forgets `kind` (seen on garden observations) still records
             # the event instead of silently dropping it.
             kind = kind or "note"
-            store.log_event(kind, subject=subject, action=did, detail=detail,
-                            location=location, ts=ts, attrs=attrs)
-            bits = [f"Logged {kind}"]
-            if subject:
-                bits.append(f"· {subject}")
-            if did:
-                bits.append(f"· {did}")
-            if location:
-                bits.append(f"@ {location}")
-            reply = " ".join(bits) + "."
+            r = store.log_event(kind, subject=subject, action=did, detail=detail,
+                                location=location, ts=ts, attrs=attrs)
+            reply = _stored(r, did, detail, location)
             if kind == "breeding" or (did or "").lower() in breeding_followups.TIE_ACTIONS:
                 reply += _follow_ups()
             return reply
