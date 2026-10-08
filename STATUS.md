@@ -7,6 +7,31 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-07 - the operator's chat becomes a window onto the brain
+
+The friction was never that the brain is local, it was that real work kept moving to the operator's
+Claude Code chat and happening there by hand: one-off scripts against the records, reminders
+inserted directly, none of it through the code paths the brain uses. This puts that chat on the same
+footing as the phone and the kitchen mic: another client of one tool layer.
+
+- **`brain/mcp_server.py`.** A stdio MCP server whose tool list is built from `tools.SCHEMAS` and
+  whose calls go through `tools.dispatch`, so the chat gets the brain's argument validation and its
+  side effects (a tie logged from the chat files its follow-up reminders). Hand-rolled JSON-RPC, no
+  new dependency. No listener, so the network boundary is unchanged.
+- **Read-only by default.** Each tool's action enum is narrowed to the actions that only read, and
+  the client is shown that. `HESTIA_MCP_WRITES=1` opens the rest; every call that changes anything
+  is appended to an audit log first (tool and arguments, never results) and is refused if the log
+  cannot be written. The client's own tool approvals still stand in front of every call.
+- **Default deny.** Only the tools in its `READ_ONLY` table are offered. `search` is left out, there
+  is no shell, and a test fails when a tool is added to the brain without being classified.
+- 11 new tests, each safety property broken on purpose to confirm a test catches it; the full suite
+  passes. Smoke-tested over a real stdio pipe against the live records, read-only: it listed the
+  pending reminders and a dam's record, and a write attempt was refused with nothing written.
+- Not yet done: registering it with Claude Code, which is the operator's call, and trying write mode
+  against anything but a scratch database. Verified with a scripted client, not Claude Code's own.
+
+---
+
 ## 2026-10-07 - a tie files its own pregnancy check and whelp-watch
 
 A dam's tie was logged a week late and no reminder followed. The day-28 pregnancy check and the

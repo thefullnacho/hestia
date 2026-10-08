@@ -38,6 +38,7 @@ bulk-touched. Control those one at a time, by name.
 | `brain/tools/` | One module per scoped tool: calendar, home, media, memory, records, recipe, reminder, search, shopping, status, weather. `skill.py` dispatches skill packs |
 | `brain/skills/` | The brain's own skill packs (almanac, garden_bed, home_control, media, recipe, whelping, wildlife). **Not** Claude Code skills |
 | `brain/nfc.py`, `brain/whelp_form.py` | No-LLM capture surfaces: plain forms that POST straight to the stores. **Never** route these through the model |
+| `brain/mcp_server.py` | Stdio MCP server offering the same tool registry to the operator's Claude Code. Read-only unless `HESTIA_MCP_WRITES=1`; writes are audited. A tool added to `brain/tools/` must be classified in its `READ_ONLY` or `EXCLUDED` |
 | `brain/*_store.py` | SQLite stores — records, memory, reminders |
 | `brain/voice/` | Whisper STT, Chatterbox-Turbo TTS, Piper CPU fallback. Separate venv and pyproject |
 | `deploy/systemd/` | Units and timers: brain, ollama, briefing, journal, reminders, garden-watch, puppy-watch, box-watch, backup, whisper, chatterbox, piper |

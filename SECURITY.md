@@ -33,6 +33,16 @@ follows redirects. Without this, a prompt-injected web page could tell the model
 unauthenticated internal endpoints (Ollama, the brain's own inbox, media admin panels) and repeat
 the contents back.
 
+**The operator's MCP server is a window onto the same tools, not a new door.** `brain/mcp_server.py`
+offers the brain's tool registry to the operator's own Claude Code over stdio, so work done in that
+chat goes through the same validation and side effects as a request to the brain. It opens no
+listener, so the network boundary does not move. It is read-only unless `HESTIA_MCP_WRITES=1`, and
+then every call that changes something is written to an audit log first and refused if the log
+cannot be written. It offers only the tools named in its `READ_ONLY` table (default deny, with
+`search` and any shell left out), and a test fails when a tool is added to the brain without
+deciding whether the operator gets it. What the operator's chat reads goes wherever that chat
+goes, which is an operator-side choice; the brain itself still calls nothing outside the house.
+
 ## Tokens & secrets
 
 - All secrets live in `secrets/` (HA token, `*arr`/media creds, ingest token, service hosts).
