@@ -20,14 +20,15 @@ entry further down, so this is the index and the open edges, not the story again
   say what was stored. The brain was restarted onto that last change at 21:50 and is healthy. The
   suite is 620 passing.
 - **In flight:** MCP write mode has never run against live data, so its audit log does not exist yet.
-  The board's page turn, wrap, Later and Keep were exercised in tests and a simulated tap flow, not
-  by a finger on the panel. The log reply has not yet had a real log on the live box. An
+  The board's page turn and Later were checked by hand on the Kindle on 2026-10-06; Keep on an old
+  "still real?" row has only been exercised in tests and a simulated tap flow. The log reply has not
+  yet had a real log on the live box. An
   unparseable `ts` is still stored as given (the reply now shows it; rejecting it is undecided).
   The merged feature branches are still on origin and safe to delete.
-- **Next concrete action:** the operator's three checks below, then decide on write mode.
+- **Next concrete action:** the operator's three checks below (Keep, a real log, then write mode).
 
-[non-production] On the Kindle, tap "next >" until a column wraps, send one ordinary row Later (it
-drops to the back for 7 days) and press Keep on one old "still real?" row (14 days).
+[non-production] On the Kindle, press Keep on one old "still real?" row; it should drop to the back
+for 14 days (paging and Later are already confirmed).
 [non-production] Log one real thing by voice or phone and read the date and detail echoed back.
 [non-production] After a few days of read-only use, decide whether to turn on MCP write mode.
 [non-production] Book the vet for the current pregnancy check before its day-28 reminder fires
