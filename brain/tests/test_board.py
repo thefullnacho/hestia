@@ -298,3 +298,45 @@ def test_the_selection_band_hides_the_page_feet_it_covers(tmp_path, monkeypatch)
     board.render(rows, [], NOW, selected=rows[0]["key"], note=rows[0]["detail"], hits=hits)
     assert not any(h["item"].get("page") for h in hits)
     assert hits[0]["item"]["choice"] == "later"
+
+
+# ── rhythm prefixes ("Peak", "Off-peak") are a slot, not part of the title ───────────────
+
+def test_a_rhythm_prefix_is_stripped_from_the_title_in_every_shape_it_is_written():
+    cases = {
+        "**Peak, 30 min: write the about page.** Some detail after it.": "Write the about page",
+        "**Off-peak, 2 min, voice or phone: log one thing.** More detail.": "Log one thing",
+        "**Off peak, no rush, after a few days of use: decide on writes.**": "Decide on writes",
+        "**peak: build the box**": "Build the box",
+        "**OFF-PEAK, 5 min: check the sensor**": "Check the sensor",
+        "Off-peak, 5 min: reply to the thread. More words after the stop.": "Reply to the thread",
+    }
+    for item, title in cases.items():
+        assert board.title_of(item) == title, item
+
+
+def test_a_title_that_merely_starts_with_the_word_is_left_alone():
+    assert board.title_of("**Peak District trip: plan the route**") == "Peak District trip: plan the route"
+    assert board.title_of("**Peaking early: tune the sensor**") == "Peaking early: tune the sensor"
+    assert board.title_of("**Peak** is the word we use for the window") == "Peak"  # nothing after it to strip
+
+
+def test_the_older_slot_prefixes_still_strip():
+    assert board.title_of("**Morning, hands: pot the rosemary**") == "Pot the rosemary"
+    assert board.title_of("**12:00 or 15:00: reply in the thread**") == "Reply in the thread"
+    assert board.title_of("**Late November, morning: photograph the winterizing**") == "Photograph the winterizing"
+
+
+def test_the_rhythm_word_does_not_pick_the_column_the_verb_and_the_job_do():
+    text = """## Open
+
+| Added | Project | Item | Days open | Done |
+|---|---|---|---|---|
+| 2026-09-20 | p | **Off-peak, 5 min: decide on the write mode** | - | |
+| 2026-09-20 | p | **Peak, 20 min: pot the rosemary** | - | |
+| 2026-09-20 | p | **Off-peak, 2 min: pot the cuttings** | - | |
+| 2026-09-20 | p | **Peak, 20 min: reply to the forum thread** | - | |
+"""
+    cols = {i["title"]: i["column"] for i in board.queue_items(text, TODAY)}
+    assert cols == {"Decide on the write mode": "screen", "Pot the rosemary": "hands",
+                    "Pot the cuttings": "hands", "Reply to the forum thread": "screen"}

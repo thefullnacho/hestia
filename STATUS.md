@@ -7,6 +7,26 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-08 - the board stops showing "Peak" and "Off-peak" in its row titles
+
+The operator's queue moved from clock times to two rhythm windows, so new rows open with `Peak,` or
+`Off-peak,` and a few words of detail before the colon. The board's slot stripper only knew the old
+forms, so those prefixes showed in the Kindle titles and on the phone page.
+
+- **`brain/board.py`.** `_SLOT` now strips `Peak` and `Off-peak` (also `off peak`, any case) when the
+  word is followed by a comma or colon, so a title that merely starts with it, like "Peak District
+  trip", is left alone. The older prefixes behave as before.
+- **The rhythm word does not pick a column.** The column still comes from the row's verb and its
+  physical keywords. Stripping the prefix exposes the real first word, so a row that opens with
+  "decide" or "reply" now reads as screen work from its verb, as intended. Against a copy of the live
+  queue, every peak-style row titled cleanly and no row changed column.
+- 4 new tests; the regex removed, and then only its guard removed, to confirm each is caught. The
+  full suite passes.
+- Takes effect on the Kindle when `hestia-board-push` restarts, and on the phone page and the board
+  PNG when the brain restarts, once this branch is in the checkout they run from.
+
+---
+
 ## 2026-10-08 - session close: what is live, what is in flight, what comes next
 
 Everything below landed on `main` on 2026-10-07 and is running on the box. Each item has its own

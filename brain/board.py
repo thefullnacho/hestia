@@ -74,9 +74,15 @@ def _font(weight: str, size: int) -> ImageFont.FreeTypeFont:
 
 _ROW = re.compile(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
+# A row may open with the slot it belongs in, which is not part of its title. Old rows name a
+# time of day or a clock time. New rows name a rhythm window, "Peak" or "Off-peak" (the hours
+# live in the operator's rhythm notes, not here), followed by a comma or colon so a title that
+# merely starts with the word, like "Peak District trip", is left alone. The rhythm word does
+# not pick a column: that is what the row asks of the operator's attention, read from its verb.
 _SLOT = re.compile(
-    r"^(?:(?:morning|evening|afternoon|tonight|late \w+|\w+ or \w+ morning|after [^:]{0,60}|"
-    r"when [^:]{0,80})[^:]{0,60}:|\d{1,2}:\d{2}(?: or \d{1,2}:\d{2})?(?: on [^:,]+)?[,:]?)\s*",
+    r"^(?:(?:morning|evening|afternoon|tonight|(?:off[- ]?)?peak(?=[,:])|late \w+|\w+ or \w+ morning|"
+    r"after [^:]{0,60}|when [^:]{0,80})[^:]{0,60}:|"
+    r"\d{1,2}:\d{2}(?: or \d{1,2}:\d{2})?(?: on [^:,]+)?[,:]?)\s*",
     re.IGNORECASE)
 _SCREEN_SLOT = re.compile(r"\b1[25]:00\b")
 _SCREEN_VERB = re.compile(
