@@ -19,9 +19,12 @@ Posture (SECURITY.md has the long version):
 Wire: newline-delimited JSON-RPC 2.0, the MCP stdio transport. Handled: initialize, ping,
 tools/list and tools/call. Notifications are accepted and never answered.
 
-Register it with Claude Code, from the repo root (local scope keeps it out of git):
-    claude mcp add --scope local hestia -- uv run --project brain python brain/mcp_server.py
-and add `--env HESTIA_MCP_WRITES=1` before the name to turn writes on. To see it speak by hand:
+Register it with Claude Code, from the repo root (local scope keeps it out of git). $PWD makes
+the paths absolute, which matters: a relative path resolves against wherever the session starts,
+so it connects from the repo root and fails from brain/:
+    claude mcp add --scope local hestia -- uv run --project "$PWD/brain" python "$PWD/brain/mcp_server.py"
+and add `--env HESTIA_MCP_WRITES=1` before the name to turn writes on. It is registered per
+project, so a session started in another repo does not see it. To see it speak by hand:
     echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | uv run --project brain python brain/mcp_server.py
 """
 from __future__ import annotations
