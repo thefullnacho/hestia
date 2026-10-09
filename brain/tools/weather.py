@@ -26,6 +26,16 @@ OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
 # Thresholds (°F). Frost can damage tender crops a few degrees above a hard freeze.
 FROST_F = float(os.environ.get("FROST_F", "36"))
 FREEZE_F = float(os.environ.get("FREEZE_F", "32"))
+# The forecast is a grid cell, the yard is one spot in it, and on a clear calm night the spot
+# runs colder. On 2026-10-07 the forecast the morning before said 41°F and the nearest station
+# read 35.6°F, so a frost line compared straight against the forecast never fired. A low within
+# this margin of FROST_F is possible frost. 6 is the smallest whole margin that would have
+# caught that night; garden_watch logs forecast against observed so it can be re-set from data.
+FROST_MARGIN_F = float(os.environ.get("FROST_MARGIN_F", "6"))
+# Possible frost is only said for the next two nights. Today's row is left out: its low is the
+# dawn the 7am run has just watched happen. A forecast this close to the line five days out
+# moves too much to act on.
+NEAR_FROST_NIGHTS = 2
 RAIN_MIN_IN = 0.1  # ignore trace amounts when summarizing "rain coming"
 
 SCHEMA = {
@@ -129,11 +139,47 @@ def active_alerts() -> list[dict] | None:
 
 
 def first_freeze(rows: list[dict]) -> dict | None:
-    """First day at/below the frost threshold, with a freeze/frost label."""
-    for row in rows:
+    """First night worth protecting crops for, labelled freeze, frost, or near.
+
+    A low at or under FROST_F counts anywhere in the rows. A low within FROST_MARGIN_F above
+    it counts as "near" (possible frost), but only for the NEAR_FROST_NIGHTS rows after today.
+    The earliest one wins, because that is the first night the covers have to go on."""
+    for i, row in enumerate(rows):
         if row["lo"] <= FROST_F:
             return {**row, "kind": "freeze" if row["lo"] <= FREEZE_F else "frost"}
+        if 1 <= i <= NEAR_FROST_NIGHTS and row["lo"] <= FROST_F + FROST_MARGIN_F:
+            return {**row, "kind": "near"}
     return None
+
+
+def station_low(day: dt.date) -> float | None:
+    """Lowest temperature (°F) the nearest NWS station read over a local calendar day.
+
+    A real thermometer, not a model, so garden_watch can measure how far the forecast runs
+    warm here. The calendar day matches how Open-Meteo bounds its daily low. None when the
+    station has no readings for the day or cannot be reached."""
+    h = {"User-Agent": _UA, "Accept": "application/geo+json"}
+    try:
+        station = os.environ.get("GARDEN_OBS_STATION")
+        if not station:
+            pt = httpx.get(f"https://api.weather.gov/points/{LAT:.4f},{LON:.4f}",
+                           headers=h, timeout=15, follow_redirects=True)
+            pt.raise_for_status()
+            st = httpx.get(pt.json()["properties"]["observationStations"],
+                           headers=h, timeout=15, follow_redirects=True)
+            st.raise_for_status()
+            station = st.json()["features"][0]["properties"]["stationIdentifier"]  # nearest first
+        start = dt.datetime.combine(day, dt.time()).astimezone()
+        ob = httpx.get(f"https://api.weather.gov/stations/{station}/observations", headers=h,
+                       params={"start": start.isoformat(),
+                               "end": (start + dt.timedelta(days=1)).isoformat()},
+                       timeout=20, follow_redirects=True)
+        ob.raise_for_status()
+        temps = [f["properties"]["temperature"]["value"] for f in ob.json().get("features", [])]
+        temps = [c for c in temps if c is not None]
+    except Exception:  # noqa: BLE001 — a missing reading is logged as missing, never guessed
+        return None
+    return round(min(temps) * 9 / 5 + 32, 1) if temps else None
 
 
 def _nice_date(iso: str) -> str:
@@ -158,8 +204,17 @@ def _rain_text(rows: list[dict]) -> str:
 def _frost_text(rows: list[dict]) -> str:
     ev = first_freeze(rows)
     if not ev:
-        return (f"No frost or freeze in the next {len(rows)} days "
+        text = (f"No frost or freeze in the next {len(rows)} days "
                 f"(lowest forecast low is {min(r['lo'] for r in rows):.0f}°F).")
+        ahead = min(rows[1:], key=lambda r: r["lo"], default=None)
+        if ahead and ahead["lo"] <= FROST_F + FROST_MARGIN_F:
+            text += (f" {_nice_date(ahead['date'])} at {ahead['lo']:.0f}°F is within "
+                     f"{FROST_MARGIN_F:.0f}° of the frost line, close enough to watch.")
+        return text
+    if ev["kind"] == "near":
+        return (f"Possible frost: {_nice_date(ev['date'])} low {ev['lo']:.0f}°F. That is above "
+                f"the {FROST_F:.0f}°F frost line, but the yard can run {FROST_MARGIN_F:.0f}° "
+                f"colder than the forecast on a clear night.")
     label = "Hard freeze" if ev["kind"] == "freeze" else "Frost"
     return f"{label} watch: {_nice_date(ev['date'])} low {ev['lo']:.0f}°F (threshold {FROST_F:.0f}°F)."
 

@@ -63,7 +63,7 @@ def _weather_facts() -> list[str]:
              f"rain {today['rain']:.2f} in ({today['pop']}% chance)."]
     ev = weather.first_freeze(rows)
     if ev:
-        label = "hard freeze" if ev["kind"] == "freeze" else "frost"
+        label = {"freeze": "hard freeze", "near": "possible frost"}.get(ev["kind"], "frost")
         facts.append(f"ALERT: {label} {weather._nice_date(ev['date'])}, "
                      f"low {ev['lo']:.0f}F.")
     wet = [r for r in rows[1:] if r["rain"] >= weather.RAIN_MIN_IN]

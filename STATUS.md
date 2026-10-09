@@ -7,6 +7,31 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-09 - the frost alert allows for the yard running colder than the forecast
+
+- **The miss:** the night of Oct 6 to 7 the yard reached about 36°F and no frost alert came. The
+  garden-watch timer ran and pushed every morning from Sep 22 to Oct 9 (journal), so it was not
+  a dead timer. The forecast was the problem: the morning before, Open-Meteo had Oct 7 at about
+  41°F, and at 7am that day it still said 37°F, while the nearest NWS station read 35.6°F. A
+  36°F line compared straight against a grid forecast cannot see a clear, calm night in one yard.
+- **On `fix/frost-margin`, not merged:** `weather.first_freeze` now also returns a "near" night,
+  a low within `FROST_MARGIN_F` (6) of `FROST_F`, for the next two nights only. 6 is the smallest
+  whole margin that would have caught Oct 7 the morning before. Today's row is left out of that
+  band because at 7am its low is the dawn that just happened. The push reads "Frost possible
+  ...", the briefing says "possible frost", and the weather tool says so in chat, including a
+  "close enough to watch" note when a near night sits further out.
+- **Measured, not guessed, from here:** each 7am run logs the forecast low it saw for the next
+  day, and on later mornings fills in what the nearest NWS station read for that day.
+  `garden_watch.py --lows` prints the log and the worst day-before miss on nights at or under
+  42°F. The station call goes to api.weather.gov, the host the weather tool already uses, so it
+  stays inside the sanctioned exception. A station is a proxy for the yard; on Oct 7 they agreed.
+- Replayed against the last two weeks of forecasts, the new rule would have pushed twice: Oct 5
+  for Oct 6 (station read 39.2°F) and Oct 6 for Oct 7 (35.6°F). Nothing else.
+- **Next concrete action:** merge and pull into the live checkout, then restart the brain so the
+  chat answer matches the push. After a few cold nights, read `--lows` and re-set the margin.
+
+---
+
 ## 2026-10-09 - the greenhouse door board gets a box, modelled from calipers
 
 - **On `main` (9305780):** `hardware/greenhouse-door-box.scad`, a printable enclosure for the door

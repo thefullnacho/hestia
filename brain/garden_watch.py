@@ -10,7 +10,13 @@ there's something to act on:
                             far less often than moisture, so an older voltage is not acted on
                             (it may already have been swapped) and a battery set that stops
                             refreshing entirely is reported as that, once
-  - Frost/freeze coming   — forecast low <= FROST_F within the horizon
+  - Frost/freeze coming   — forecast low <= FROST_F within the horizon, or within
+                            FROST_MARGIN_F of it in the next two nights. The yard runs colder
+                            than the forecast grid on a clear night: on 2026-10-07 the forecast
+                            said 41°F the morning before and the nearest station read 35.6°F,
+                            so a bare FROST_F line never fired. Each morning run also logs the
+                            day-before forecast low beside the station's observed low, so the
+                            margin can be measured (`--lows`) rather than guessed
   - Drain the rain barrels — the season's first freeze in the forecast, said twice (when it
                             first appears, and the morning before) and then never again that
                             winter. A full 55-gallon barrel that freezes can split; an
@@ -59,6 +65,7 @@ BATT_STALL_H = float(os.environ.get("GARDEN_SOIL_BATT_STALL_HOURS", "48"))  # ol
 STATE_PATH = str(config.GARDEN_STATE)
 RAIN_WINDOW_DAYS = 3  # "no rain coming" lookahead for the dry-bed test
 HORIZON = 7
+LOWS_FILL_DAYS = 6  # how far back to fill observed lows; NWS keeps about a week
 _HDRS = {"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"}
 
 
@@ -262,6 +269,55 @@ def barrel_alert(rows: list[dict], today: dt.date, persist: bool) -> str | None:
             f"the pergola barrel's spigot open or tip it over, since it keeps catching runoff.")
 
 
+def log_lows(rows: list[dict], today: dt.date) -> dict:
+    """Keep the forecast low for tomorrow, and fill in what the station read for past nights.
+
+    The forecast kept is the one the morning run sees for the next day, because the morning
+    before is when the decision to cover gets made. The observed low is filled in on a later
+    morning, once the day is over. NWS keeps about a week of station readings, so a gap older
+    than LOWS_FILL_DAYS stays a gap rather than being guessed. Same discipline as the margin
+    itself: rows, not judgement, so FROST_MARGIN_F can be re-set from this log."""
+    state = _load_state()
+    log = state.get("_lows", {})
+    if len(rows) > 1:
+        log.setdefault(rows[1]["date"], {})["forecast"] = rows[1]["lo"]
+    for day, entry in sorted(log.items()):
+        age = (today - dt.date.fromisoformat(day)).days
+        if "observed" in entry or not 0 < age <= LOWS_FILL_DAYS:
+            continue
+        low = weather.station_low(dt.date.fromisoformat(day))
+        if low is not None:
+            entry["observed"] = low
+    state["_lows"] = log
+    _save_state(state)
+    return log
+
+
+def lows_report() -> str:
+    """The forecast-against-observed log as a table, and the worst day-before miss on nights
+    cold enough to be inside the alert band, which is the number FROST_MARGIN_F has to cover."""
+    log = _load_state().get("_lows", {})
+    band = weather.FROST_F + weather.FROST_MARGIN_F
+    lines = ["date        forecast  observed  miss"]
+    misses = []
+    for day, e in sorted(log.items()):
+        f, o = e.get("forecast"), e.get("observed")
+        miss = f - o if f is not None and o is not None else None
+        if miss is not None and o <= band:
+            misses.append(miss)
+        cells = [f"{v:8.1f}" if v is not None else "       -" for v in (f, o, miss)]
+        lines.append(f"{day}  " + "  ".join(cells))
+    if misses:
+        n = len(misses)
+        lines.append(f"Worst day-before miss on nights at or under {band:.0f}°F: {max(misses):.1f}° "
+                     f"({n} night{'s' if n != 1 else ''}). The margin is "
+                     f"{weather.FROST_MARGIN_F:.0f}°.")
+    else:
+        lines.append(f"No night at or under {band:.0f}°F logged yet, so the "
+                     f"{weather.FROST_MARGIN_F:.0f}° margin is still the 2026-10-07 estimate.")
+    return "\n".join(lines)
+
+
 def saturated_alert(beds: list[tuple[str, float]], persist: bool) -> str | None:
     """Beds pegged >= SAT_PCT for SAT_DAYS consecutive *mornings*.
 
@@ -301,10 +357,20 @@ def build_alerts(persist: bool = False) -> list[str]:
     alerts: list[str] = []
 
     ev = weather.first_freeze(rows)
-    if ev:
+    if ev and ev["kind"] == "near":
+        alerts.append(f"Frost possible {weather._nice_date(ev['date'])}: forecast low "
+                      f"{ev['lo']:.0f}°F, and the yard can run {weather.FROST_MARGIN_F:.0f}° "
+                      f"colder than that. Protect tender crops.")
+    elif ev:
         label = "Hard freeze" if ev["kind"] == "freeze" else "Frost"
         alerts.append(f"{label} coming {weather._nice_date(ev['date'])}: "
                       f"low {ev['lo']:.0f}°F — protect tender crops.")
+
+    if persist:
+        try:
+            log_lows(rows, dt.date.today())
+        except Exception as e:  # noqa: BLE001 — the measurement must never cost the alert
+            print(f"garden-watch: lows log failed: {e}", file=sys.stderr)
 
     barrels = barrel_alert(rows, dt.date.today(), persist)
     if barrels:
@@ -354,6 +420,9 @@ def push(title: str, message: str) -> None:
 
 
 def main() -> int:
+    if "--lows" in sys.argv:
+        print(lows_report())
+        return 0
     dry_run = "--dry-run" in sys.argv
     alerts = build_alerts(persist=not dry_run)
     if not alerts:
