@@ -67,6 +67,10 @@ sensor:
     # once the post has its number; HA does not need six points a minute all winter.
     update_interval: 10s
     resolution: 12
+    # A DS18B20 that browns out mid-read returns exactly 85.0 °C, its power-on value. Drop it, so
+    # a flaky jumper does not put 185 °F spikes in the heat-loss data.
+    filters:
+      - filter_out: 85.0
   - platform: wifi_signal
     name: Greenhouse door Wi-Fi signal
     update_interval: 60s

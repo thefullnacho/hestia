@@ -105,10 +105,23 @@ mode: single
 
 ### The offline alert
 
-The door alert only fires when the door goes `on`. A board that loses Wi-Fi or power goes
-`unavailable` instead, which looks the same as a shut door, so a second automation watches for
-that. It covers the temperature entity too, so a probe whose connection has dropped shows up
-before the cold night rather than as a hole in the data.
+The door alert only fires when the door goes `on`. Two failures go quiet instead, and a quiet
+board looks the same as a shut door, so a second automation watches for both states:
+
+- `unavailable` on either entity means the board is gone. The node has dropped off HA's API, on
+  Wi-Fi or on power, and every entity it owns goes with it.
+- `unknown` on the temperature means the probe is gone and the board is still up. A DS18B20 that
+  stops answering on a running board (a jumper works loose) makes ESPHome publish NaN, and HA
+  shows NaN as `unknown`. A probe that was not found at boot never publishes at all, which HA
+  also shows as `unknown`. The board itself stays `available`, so watching `unavailable` alone
+  never sees this.
+
+The reed switch does not need the second state. With the internal pull-up, a broken reed lead
+leaves the pin high, which reads as open, so the door side already fails loud: a false alarm from
+the first automation, not silence.
+
+The 10 minutes also rides out the moment of `unknown` or `unavailable` every entity shows while
+HA restarts.
 
 ```yaml
 alias: Greenhouse board offline
@@ -117,19 +130,21 @@ triggers:
     entity_id:
       - binary_sensor.greenhouse_door_greenhouse_door
       - sensor.greenhouse_door_greenhouse_air_temperature
-    to: "unavailable"
+    to:
+      - "unavailable"
+      - "unknown"
     for: "00:10:00"
 actions:
   - action: notify.mobile_app_alexs_iphone
     data:
       title: Greenhouse sensor offline
-      message: "{{ trigger.to_state.name }} has been unavailable since {{ as_local(trigger.to_state.last_changed).strftime('%H:%M') }}."
+      message: "{{ trigger.to_state.name }} has been {{ trigger.to_state.state }} since {{ as_local(trigger.to_state.last_changed).strftime('%H:%M') }}."
 mode: parallel
 ```
 
 The probe connects through jumpers so the board can be swapped, and the 1-wire bus is only
-scanned at boot. A probe that was not connected when the board started never registers, so power
-cycle the board after reseating or swapping it.
+scanned at boot. A probe that was not connected when the board started never registers and sits
+at `unknown` until the board restarts, so power cycle the board after reseating or swapping it.
 
 ### Reading the number
 
