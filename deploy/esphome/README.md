@@ -103,6 +103,34 @@ actions:
 mode: single
 ```
 
+### The offline alert
+
+The door alert only fires when the door goes `on`. A board that loses Wi-Fi or power goes
+`unavailable` instead, which looks the same as a shut door, so a second automation watches for
+that. It covers the temperature entity too, so a probe whose connection has dropped shows up
+before the cold night rather than as a hole in the data.
+
+```yaml
+alias: Greenhouse board offline
+triggers:
+  - trigger: state
+    entity_id:
+      - binary_sensor.greenhouse_door_greenhouse_door
+      - sensor.greenhouse_door_greenhouse_air_temperature
+    to: "unavailable"
+    for: "00:10:00"
+actions:
+  - action: notify.mobile_app_alexs_iphone
+    data:
+      title: Greenhouse sensor offline
+      message: "{{ trigger.to_state.name }} has been unavailable since {{ as_local(trigger.to_state.last_changed).strftime('%H:%M') }}."
+mode: parallel
+```
+
+The probe connects through jumpers so the board can be swapped, and the 1-wire bus is only
+scanned at boot. A probe that was not connected when the board started never registers, so power
+cycle the board after reseating or swapping it.
+
 ### Reading the number
 
 HA's recorder purges raw states after 10 days, so export the door and temperature history within
