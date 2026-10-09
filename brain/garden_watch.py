@@ -10,7 +10,11 @@ there's something to act on:
                             far less often than moisture, so an older voltage is not acted on
                             (it may already have been swapped) and a battery set that stops
                             refreshing entirely is reported as that, once
-  - Frost/freeze coming   — forecast low <= FROST_F within the horizon
+  - Frost/freeze coming   — forecast low <= FROST_F within the horizon, or within
+                            FROST_MARGIN_F of it in the next two nights. The yard runs colder
+                            than the forecast grid on a clear night: on 2026-10-07 the forecast
+                            said 41°F the morning before and the nearest station read 35.6°F,
+                            so a bare FROST_F line never fired
   - Drain the rain barrels — the season's first freeze in the forecast, said twice (when it
                             first appears, and the morning before) and then never again that
                             winter. A full 55-gallon barrel that freezes can split; an
@@ -301,7 +305,11 @@ def build_alerts(persist: bool = False) -> list[str]:
     alerts: list[str] = []
 
     ev = weather.first_freeze(rows)
-    if ev:
+    if ev and ev["kind"] == "near":
+        alerts.append(f"Frost possible {weather._nice_date(ev['date'])}: forecast low "
+                      f"{ev['lo']:.0f}°F, and the yard can run {weather.FROST_MARGIN_F:.0f}° "
+                      f"colder than that. Protect tender crops.")
+    elif ev:
         label = "Hard freeze" if ev["kind"] == "freeze" else "Frost"
         alerts.append(f"{label} coming {weather._nice_date(ev['date'])}: "
                       f"low {ev['lo']:.0f}°F — protect tender crops.")

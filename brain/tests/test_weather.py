@@ -72,7 +72,11 @@ def test_points_url_is_rounded_and_follows_redirects(monkeypatch):
 
 
 def test_first_freeze_thresholds():
-    assert weather.first_freeze([_row("2026-04-21", 40.0)]) is None
+    band = weather.FROST_F + weather.FROST_MARGIN_F
+    today = _row("2026-04-20", 60.0)
+    assert weather.first_freeze([today, _row("2026-04-21", band + 1)]) is None
+    near = weather.first_freeze([today, _row("2026-04-21", band)])
+    assert near is not None and near["kind"] == "near"
     frost = weather.first_freeze([_row("2026-04-21", weather.FROST_F)])
     assert frost is not None and frost["kind"] == "frost"
     freeze = weather.first_freeze([_row("2026-04-21", weather.FREEZE_F)])
@@ -83,6 +87,46 @@ def test_first_freeze_returns_the_first_matching_day():
     ev = weather.first_freeze([_row("2026-04-21", 50.0), _row("2026-04-22", 31.0),
                                _row("2026-04-23", 20.0)])
     assert ev["date"] == "2026-04-22"
+
+
+def test_near_frost_is_only_said_for_the_next_two_nights():
+    """A low just above the line five days out moves too much to act on. A real frost there
+    still counts, because that one is worth planning for."""
+    near = weather.FROST_F + 2
+    mild = [_row(f"2026-10-{d:02d}", 55.0) for d in range(9, 10 + weather.NEAR_FROST_NIGHTS)]
+    assert weather.first_freeze(mild[:-1] + [_row("2026-10-11", near)])["kind"] == "near"
+    assert weather.first_freeze(mild + [_row("2026-10-12", near)]) is None
+    assert weather.first_freeze(mild + [_row("2026-10-12", 30.0)])["kind"] == "freeze"
+
+
+def test_the_dawn_that_already_happened_is_not_news():
+    """At 7am today's low is the night just ended. Only a real frost there is still said,
+    as it always was."""
+    assert weather.first_freeze([_row("2026-10-07", 37.0), _row("2026-10-08", 55.0)]) is None
+
+
+def test_near_frost_before_a_real_frost_names_the_first_night():
+    """Covers have to go on the first night at risk, not the first certain one."""
+    ev = weather.first_freeze([_row("2026-10-09", 50.0), _row("2026-10-10", 40.0),
+                               _row("2026-10-11", 34.0)])
+    assert ev["date"] == "2026-10-10" and ev["kind"] == "near"
+
+
+def test_the_october_7_miss_is_caught_the_morning_before():
+    """The night this exists for. The forecast the morning before said 41.3°F, the nearest
+    station read 35.6°F, and a bare 36°F line said nothing."""
+    ev = weather.first_freeze([_row("2026-10-06", 45.0), _row("2026-10-07", 41.3)])
+    assert ev is not None and ev["date"] == "2026-10-07"
+    assert "Possible frost" in weather._frost_text([_row("2026-10-06", 45.0),
+                                                    _row("2026-10-07", 41.3)])
+
+
+def test_a_close_night_past_the_window_is_named_not_waved_off():
+    """'Will it frost this week' must not get a flat no when Thursday sits 1° off the band."""
+    rows = [_row(f"2026-10-{d:02d}", 55.0) for d in range(9, 15)] + [_row("2026-10-15", 41.6)]
+    text = weather._frost_text(rows)
+    assert "No frost or freeze" in text
+    assert "Thu Oct 15 at 42°F is within" in text and "close enough to watch" in text
 
 
 def test_rain_text_ignores_trace():
