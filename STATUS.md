@@ -7,6 +7,31 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-09 - the greenhouse door board gets a box, modelled from calipers
+
+- **On `main` (9305780):** `hardware/greenhouse-door-box.scad`, a printable enclosure for the door
+  board, plus a section in `hardware/README.md`. It hangs on the framing with every entry on the
+  bottom: two PG7 for the reed leads, one for the probe, a spare for a second DS18B20 on the same
+  bus, and a slot the USB-C plug passes up through with a printed clamp. It drains rather than
+  seals: the floor falls to a 3 mm drain and the lid laps over the top and sides, open at the
+  bottom. The board mounts flipped on 6 mm posts, jumpers toward the lid.
+- **Measured by the operator and in the model:** board, jumper stack (34.03), breakout (holes on
+  the 22.39 edge, 15.5 apart), glands, locknut 4.9, plug 10.4, cable 2.87. The breakout spacing
+  and the cable both changed the geometry, not just a number: the posts had been 1.2 mm off each
+  hole, and the clamp's V-groove could not have gripped a 2.87 cable.
+- **Checked by render, not by print:** all three parts compile to manifold STLs, and intersecting
+  the box with stand-ins for the board, breakout, locknuts, gland bodies and plug path comes back
+  empty. The file asserts the gland thread budget (1.5 mm spare), the clamp's grip range, and the
+  gland pitch that lets a driver reach the bottom ears with the glands fitted. 134 x 57 x 47 mm
+  with the lid on. No slicer here, so the print time is an estimate: 4 to 5 hours, about 140 g.
+- Still guesses, with slack: the module height and the USB-C socket height above the PCB.
+- **Next concrete action:** print the box, lid and clamp in PETG, then fit the board and glands.
+  The first print is the real fit check.
+
+[non-production] Print box, lid and clamp in PETG (in the operator's queue), then fit it.
+
+---
+
 ## 2026-10-08 - the peak titles are live, and the valve automation stays gated
 
 - **Live:** the Peak and Off-peak title fix is running on the Kindle (redrawn 15:35, after one failed
