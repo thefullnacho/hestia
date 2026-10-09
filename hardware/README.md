@@ -205,18 +205,17 @@ you when the lid comes off.
 
 ### Measure before printing
 
-These were not measured yet. Each is a `MEASURE` variable at the top of the file. `module_h`
-and `usb_rise` are marked too, but there is a millimetre of slack around both.
+The locknut (4.9 mm) and the breakout's holes (on the 22.39 edge, 15.5 apart) are measured.
+Two numbers are still `MEASURE` variables at the top of the file:
 
-- **`nut_t`, the PG7 locknut thickness**, assumed 5. Floor + locknut + sealing washer has to
-  fit the 14 mm thread, and the file refuses to render when it does not. At 5 there is 1.4 mm
-  spare, at 6 only 0.4.
-- **`bo_edge`, which side of the breakout carries the two holes.** The default assumes the
-  22.39 side, posts 17.89 apart. If it is the 20.17 side they belong 15.67 apart, and the
-  default posts miss both holes.
-- **`usb_clear` and `cable_d`, the USB-C plug and cable.** 35 mm from the board's end to the
-  cable drop covers a plug and boot of about 25 plus the bend. The clamp takes a cable 1 mm
-  either side of `cable_d` without a reprint.
+- **`usb_clear`, the USB-C plug's length.** 35 mm from the board's end to the cable drop covers
+  a plug and boot of about 25 plus the bend.
+- **`cable_d`, the power cable's diameter**, assumed 4. The clamp takes a cable 1 mm either
+  side of it without a reprint.
+
+`module_h` and `usb_rise` are marked too, but there is a millimetre of slack around both. The
+file refuses to render if floor + locknut + sealing washer outgrows the 14 mm gland thread; with
+the measured locknut there is 1.5 mm spare.
 
 ### Printing and fitting
 

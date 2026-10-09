@@ -71,12 +71,12 @@ lid_clear   = 4;     // bent jumpers to the lid
 wire_room   = 10;    // gland threads to the board, for the leads to turn up into the jumpers
 
 // DS18B20 breakout, 4.7k pull-up on board. 22.39 x 20.17, 10.9 tall with terminal and jumpers.
-bo_edge    = 22.39;  // MEASURE: length of the edge carrying the header and both holes. If the
-                     // holes are on the 20.17 side, set 20.17 and the posts close to 15.67 apart
-bo_other   = 22.39 + 20.17 - bo_edge;
-bo_hole_in = 2.25;   // hole centres in from the edges
-bo_stack   = 10.9;
-bo_post_h  = 5;      // clears the solder joints underneath
+bo_edge      = 22.39; // the edge carrying the header and both holes
+bo_other     = 20.17;
+bo_hole_span = 15.5;  // hole centres, measured; taken as centred on the edge
+bo_hole_in   = 2.25;  // hole centres in from the header edge
+bo_stack     = 10.9;
+bo_post_h    = 5;     // clears the solder joints underneath
 
 // PG7 glands. Measured 2026-10-09.
 gland_thread = 12.4;
@@ -84,7 +84,7 @@ hole_allow   = 0.4;  // printed holes come out small; raise it if the thread wil
 gland_hole   = gland_thread + hole_allow;
 thread_len   = 14;
 nut_ac       = 17.76; // locknut across corners (15.38 across flats)
-nut_t        = 5;     // MEASURE: locknut thickness, not measured. The thread check uses it
+nut_t        = 4.9;   // locknut thickness, measured. The thread check uses it
 washer_t     = 2;     // sealing washer under the gland's flange, outside
 finger       = 4;     // locknut to locknut, and locknut to anything else: a spanner jaw
 gland_cap_d  = 15.47;
@@ -168,8 +168,8 @@ lid_screws = [for (x = [wall + boss_in, W_o - wall - boss_in],
 board_c    = [board_x + board[0]/2, board_z + board[1]/2];
 board_pts  = [for (sx = [-1, 1], sz = [-1, 1])
                  [board_c[0] + sx*board_holes[0]/2, board_c[1] + sz*board_holes[1]/2]];
-bo_pts     = [for (x = [bo_x + bo_hole_in, bo_x + bo_edge - bo_hole_in])
-                 [x, bo_z + bo_other - bo_hole_in]];
+bo_pts     = [for (s = [-1, 1])
+                 [bo_x + bo_edge/2 + s*bo_hole_span/2, bo_z + bo_other - bo_hole_in]];
 ear_pts    = [for (x = [g0 + g_pitch/2, g0 + 2.5*g_pitch],
                    z = [-ear_reach, H_o + ear_reach]) [x, z]];
 
