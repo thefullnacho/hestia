@@ -178,3 +178,62 @@ a logged run.
 Write-protect the tag after encoding. Note that the URL contains the NFC token, so a
 programmed tag is a credential in physical form: it is only as private as the yard it is
 standing in, and the brain is reachable on the tailnet only.
+
+## Greenhouse door box (`greenhouse-door-box.scad`)
+
+The enclosure for the greenhouse-door ESP32 and its DS18B20 breakout (wiring and config in
+`deploy/esphome/`). It screws to the wood framing inside the greenhouse. The box is 137 mm
+across, 57 tall and 47 deep with the lid on; the lid's skirt adds 2 mm around the edge and the
+mounting ears add 14 top and bottom.
+
+Every entry is on the bottom face, pointing down, so water on a cable drips off the cable
+instead of following it in: two PG7 glands for the reed leads, one for the probe, a spare
+beside it for a second DS18B20 on the same 1-wire bus (`spare_gland`), and a slot for the
+USB-C power. The power cable has a plug on both ends and neither fits a PG7, so the slot is
+sized for the plug to come up through and a printed clamp pins the cable to a pad on the back
+wall. Its V-groove grips anything from about 3 to 5 mm.
+
+It drains rather than seals. A heated greenhouse takes this box through the dew point most
+nights, so it makes its own water whatever the glands do. The floor falls toward the lid and
+toward the power end so the 3 mm drain is the lowest point inside, there is no gasket, and the
+lid laps over the top and sides but is open along the bottom so the joint drains too.
+
+The ESP32 sits flipped: module toward the back wall on 6 mm posts, jumpers rising toward the
+lid. The other way round needs posts about 31 mm tall to clear the jumpers, and a post that
+tall prints with every layer line across it and snaps at the base. Flipped, the jumpers face
+you when the lid comes off.
+
+### Measure before printing
+
+These were not measured yet. Each is a `MEASURE` variable at the top of the file. `module_h`
+and `usb_rise` are marked too, but there is a millimetre of slack around both.
+
+- **`nut_t`, the PG7 locknut thickness**, assumed 5. Floor + locknut + sealing washer has to
+  fit the 14 mm thread, and the file refuses to render when it does not. At 5 there is 1.4 mm
+  spare, at 6 only 0.4.
+- **`bo_edge`, which side of the breakout carries the two holes.** The default assumes the
+  22.39 side, posts 17.89 apart. If it is the 20.17 side they belong 15.67 apart, and the
+  default posts miss both holes.
+- **`usb_clear` and `cable_d`, the USB-C plug and cable.** 35 mm from the board's end to the
+  cable drop covers a plug and boot of about 25 plus the bend. The clamp takes a cable 1 mm
+  either side of `cable_d` without a reprint.
+
+### Printing and fitting
+
+PETG, no supports. Box on its back with the open side up, lid on its outside face, clamp flat.
+0.2 mm layers, 4 perimeters, 20% infill. Roughly 140 g of PETG.
+
+The ears sit over the gaps between glands, so a straight driver still reaches the bottom two
+with the glands fitted. The USB-C plug goes up through the slot from below and into the board,
+and the clamp goes on last. Until there is a second probe, fill the spare hole with a PG7
+blanking plug, or a gland with a stub of 5 mm rod in its seal, rather than leaving a 13 mm
+hole open.
+
+```sh
+openscad -o box.stl   -D 'part="box"'   hardware/greenhouse-door-box.scad
+openscad -o lid.stl   -D 'part="lid"'   hardware/greenhouse-door-box.scad
+openscad -o clamp.stl -D 'part="clamp"' hardware/greenhouse-door-box.scad
+```
+
+`part="all"` shows the assembly with the boards, glands and plug drawn in, to check the fit
+after changing a number. Every render prints the outside size and the thread check.
