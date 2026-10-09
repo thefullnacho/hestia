@@ -182,7 +182,7 @@ standing in, and the brain is reachable on the tailnet only.
 ## Greenhouse door box (`greenhouse-door-box.scad`)
 
 The enclosure for the greenhouse-door ESP32 and its DS18B20 breakout (wiring and config in
-`deploy/esphome/`). It screws to the wood framing inside the greenhouse. The box is 137 mm
+`deploy/esphome/`). It screws to the wood framing inside the greenhouse. The box is 134 mm
 across, 57 tall and 47 deep with the lid on; the lid's skirt adds 2 mm around the edge and the
 mounting ears add 14 top and bottom.
 
@@ -191,7 +191,7 @@ instead of following it in: two PG7 glands for the reed leads, one for the probe
 beside it for a second DS18B20 on the same 1-wire bus (`spare_gland`), and a slot for the
 USB-C power. The power cable has a plug on both ends and neither fits a PG7, so the slot is
 sized for the plug to come up through and a printed clamp pins the cable to a pad on the back
-wall. Its V-groove grips anything from about 3 to 5 mm.
+wall. Its V-groove is sized from the measured cable and takes half a millimetre either way.
 
 It drains rather than seals. A heated greenhouse takes this box through the dew point most
 nights, so it makes its own water whatever the glands do. The floor falls toward the lid and
@@ -203,19 +203,20 @@ lid. The other way round needs posts about 31 mm tall to clear the jumpers, and 
 tall prints with every layer line across it and snaps at the base. Flipped, the jumpers face
 you when the lid comes off.
 
-### Measure before printing
+### Measurements
 
-The locknut (4.9 mm) and the breakout's holes (on the 22.39 edge, 15.5 apart) are measured.
-Two numbers are still `MEASURE` variables at the top of the file:
+Everything that sets the fit was measured with calipers on 2026-10-09: the board and its
+jumper stack, the breakout (holes on the 22.39 edge, 15.5 apart), the glands and a 4.9 mm
+locknut, a 10.4 mm USB-C plug and a 2.87 mm power cable. `module_h` and `usb_rise` are still
+guesses, marked `MEASURE`, with a millimetre of slack around both.
 
-- **`usb_clear`, the USB-C plug's length.** 35 mm from the board's end to the cable drop covers
-  a plug and boot of about 25 plus the bend.
-- **`cable_d`, the power cable's diameter**, assumed 4. The clamp takes a cable 1 mm either
-  side of it without a reprint.
+The width comes from the gland row: locknuts 6.5 mm apart at the corners, which is what lets a
+6 mm screwdriver shank pass between two fitted glands to the bottom ears. That leaves 32 mm
+between the board's end and the cable drop, where the plug and its bend need about 22.
 
-`module_h` and `usb_rise` are marked too, but there is a millimetre of slack around both. The
-file refuses to render if floor + locknut + sealing washer outgrows the 14 mm gland thread; with
-the measured locknut there is 1.5 mm spare.
+The file refuses to render if floor + locknut + sealing washer outgrows the 14 mm gland thread
+(1.5 mm spare as measured), or if a different `cable_d` would leave the clamp unable to grip.
+A swapped power cable within half a millimetre of 2.87 needs no reprint.
 
 ### Printing and fitting
 

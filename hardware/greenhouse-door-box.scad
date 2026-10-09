@@ -24,8 +24,8 @@
 //
 // The power cable has a plug on both ends and neither fits a PG7, so it comes up through a
 // slot the USB-C plug fits through, and a printed clamp pins the cable to a pad on the back
-// wall. The clamp's V-groove grips anything from about 3 to 5 mm and never bottoms out on its
-// bosses, so the screws keep pulling until the cable is held, whatever it measures.
+// wall. The clamp's V-groove is sized from the measured cable, takes half a millimetre either
+// way, and never bottoms out on its bosses, so the screws keep pulling until the cable is held.
 //
 // Modelled as it hangs: x across, y out from the wall toward the lid, z up. `part` turns each
 // piece onto its print face. "all" shows the assembly with the boards and glands as ghosts,
@@ -65,8 +65,6 @@ pcb_t       = 1.6;
 standoff    = 6;     // back wall to the PCB, module side. Clears the module and the USB plug
 standoff_d  = 4.6;   // post top. At the module end the module's edge is 2.8 from the hole
 usb_rise    = 1.6;   // MEASURE if the plug rubs the back wall: USB-C centre above the PCB
-usb_clear   = 35;    // board's USB end to where the cable turns straight down: plug, boot and
-                     // bend. MEASURE the plug you will use; a long strain-relief boot needs more
 lid_clear   = 4;     // bent jumpers to the lid
 wire_room   = 10;    // gland threads to the board, for the leads to turn up into the jumpers
 
@@ -87,17 +85,21 @@ nut_ac       = 17.76; // locknut across corners (15.38 across flats)
 nut_t        = 4.9;   // locknut thickness, measured. The thread check uses it
 washer_t     = 2;     // sealing washer under the gland's flange, outside
 finger       = 4;     // locknut to locknut, and locknut to anything else: a spanner jaw
+driver       = 6.5;   // screwdriver shank, between two fitted glands on its way to a bottom ear
 gland_cap_d  = 15.47;
 
 // Power. The USB-C overmold is 10.09 x 5.5 (11.5 across the diagonal).
 plug        = [10.09, 5.5];
 plug_fit    = 0.6;   // slot clearance, each side
-cable_d     = 4.0;   // MEASURE: not measured. The clamp copes with about 3 to 5
+plug_len    = 10.4;  // overmold and boot, the part that stands out of the socket. Measured
+bend_r      = 12;    // the cable's turn down to the clamp, about 4 diameters
+cable_d     = 2.87;  // measured
+cable_tol   = 0.5;   // the clamp grips cable_d give or take this much, for a swapped cable
 clamp_pitch = 20;    // clamp screw centres; the plug passes up between the bosses
 clamp_w     = 9;     // along the cable
 bar_t       = 4;
 tooth_h     = 5;
-v_depth     = 2.8;   // deep enough to grip 3 to 5 mm without the tooth landing on the pad
+v_depth     = 0.6*cable_d; // grips the whole tolerance without the tooth landing on the pad
 squeeze     = 0.4;
 
 // Lid
@@ -136,13 +138,14 @@ slot  = [plug[0] + 2*plug_fit, plug[1] + 2*plug_fit];
 cab_x = reach + 0.5 + slot[0]/2;                  // power cable, clear of the corner boss
 clamp_z   = reach + 1 + clamp_w/2;
 gland_top = thread_len - washer_t;                // thread tip, above the bottom face
-board_x   = cab_x + usb_clear;
 board_z   = gland_top + wire_room;
 bo_z      = gland_top + 8;
 
 g0     = cab_x + slot[0]/2 + finger + nut_ac/2;   // first gland centre
-band_w = board_x + board[0] + 4 + bo_edge + 3 + wall;
-row_w  = g0 + 3*(nut_ac + finger) + nut_ac/2 + finger + reach;
+// The ears sit between glands, so the pitch has to pass a driver as well as clear the nuts.
+pitch_min = nut_ac + max(finger, driver);
+band_w = cab_x + plug_len + bend_r + board[0] + 4 + bo_edge + 3 + wall;
+row_w  = g0 + 3*pitch_min + nut_ac/2 + finger + reach;
 W_o    = max(band_w, row_w);
 H_o    = max(board_z + board[1], bo_z + bo_other) + 4 + wall;
 W_i    = W_o - 2*wall;
@@ -153,6 +156,7 @@ gland_y = D_b/2;
 // Reed, reed, spare, probe. The probe and the spare end up nearest the breakout's terminal.
 glands  = [for (i = [0:3]) if (spare_gland || i != 2) g0 + i*g_pitch];
 bo_x    = W_o - wall - 3 - bo_edge;
+board_x = bo_x - 4 - board[0];   // up against the breakout, so any slack goes to the plug's bend
 
 function floor_z(x, y) = wall + fall_x*(x - wall)/W_i + fall_y*(D_b - y)/D_i;
 function nut_seat(x) = floor_z(x + nut_ac/2, gland_y - nut_ac/2);  // highest floor under a nut
@@ -160,7 +164,7 @@ drain = [reach + 0.5 + drain_d/2, D_b - drain_d/2 - 1];
 
 // Where the V's point sits when it rests on a cable of diameter d lying on the pad.
 function v_apex(d) = pad_y + d/2*(1 + sqrt(2));
-boss_top = v_apex(cable_d - 1) - v_depth - squeeze + tooth_h - 0.5; // under the bar even at -1 mm
+boss_top = v_apex(cable_d - cable_tol) - v_depth - squeeze + tooth_h - 0.5; // stays under the bar
 bar_y    = v_apex(cable_d) - v_depth - squeeze + tooth_h + bar_t;   // bar's outer face, nominal
 
 lid_screws = [for (x = [wall + boss_in, W_o - wall - boss_in],
@@ -183,14 +187,20 @@ assert(thread_need <= thread_len,
 assert(standoff - module_h >= 0.5, "the module would touch the back wall: raise standoff");
 assert(standoff - usb_rise - plug[1]/2 >= 0.5, "the USB plug would rub the back wall");
 assert(pad_y >= wall, "cable_d too fat for this standoff: no room for the clamp pad");
-assert(g_pitch >= nut_ac + finger, "glands too close: locknuts will not clear");
-assert(v_apex(cable_d - 1) - v_depth - squeeze > pad_y, "V too deep: the tooth lands on the pad");
+assert(g_pitch >= pitch_min - 0.001,
+       "glands too close for the locknuts, or for a driver to the ears");
+assert(v_apex(cable_d - cable_tol) - v_depth - squeeze > pad_y,
+       "V too deep: the tooth lands on the pad before it grips the thinnest cable");
+assert(v_depth >= (cable_d + cable_tol)/2*sqrt(0.5), "V too shallow for the fattest cable");
+assert(board_x - cab_x >= plug_len + bend_r, "no room for the USB plug and its bend");
 if (g3 < bo_x || g3 > bo_x + bo_edge)
     echo("WARNING: the probe gland is no longer under the breakout");
 echo(str("Box: ", r1(W_o), " wide x ", r1(H_o), " tall x ", r1(D_b + lid_t),
          " deep with the lid. Ears add ", ear_reach + ear_w/2, " top and bottom"));
 echo(str("Gland pitch ", r1(g_pitch), ", first locknut clears the next by ",
          r1(g_pitch - nut_ac), " mm. Ears ", r1(2*g_pitch), " apart"));
+echo(str("Board edge to cable drop: ", r1(board_x - cab_x), " mm for a ", plug_len,
+         " plug and its bend"));
 
 // ---------------------------------------------------------------------------------------
 
@@ -303,8 +313,8 @@ module ghosts() {
         cube([25.5, module_h, 18]);
     color("orange", 0.35) translate([board_x, py + pcb_t, board_z])
         cube([board[0], stack - module_h - pcb_t, board[1]]);
-    color("dimgray") translate([board_x - 25, cab_y - plug[1]/2, board_c[1] - plug[0]/2])
-        cube([25, plug[1], plug[0]]);
+    color("dimgray") translate([board_x - plug_len, cab_y - plug[1]/2, board_c[1] - plug[0]/2])
+        cube([plug_len, plug[1], plug[0]]);
     color("dimgray") translate([cab_x, cab_y, -25])
         cylinder(d = cable_d, h = clamp_z + clamp_w/2 + 29);
     color("royalblue") translate([bo_x, wall + bo_post_h, bo_z]) cube([bo_edge, pcb_t, bo_other]);
