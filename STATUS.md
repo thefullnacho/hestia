@@ -14,7 +14,7 @@ is public. Those live in the operator's private notes.
   a dead timer. The forecast was the problem: the morning before, Open-Meteo had Oct 7 at about
   41°F, and at 7am that day it still said 37°F, while the nearest NWS station read 35.6°F. A
   36°F line compared straight against a grid forecast cannot see a clear, calm night in one yard.
-- **On `fix/frost-margin`, not merged:** `weather.first_freeze` now also returns a "near" night,
+- **On `main` (3d75e92):** `weather.first_freeze` now also returns a "near" night,
   a low within `FROST_MARGIN_F` (6) of `FROST_F`, for the next two nights only. 6 is the smallest
   whole margin that would have caught Oct 7 the morning before. Today's row is left out of that
   band because at 7am its low is the dawn that just happened. The push reads "Frost possible
@@ -27,8 +27,12 @@ is public. Those live in the operator's private notes.
   stays inside the sanctioned exception. A station is a proxy for the yard; on Oct 7 they agreed.
 - Replayed against the last two weeks of forecasts, the new rule would have pushed twice: Oct 5
   for Oct 6 (station read 39.2°F) and Oct 6 for Oct 7 (35.6°F). Nothing else.
-- **Next concrete action:** merge and pull into the live checkout, then restart the brain so the
-  chat answer matches the push. After a few cold nights, read `--lows` and re-set the margin.
+- **Next concrete action:** pull into the live checkout and restart the brain, before Tue Oct 13
+  (Thu Oct 15 is forecast 42°F, so the fix would push Tuesday and Wednesday mornings). The
+  timer and briefing pick it up on their next run; the restart is for the chat answer. After a
+  few cold nights, read `--lows` and re-set the margin.
+
+[non-production] Pull the live checkout and restart hestia-brain (in the operator's queue).
 
 ---
 
