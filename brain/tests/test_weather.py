@@ -6,6 +6,8 @@ crops cannot tell a silent failure from a real quiet night. The threshold and ra
 helpers are pure, so they are pinned here too."""
 from __future__ import annotations
 
+import datetime as dt
+
 import httpx
 import pytest
 
@@ -127,6 +129,40 @@ def test_a_close_night_past_the_window_is_named_not_waved_off():
     text = weather._frost_text(rows)
     assert "No frost or freeze" in text
     assert "Thu Oct 15 at 42°F is within" in text and "close enough to watch" in text
+
+
+def test_station_low_reads_the_coldest_reading_in_fahrenheit(monkeypatch):
+    seen = []
+
+    class _Resp:
+        def __init__(self, body):
+            self.body = body
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.body
+
+    def fake_get(url, **kw):
+        seen.append((url, kw))
+        if "/points/" in url:
+            return _Resp({"properties": {"observationStations": "https://x/stations"}})
+        if url == "https://x/stations":
+            return _Resp({"features": [{"properties": {"stationIdentifier": "KAAA"}}]})
+        return _Resp({"features": [{"properties": {"temperature": {"value": v}}}
+                                   for v in (5.0, 2.0, None, 4.0)]})
+
+    monkeypatch.delenv("GARDEN_OBS_STATION", raising=False)
+    monkeypatch.setattr(weather.httpx, "get", fake_get)
+    assert weather.station_low(dt.date(2026, 10, 7)) == 35.6
+    url, kw = seen[-1]
+    assert "/stations/KAAA/observations" in url
+    assert kw["params"]["start"].startswith("2026-10-07T00:00:00")
+
+
+def test_station_outage_is_none_not_a_reading(nws_down):
+    assert weather.station_low(dt.date(2026, 10, 7)) is None
 
 
 def test_rain_text_ignores_trace():
