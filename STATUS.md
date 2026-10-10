@@ -7,6 +7,29 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-10 - the greenhouse door board is boxed and working
+
+- **Reported by the operator, not checked from here:** box, lid and clamp printed in PETG (box
+  2 h 06 min, about 65 g), both boards lined up on their posts on the first print, and with
+  everything boxed and powered, the door and temperature both work.
+- **The model's miss:** the probe breakout has a right-angle header, so its female jumpers stick
+  out of the board's edge toward the top wall and a corner lid-screw boss. The model read the
+  measured 10.9 mm height as everything rising toward the lid and left about 14 mm past that
+  edge, about 6 at the DAT pin. The operator soldered the three leads on with a tight turn to
+  make it fit. The printed box is unchanged; `hardware/greenhouse-door-box.scad` does not yet
+  know about the header.
+- **Open decision for the final version:** grow the box so straight-out jumpers fit, or keep it
+  and say the breakout's leads get soldered. It rides with adding the Homesteader Labs mark
+  before the STL is shared.
+- **Next concrete action:** mount the box on the door frame, latch side, then the first cold
+  night with the heater on, for the 10-minute door test.
+
+[non-production] Mount the box on the greenhouse door frame. Then wait for a cold night for the
+door test.
+[non-production] Optional: stainless self-tapping screw kit (in the operator's queue).
+
+---
+
 ## 2026-10-09 - the frost alert allows for the yard running colder than the forecast
 
 - **The miss:** the night of Oct 6 to 7 the yard reached about 36°F and no frost alert came. The
