@@ -866,10 +866,14 @@ async def chat_client():
 
 
 @app.get("/icon.png")
-async def chat_icon():
-    """The home-screen / apple-touch icon for the chat PWA. Served from disk, so swapping
-    the artwork is just replacing clients/icon.png (no restart needed for the file itself)."""
-    p = config.CLIENTS_DIR / "icon.png"
+@app.get("/icon-192.png")
+@app.get("/icon-512.png")
+async def chat_icon(request: Request):
+    """The home-screen / apple-touch icons for the chat PWA. Served from disk, so swapping
+    the artwork is just replacing clients/icon*.png (no restart needed for the file itself).
+    The manifest and the service worker's shell list name the sized ones, and the worker's
+    install fails outright if any shell file 404s."""
+    p = config.CLIENTS_DIR / request.url.path.lstrip("/")
     if p.is_file():
         return FileResponse(p, media_type="image/png")
     return JSONResponse(status_code=404, content={"error": "icon not installed"})
