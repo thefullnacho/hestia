@@ -36,7 +36,10 @@ Requests without a client key are not written to the request ledger at all; thei
 operation receipts are still stored under the generated ID returned in `X-Request-ID`.
 A busy, timed-out or backend-down answer ran no write, so it is never stored as a
 key's durable answer: the client's retry runs the turn instead of replaying the failure.
-Keep keys unique for intentional new turns. Request rows are pruned after one day and
+Keep keys unique for intentional new turns. The chat app (`/app`) follows this: Send after
+a failed turn reuses the key, a 409 on that retry reads `/v1/operations/{key}` and records
+what the interrupted turn did instead of retrying, and an edited message gets a fresh key
+and replaces the failed one in the thread. Request rows are pruned after one day and
 operation receipts after seven; the ledger is private data.
 
 ## Context and routing

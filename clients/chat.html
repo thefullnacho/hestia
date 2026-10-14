@@ -523,6 +523,7 @@ const clearThreadBtn = document.getElementById("clearThreadBtn");
 let threads = loadThreads();
 let activeThreadId = getInitialActiveThreadId();
 let retryTurn = null;
+let inFlight = false;     // a turn is on the wire; Enter and the mic wait for it
 let activeSpeakBtn = null;
 let ttsAudio = null;   // one reused <audio>, unlocked on tap
 let autoNarrate = localStorage.getItem(NARRATE_KEY) === "true";
@@ -724,19 +725,28 @@ function esc(s) {
 function formatMarkdown(raw) {
   if (!raw) return "";
   const codeBlocks = [];
-  let s = raw.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+  let s = String(raw).replace(/[\u0000\u0001]/g, '').replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
     const idx = codeBlocks.length;
     codeBlocks.push('<pre><code' + (lang ? ' class="lang-' + esc(lang) + '"' : '') + '>' + esc(code.trimEnd()) + '</code></pre>');
-    return '%%CODEBLOCK_' + idx + '%%';
+    return '\u0001' + idx + '\u0001';
   });
 
+  // Inline code and links are set aside before emphasis runs, so an underscore or asterisk
+  // inside `garden_bed_notes` or a URL is never read as italics. Placeholders are control
+  // characters that no emphasis rule can match.
+  const held = [];
+  const hold = (html) => '\u0000' + (held.push(html) - 1) + '\u0000';
   s = esc(s);
-  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-  s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  s = s.replace(/_([^_]+)_/g, '<em>$1</em>');
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  s = s.replace(/`([^`]+)`/g, (_, code) => hold('<code>' + code + '</code>'));
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/(?!\/)[^\s)]*)\)/g,
+    (_, label, href) => hold('<a href="' + href + '" target="_blank" rel="noopener">' + label + '</a>'));
+  // Emphasis needs non-space just inside the markers ("2 * 3 * 4" stays arithmetic), and the
+  // underscore forms need a word boundary outside them (snake_case stays snake_case).
+  s = s.replace(/\*\*([^*\s](?:[^*]*[^*\s])?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^\w])__([^_\s](?:[^_]*[^_\s])?)__(?!\w)/g, '$1<strong>$2</strong>');
+  s = s.replace(/\*([^*\s](?:[^*]*[^*\s])?)\*/g, '<em>$1</em>');
+  s = s.replace(/(^|[^\w])_([^_\s](?:[^_]*[^_\s])?)_(?!\w)/g, '$1<em>$2</em>');
+  s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => held[Number(i)]);
 
   const lines = s.split('\n');
   const out = [];
@@ -754,7 +764,7 @@ function formatMarkdown(raw) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    if (trimmed.startsWith('%%CODEBLOCK_')) {
+    if (/^\u0001\d+\u0001$/.test(trimmed)) {
       flushP();
       if (inUl) { out.push('</ul>'); inUl = false; }
       if (inOl) { out.push('</ol>'); inOl = false; }
@@ -790,7 +800,7 @@ function formatMarkdown(raw) {
   if (inOl) out.push('</ol>');
 
   let html = out.join('\n');
-  html = html.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[Number(idx)]);
+  html = html.replace(/\u0001(\d+)\u0001/g, (_, idx) => codeBlocks[Number(idx)]);
   return html;
 }
 
@@ -895,36 +905,65 @@ async function health() {
   } catch { dot.className = "dot err"; }
 }
 
-async function submit(viaVoice = false) {
-  const text = box.value.trim();
+// A 409 on a retry means the brain still holds the key without an answer: the first attempt
+// was cut off mid-turn and is never replayed (it may have acted). Read the receipts it left so
+// the thread says what happened, instead of offering a retry that can only 409 again.
+async function interruptedNote(key) {
+  let ops = [];
+  try {
+    const r = await fetch("v1/operations/" + encodeURIComponent(key));
+    if (r.ok) ops = (await r.json()).operations || [];
+  } catch {}
+  const did = ops.map(o => o.name + " (" + o.status + ")").join(", ");
+  return "That request was interrupted before it finished, so it won't be repeated. " +
+    (did ? "Actions it recorded: " + did + "." : "It recorded no actions.") +
+    " Ask again if you still want it.";
+}
+
+async function submit({ viaVoice = false, text: given = null } = {}) {
+  const text = (given ?? box.value).trim();
   if (!text) return;
-  box.value = ""; box.style.height = "auto";
+  if (inFlight) {                 // one turn at a time: keep the words, send when this one lands
+    if (given !== null) box.value = box.value.trim() ? box.value.trimEnd() + " " + text : text;
+    return;
+  }
+  inFlight = true;
+  if (given === null) { box.value = ""; box.style.height = "auto"; }
 
   const turnThreadId = activeThreadId;
   const current = getActiveThread();
-  if (!current) return;
 
-  const retry = retryTurn && retryTurn.text === text;
+  const retry = retryTurn && retryTurn.text === text && retryTurn.threadId === turnThreadId;
   if (!retry) {
-    current.messages.push({ role: "user", content: text });
+    // A different message after a failure replaces the failed one, so the thread never
+    // carries an unanswered question the user has already rewritten.
+    if (retryTurn) {
+      const failed = threads.find(t => t.id === retryTurn.threadId);
+      if (failed && failed.messages[failed.messages.length - 1] === retryTurn.msg) {
+        failed.messages.pop();
+        if (failed.id === turnThreadId) render();
+      }
+    }
+    const msg = { role: "user", content: text };
+    current.messages.push(msg);
     if (current.id !== "main" && (current.title === "Side Chat" || current.title === "New Chat")) {
       let snippet = text.replace(/\s+/g, " ").trim();
       if (snippet.length > 28) snippet = snippet.slice(0, 26) + "…";
       current.title = snippet;
     }
+    if (current.messages.length === 1) log.innerHTML = "";   // drop the empty-state card
     bubble("me", text);
     save();
     const rawKey = crypto.randomUUID ? crypto.randomUUID() :
       Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
     retryTurn = {
-      text,
+      text, msg,
       threadId: turnThreadId,
       key: rawKey.replace(/[^A-Za-z0-9_-]/g, ""),
       payload: { messages: current.messages.slice(-MAX_SEND), stream: true }
     };
-  } else {
-    retryTurn.payload.stream = true;
   }
+  const turn = retryTurn;
 
   if (ttsAudio && !ttsAudio.paused) {
     ttsAudio.pause();
@@ -938,26 +977,37 @@ async function submit(viaVoice = false) {
   pending.textContent = "Hestia is thinking…";
   log.appendChild(pending);
   log.scrollTop = log.scrollHeight;
+  let contentEl = null;
+  function settle(reply) {
+    if (activeThreadId !== turnThreadId) { pending.remove(); return; }
+    if (!contentEl) {
+      pending.classList.remove("pending");
+      pending.textContent = "";
+      contentEl = document.createElement("div");
+      contentEl.className = "msg-content";
+      pending.appendChild(contentEl);
+    }
+    contentEl.innerHTML = formatMarkdown(reply);
+    log.scrollTop = log.scrollHeight;
+  }
 
   try {
     const r = await fetch("v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Idempotency-Key": retryTurn.key },
-      body: JSON.stringify(retryTurn.payload),
+      headers: { "Content-Type": "application/json", "Idempotency-Key": turn.key },
+      body: JSON.stringify(turn.payload),
     });
-    if (!r.ok) {
+    let reply = "";
+    if (r.status === 409 && retry) {
+      reply = await interruptedNote(turn.key);
+    } else if (!r.ok) {
       let errDetail = "brain returned " + r.status;
       try {
         const errJson = await r.json();
         if (errJson.error) errDetail = errJson.error;
       } catch {}
       throw new Error(errDetail);
-    }
-
-    let reply = "";
-    let contentEl = null;
-
-    if (r.body && r.body.getReader) {
+    } else if (r.body && r.body.getReader) {
       const reader = r.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -977,20 +1027,7 @@ async function submit(viaVoice = false) {
           try {
             const parsed = JSON.parse(dataStr);
             const delta = parsed.choices?.[0]?.delta?.content || "";
-            if (delta) {
-              reply += delta;
-              if (activeThreadId === turnThreadId) {
-                if (!contentEl) {
-                  pending.classList.remove("pending");
-                  pending.textContent = "";
-                  contentEl = document.createElement("div");
-                  contentEl.className = "msg-content";
-                  pending.appendChild(contentEl);
-                }
-                contentEl.innerHTML = formatMarkdown(reply);
-                log.scrollTop = log.scrollHeight;
-              }
-            }
+            if (delta) { reply += delta; settle(reply); }
           } catch {}
         }
       }
@@ -1008,19 +1045,10 @@ async function submit(viaVoice = false) {
       save();
     }
 
+    settle(reply);
     if (activeThreadId === turnThreadId) {
-      if (!contentEl) {
-        pending.classList.remove("pending");
-        pending.textContent = "";
-        contentEl = document.createElement("div");
-        contentEl.className = "msg-content";
-        pending.appendChild(contentEl);
-      }
-      contentEl.innerHTML = formatMarkdown(reply);
       attachActions(pending, reply);
-      if (autoNarrate) speak(reply);
-    } else {
-      pending.remove();
+      if (autoNarrate || viaVoice) speak(reply);
     }
 
     dot.className = "dot ok";
@@ -1028,10 +1056,11 @@ async function submit(viaVoice = false) {
     if (activeThreadId === turnThreadId) {
       pending.remove();
       bubble("err", "Could not retrieve the reply: " + e.message + ". Press Send to retry this same request safely.");
-      box.value = text;
+      if (!box.value.trim()) box.value = text;
     }
     dot.className = "dot err";
   } finally {
+    inFlight = false;
     send.disabled = false;
     box.focus();
   }
@@ -1050,7 +1079,7 @@ if (narrateBtn) {
   });
 }
 
-send.addEventListener("click", submit);
+send.addEventListener("click", () => submit());
 box.addEventListener("keydown", (e) => {
   // Enter sends; Shift+Enter newlines. (On phones the on-screen Return key inserts a newline.)
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); }
@@ -1127,8 +1156,7 @@ async function transcribeAndSend(blob) {
     const text = ((await r.json()).text || "").trim();
     pending.remove();
     if (!text) { bubble("err", "Didn't catch that: try again, a bit closer to the mic."); return; }
-    box.value = text;
-    submit(true);                                   // send it AND speak the reply
+    submit({ viaVoice: true, text });               // send it AND speak the reply
   } catch (e) {
     pending.remove();
     bubble("err", "Transcription failed: " + e.message + ". Is the STT service up?");
