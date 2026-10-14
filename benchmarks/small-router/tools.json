@@ -1,0 +1,166 @@
+{
+  "_note": "The small tool set the router eval targets. Every time or date argument is the user's own words (a span); code resolves it, never the model. Domains are what the embedding router picks between.",
+  "domains": {
+    "music": [
+      {
+        "name": "music_play",
+        "description": "Start playing music.",
+        "parameters": {
+          "query": "string, what to play, as said",
+          "kind": "artist | album | song | playlist | genre | radio (optional)"
+        }
+      },
+      {
+        "name": "music_control",
+        "description": "Control what is already playing.",
+        "parameters": {
+          "action": "pause | resume | skip | previous | stop | louder | quieter | set_volume",
+          "level": "integer 0-100, only with set_volume"
+        }
+      }
+    ],
+    "lights": [
+      {
+        "name": "light_set",
+        "description": "Turn a light or room on or off, or change it.",
+        "parameters": {
+          "target": "string, the light or room as said; 'all' for everything",
+          "state": "on | off",
+          "brightness": "integer 0-100 (optional)",
+          "color": "string (optional)"
+        }
+      },
+      {
+        "name": "scene_activate",
+        "description": "Switch on a saved scene.",
+        "parameters": {
+          "name": "string"
+        }
+      }
+    ],
+    "inventory": [
+      {
+        "name": "inventory_adjust",
+        "description": "Something was used up or added, by a count.",
+        "parameters": {
+          "item": "string",
+          "change": "integer, negative when used",
+          "location": "string (optional)"
+        }
+      },
+      {
+        "name": "inventory_mark",
+        "description": "Set a bulk item's level when there is no count.",
+        "parameters": {
+          "item": "string",
+          "level": "plenty | low | out"
+        }
+      },
+      {
+        "name": "inventory_set",
+        "description": "Record how many there are now (a count, not a change).",
+        "parameters": {
+          "item": "string",
+          "count": "integer",
+          "location": "string (optional)"
+        }
+      },
+      {
+        "name": "inventory_find",
+        "description": "Where something is kept, or how many are left.",
+        "parameters": {
+          "item": "string"
+        }
+      },
+      {
+        "name": "tool_status",
+        "description": "Log an exception for a tool. Normal borrowing in the house is assumed returned and is not logged.",
+        "parameters": {
+          "tool": "string",
+          "status": "broke | lent | lost | returned",
+          "note": "string (optional), e.g. who has it"
+        }
+      }
+    ],
+    "lists": [
+      {
+        "name": "list_add",
+        "description": "Add to the shopping list or the to-do list.",
+        "parameters": {
+          "list": "shopping | todo",
+          "items": "array of strings"
+        }
+      },
+      {
+        "name": "list_remove",
+        "description": "Cross off: bought, done, or no longer needed.",
+        "parameters": {
+          "list": "shopping | todo",
+          "items": "array of strings"
+        }
+      },
+      {
+        "name": "list_read",
+        "description": "Read a list out.",
+        "parameters": {
+          "list": "shopping | todo"
+        }
+      }
+    ],
+    "calendar": [
+      {
+        "name": "calendar_read",
+        "description": "What is on the calendar.",
+        "parameters": {
+          "when": "string span, e.g. today, tomorrow, this week, friday"
+        }
+      },
+      {
+        "name": "calendar_add",
+        "description": "Put an event on the calendar.",
+        "parameters": {
+          "title": "string",
+          "when": "string span with the date and time as said"
+        }
+      }
+    ],
+    "weather": [
+      {
+        "name": "weather_get",
+        "description": "Forecast or current conditions.",
+        "parameters": {
+          "when": "now | today | tonight | tomorrow | this week | weekend",
+          "aspect": "rain | frost | wind | temperature | general (optional)"
+        }
+      }
+    ],
+    "alerts": [
+      {
+        "name": "reminder_add",
+        "description": "Remind someone of something later.",
+        "parameters": {
+          "text": "string, what to remind",
+          "when": "string span as said"
+        }
+      },
+      {
+        "name": "alerts_read",
+        "description": "What alerts or reminders are pending.",
+        "parameters": {}
+      },
+      {
+        "name": "alert_act",
+        "description": "Deal with the alert that just went off.",
+        "parameters": {
+          "action": "dismiss | snooze",
+          "minutes": "integer, only with snooze (optional)"
+        }
+      }
+    ]
+  },
+  "outcomes": {
+    "call": "exactly the expected call; accept lists other calls that also pass",
+    "ask": "no call; the device must ask a clarifying question instead (ambiguous target, missing amount, unclear list)",
+    "none": "no call; nothing to do (chit-chat, thanks, out of scope)"
+  }
+}

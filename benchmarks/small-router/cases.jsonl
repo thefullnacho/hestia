@@ -1,0 +1,247 @@
+{"domain": "music", "text": "play some Fleetwood Mac", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "fleetwood mac", "kind": "artist"}}], "accept": [], "tags": [], "id": "mus-001"}
+{"domain": "music", "text": "put on Rumours", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "rumours"}}], "accept": [], "tags": [], "id": "mus-002"}
+{"domain": "music", "text": "play Dreams by Fleetwood Mac", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "dreams fleetwood mac", "kind": "song"}}], "accept": [], "tags": [], "id": "mus-003"}
+{"domain": "music", "text": "I want to hear some jazz", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "jazz", "kind": "genre"}}], "accept": [], "tags": ["passive"], "id": "mus-004"}
+{"domain": "music", "text": "play my morning playlist", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "morning", "kind": "playlist"}}], "accept": [], "tags": [], "id": "mus-005"}
+{"domain": "music", "text": "can you play something relaxing", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "relaxing"}}], "accept": [], "tags": [], "id": "mus-006"}
+{"domain": "music", "text": "play lo-fi beats", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "lo-fi"}}], "accept": [], "tags": [], "id": "mus-007"}
+{"domain": "music", "text": "put on the radio", "expect": "call", "calls": [{"tool": "music_play", "args": {"kind": "radio"}}], "accept": [], "tags": [], "id": "mus-008"}
+{"domain": "music", "text": "play Johnny Cash", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "johnny cash"}}], "accept": [], "tags": [], "id": "mus-009"}
+{"domain": "music", "text": "play the Hamilton soundtrack", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "hamilton"}}], "accept": [], "tags": [], "id": "mus-010"}
+{"domain": "music", "text": "play some music", "expect": "call", "calls": [{"tool": "music_play", "args": {}}], "accept": [], "tags": ["vague"], "id": "mus-011"}
+{"domain": "music", "text": "play something for cooking", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "cooking"}}], "accept": [], "tags": [], "id": "mus-012"}
+{"domain": "music", "text": "play Christmas music", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "christmas"}}], "accept": [], "tags": [], "id": "mus-013"}
+{"domain": "music", "text": "play the Beatles in the kitchen", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "beatles"}}], "accept": [], "tags": ["extra-detail"], "id": "mus-014"}
+{"domain": "music", "text": "shuffle my liked songs", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "liked"}}], "accept": [], "tags": [], "id": "mus-015"}
+{"domain": "music", "text": "pause", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "accept": [], "tags": ["terse"], "id": "mus-016"}
+{"domain": "music", "text": "pause the music", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "accept": [], "tags": [], "id": "mus-017"}
+{"domain": "music", "text": "hold on, stop the music for a sec", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "accept": [[{"tool": "music_control", "args": {"action": "stop"}}]], "tags": [], "id": "mus-018"}
+{"domain": "music", "text": "resume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "accept": [], "tags": ["terse"], "id": "mus-019"}
+{"domain": "music", "text": "keep playing", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "accept": [], "tags": [], "id": "mus-020"}
+{"domain": "music", "text": "skip this song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "accept": [], "tags": [], "id": "mus-021"}
+{"domain": "music", "text": "next", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "accept": [], "tags": ["terse"], "id": "mus-022"}
+{"domain": "music", "text": "I hate this song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "accept": [], "tags": ["implicit"], "id": "mus-023"}
+{"domain": "music", "text": "skip ahead", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "accept": [], "tags": [], "id": "mus-024"}
+{"domain": "music", "text": "go back one", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "accept": [], "tags": [], "id": "mus-025"}
+{"domain": "music", "text": "play that last song again", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "accept": [], "tags": [], "id": "mus-026"}
+{"domain": "music", "text": "stop the music", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "stop"}}], "accept": [[{"tool": "music_control", "args": {"action": "pause"}}]], "tags": [], "id": "mus-027"}
+{"domain": "music", "text": "turn it up", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "accept": [], "tags": ["pronoun"], "id": "mus-028"}
+{"domain": "music", "text": "a little louder please", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "accept": [], "tags": [], "id": "mus-029"}
+{"domain": "music", "text": "turn it down", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "accept": [], "tags": ["pronoun"], "id": "mus-030"}
+{"domain": "music", "text": "it's too loud", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "accept": [], "tags": ["implicit"], "id": "mus-031"}
+{"domain": "music", "text": "set the volume to 30", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 30}}], "accept": [], "tags": [], "id": "mus-032"}
+{"domain": "music", "text": "volume 70", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 70}}], "accept": [], "tags": ["terse"], "id": "mus-033"}
+{"domain": "music", "text": "volume to half", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 50}}], "accept": [], "tags": ["arithmetic"], "id": "mus-034"}
+{"domain": "music", "text": "mute it", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 0}}], "accept": [[{"tool": "music_control", "args": {"action": "pause"}}]], "tags": [], "id": "mus-035"}
+{"domain": "music", "text": "what's playing?", "expect": "none", "calls": [], "accept": [], "tags": ["gap"], "id": "mus-036"}
+{"domain": "lights", "text": "turn on the kitchen lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "accept": [], "tags": [], "id": "lig-037"}
+{"domain": "lights", "text": "kitchen lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "accept": [], "tags": ["terse"], "id": "lig-038"}
+{"domain": "lights", "text": "turn off the living room", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "living room", "state": "off"}}], "accept": [], "tags": [], "id": "lig-039"}
+{"domain": "lights", "text": "lights on in the bedroom", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "state": "on"}}], "accept": [], "tags": [], "id": "lig-040"}
+{"domain": "lights", "text": "dim the living room to 30 percent", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "living room", "brightness": 30}}], "accept": [], "tags": [], "id": "lig-041"}
+{"domain": "lights", "text": "make the bedroom lamp brighter", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "state": "on"}}], "accept": [], "tags": ["relative"], "id": "lig-042"}
+{"domain": "lights", "text": "set the office light to blue", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "office", "color": "blue"}}], "accept": [], "tags": [], "id": "lig-043"}
+{"domain": "lights", "text": "turn the porch light on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "porch", "state": "on"}}], "accept": [], "tags": [], "id": "lig-044"}
+{"domain": "lights", "text": "turn everything off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "accept": [], "tags": [], "id": "lig-045"}
+{"domain": "lights", "text": "movie time", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "movie"}}], "accept": [], "tags": ["implicit"], "id": "lig-046"}
+{"domain": "lights", "text": "activate the movie scene", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "movie"}}], "accept": [], "tags": [], "id": "lig-047"}
+{"domain": "lights", "text": "set the dinner scene", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "dinner"}}], "accept": [], "tags": [], "id": "lig-048"}
+{"domain": "lights", "text": "turn on the greenhouse light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "greenhouse", "state": "on"}}], "accept": [], "tags": [], "id": "lig-049"}
+{"domain": "lights", "text": "switch off the hallway", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "hallway", "state": "off"}}], "accept": [], "tags": [], "id": "lig-050"}
+{"domain": "lights", "text": "bedroom lights to 10%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 10}}], "accept": [], "tags": ["terse"], "id": "lig-051"}
+{"domain": "lights", "text": "turn the kitchen lights warm white", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "color": "warm white"}}], "accept": [], "tags": [], "id": "lig-052"}
+{"domain": "lights", "text": "can you turn the lights back on in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "accept": [], "tags": [], "id": "lig-053"}
+{"domain": "lights", "text": "bright as it goes in the office", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "office", "brightness": 100}}], "accept": [], "tags": ["idiom"], "id": "lig-054"}
+{"domain": "lights", "text": "half brightness in the dining room", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "dining room", "brightness": 50}}], "accept": [], "tags": ["arithmetic"], "id": "lig-055"}
+{"domain": "lights", "text": "turn on the outside lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "outside", "state": "on"}}], "accept": [], "tags": [], "id": "lig-056"}
+{"domain": "lights", "text": "lights on in the kitchen please, thank you", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "accept": [], "tags": [], "id": "lig-057"}
+{"domain": "lights", "text": "can you shut the bathroom light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bathroom", "state": "off"}}], "accept": [], "tags": ["idiom"], "id": "lig-058"}
+{"domain": "lights", "text": "kill the lights", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target"], "id": "lig-059"}
+{"domain": "lights", "text": "it's too dark in here", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target", "implicit"], "id": "lig-060"}
+{"domain": "lights", "text": "lights off", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target"], "id": "lig-061"}
+{"domain": "lights", "text": "turn on the lamp", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target"], "id": "lig-062"}
+{"domain": "lights", "text": "don't turn off the porch light", "expect": "none", "calls": [], "accept": [], "tags": ["negation"], "id": "lig-063"}
+{"domain": "lights", "text": "the kitchen light is on, right?", "expect": "none", "calls": [], "accept": [], "tags": ["gap"], "id": "lig-064"}
+{"domain": "lights", "text": "goodnight", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "goodnight"}}], "accept": [["none"]], "tags": ["implicit"], "id": "lig-065"}
+{"domain": "inventory", "text": "we used three of the 2x4s", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "2x4", "change": -3}}], "accept": [], "tags": ["word-number"], "id": "inv-066"}
+{"domain": "inventory", "text": "I just bought 12 eggs", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "eggs", "change": 12}}], "accept": [], "tags": [], "id": "inv-067"}
+{"domain": "inventory", "text": "add 50 deck screws to the garage bin", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "deck screws", "change": 50, "location": "garage"}}], "accept": [], "tags": [], "id": "inv-068"}
+{"domain": "inventory", "text": "took two cans of tomatoes", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "tomatoes", "change": -2}}], "accept": [], "tags": ["word-number"], "id": "inv-069"}
+{"domain": "inventory", "text": "I used 4 zip ties", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "zip ties", "change": -4}}], "accept": [], "tags": [], "id": "inv-070"}
+{"domain": "inventory", "text": "put 6 jars of salsa in the pantry", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "salsa", "change": 6, "location": "pantry"}}], "accept": [], "tags": [], "id": "inv-071"}
+{"domain": "inventory", "text": "grabbed a box of nails from the shed", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "nails", "change": -1, "location": "shed"}}], "accept": [], "tags": ["unit"], "id": "inv-072"}
+{"domain": "inventory", "text": "two bags of mulch went on the beds", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "mulch", "change": -2}}], "accept": [], "tags": ["word-number", "passive"], "id": "inv-073"}
+{"domain": "inventory", "text": "we got 3 more propane tanks", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "propane", "change": 3}}], "accept": [], "tags": [], "id": "inv-074"}
+{"domain": "inventory", "text": "we used six eggs for the cake", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "eggs", "change": -6}}], "accept": [], "tags": ["word-number"], "id": "inv-075"}
+{"domain": "inventory", "text": "add 2 dozen eggs", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "eggs", "change": 24}}], "accept": [[{"tool": "list_add", "args": {"list": "shopping", "items": ["eggs"]}}]], "tags": ["arithmetic"], "id": "inv-076"}
+{"domain": "inventory", "text": "I put 10 pounds of sugar in the pantry", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "sugar", "change": 10, "location": "pantry"}}], "accept": [], "tags": ["unit"], "id": "inv-077"}
+{"domain": "inventory", "text": "used 2 quarts of oil on the tractor", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "oil", "change": -2}}], "accept": [], "tags": ["unit"], "id": "inv-078"}
+{"domain": "inventory", "text": "we're out of milk", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "milk", "level": "out"}}], "accept": [], "tags": ["passive"], "id": "inv-079"}
+{"domain": "inventory", "text": "used the last of the flour", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "flour", "level": "out"}}], "accept": [], "tags": ["implicit"], "id": "inv-080"}
+{"domain": "inventory", "text": "we're low on rice", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "rice", "level": "low"}}], "accept": [], "tags": ["passive"], "id": "inv-081"}
+{"domain": "inventory", "text": "plenty of potatoes now", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "potatoes", "level": "plenty"}}], "accept": [], "tags": ["terse"], "id": "inv-082"}
+{"domain": "inventory", "text": "the dog food is almost gone", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "dog food", "level": "low"}}], "accept": [], "tags": ["implicit"], "id": "inv-083"}
+{"domain": "inventory", "text": "coffee's running low", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "coffee", "level": "low"}}], "accept": [], "tags": [], "id": "inv-084"}
+{"domain": "inventory", "text": "we have plenty of paper towels", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "paper towels", "level": "plenty"}}], "accept": [], "tags": [], "id": "inv-085"}
+{"domain": "inventory", "text": "I finished the last roll of duct tape", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "duct tape", "level": "out"}}], "accept": [], "tags": ["implicit"], "id": "inv-086"}
+{"domain": "inventory", "text": "we're out of 3 inch deck screws", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "3 inch deck screws", "level": "out"}}], "accept": [], "tags": ["number-in-name"], "id": "inv-087"}
+{"domain": "inventory", "text": "restocked the first aid kit", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "first aid", "level": "plenty"}}], "accept": [], "tags": ["implicit"], "id": "inv-088"}
+{"domain": "inventory", "text": "used half the bag of flour", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "flour", "level": "low"}}], "accept": [["ask"]], "tags": ["fuzzy"], "id": "inv-089"}
+{"domain": "inventory", "text": "we've got about 20 canning jars", "expect": "call", "calls": [{"tool": "inventory_set", "args": {"item": "canning jars", "count": 20}}], "accept": [], "tags": ["estimate"], "id": "inv-090"}
+{"domain": "inventory", "text": "there are 12 bales of hay in the barn now", "expect": "call", "calls": [{"tool": "inventory_set", "args": {"item": "hay", "count": 12, "location": "barn"}}], "accept": [], "tags": [], "id": "inv-091"}
+{"domain": "inventory", "text": "where's the caulk gun", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "caulk gun"}}], "accept": [], "tags": [], "id": "inv-092"}
+{"domain": "inventory", "text": "how many furnace filters do we have", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "furnace filters"}}], "accept": [], "tags": [], "id": "inv-093"}
+{"domain": "inventory", "text": "do we have any AA batteries", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "aa batteries"}}], "accept": [], "tags": [], "id": "inv-094"}
+{"domain": "inventory", "text": "where did we put the extension cords", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "extension cords"}}], "accept": [], "tags": [], "id": "inv-095"}
+{"domain": "inventory", "text": "how much chicken feed is left", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "chicken feed"}}], "accept": [], "tags": [], "id": "inv-096"}
+{"domain": "inventory", "text": "is there any more sandpaper", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "sandpaper"}}], "accept": [], "tags": [], "id": "inv-097"}
+{"domain": "inventory", "text": "where do we keep the spare fuses", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "fuses"}}], "accept": [], "tags": [], "id": "inv-098"}
+{"domain": "inventory", "text": "can't find the good hammer anywhere", "expect": "call", "calls": [{"tool": "inventory_find", "args": {"item": "hammer"}}], "accept": [[{"tool": "tool_status", "args": {"tool": "hammer", "status": "lost"}}]], "tags": ["implicit"], "id": "inv-099"}
+{"domain": "inventory", "text": "the circular saw broke", "expect": "call", "calls": [{"tool": "tool_status", "args": {"tool": "circular saw", "status": "broke"}}], "accept": [], "tags": [], "id": "inv-100"}
+{"domain": "inventory", "text": "I lent the post hole digger to the neighbor", "expect": "call", "calls": [{"tool": "tool_status", "args": {"tool": "post hole digger", "status": "lent"}}], "accept": [], "tags": [], "id": "inv-101"}
+{"domain": "inventory", "text": "the neighbor gave back the post hole digger", "expect": "call", "calls": [{"tool": "tool_status", "args": {"tool": "post hole digger", "status": "returned"}}], "accept": [], "tags": [], "id": "inv-102"}
+{"domain": "inventory", "text": "I took the drill", "expect": "none", "calls": [], "accept": [], "tags": ["tool-policy"], "id": "inv-103"}
+{"domain": "inventory", "text": "we used some of the chicken feed", "expect": "ask", "calls": [], "accept": [[{"tool": "inventory_mark", "args": {"item": "chicken feed", "level": "low"}}]], "tags": ["missing-amount"], "id": "inv-104"}
+{"domain": "inventory", "text": "used a bunch of the tape", "expect": "ask", "calls": [], "accept": [], "tags": ["missing-amount"], "id": "inv-105"}
+{"domain": "inventory", "text": "we're out of the good screws", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-item"], "id": "inv-106"}
+{"domain": "inventory", "text": "used one", "expect": "ask", "calls": [], "accept": [], "tags": ["missing-item"], "id": "inv-107"}
+{"domain": "lists", "text": "add milk to the shopping list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["milk"]}}], "accept": [], "tags": [], "id": "lis-108"}
+{"domain": "lists", "text": "put eggs and bread on the list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["eggs", "bread"]}}], "accept": [], "tags": ["implicit-list"], "id": "lis-109"}
+{"domain": "lists", "text": "we need coffee filters", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["coffee filters"]}}], "accept": [], "tags": ["passive"], "id": "lis-110"}
+{"domain": "lists", "text": "add call the vet to my to-do list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "todo", "items": ["call the vet"]}}], "accept": [], "tags": [], "id": "lis-111"}
+{"domain": "lists", "text": "I need to fix the gate", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "todo", "items": ["fix gate"]}}], "accept": [], "tags": ["passive"], "id": "lis-112"}
+{"domain": "lists", "text": "add clean the gutters to the to do list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "todo", "items": ["clean gutters"]}}], "accept": [], "tags": [], "id": "lis-113"}
+{"domain": "lists", "text": "put chicken, rice, and broccoli on the shopping list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["chicken", "rice", "broccoli"]}}], "accept": [], "tags": [], "id": "lis-114"}
+{"domain": "lists", "text": "add dog food", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["dog food"]}}], "accept": [], "tags": ["implicit-list"], "id": "lis-115"}
+{"domain": "lists", "text": "add sharpen the mower blades", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "todo", "items": ["sharpen mower blades"]}}], "accept": [], "tags": ["implicit-list"], "id": "lis-116"}
+{"domain": "lists", "text": "also add butter", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["butter"]}}], "accept": [], "tags": ["implicit-list"], "id": "lis-117"}
+{"domain": "lists", "text": "put toilet paper on the list, the big pack", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["toilet paper"]}}], "accept": [], "tags": ["extra-detail"], "id": "lis-118"}
+{"domain": "lists", "text": "we need to call the plumber", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "todo", "items": ["call plumber"]}}], "accept": [], "tags": ["passive"], "id": "lis-119"}
+{"domain": "lists", "text": "add 2 gallons of milk", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["milk"]}}], "accept": [], "tags": ["unit"], "id": "lis-120"}
+{"domain": "lists", "text": "add apples, oranges, bananas and grapes to shopping", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["apples", "oranges", "bananas", "grapes"]}}], "accept": [], "tags": [], "id": "lis-121"}
+{"domain": "lists", "text": "put return library books on my list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "todo", "items": ["return library books"]}}], "accept": [], "tags": [], "id": "lis-122"}
+{"domain": "lists", "text": "take milk off the shopping list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["milk"]}}], "accept": [], "tags": [], "id": "lis-123"}
+{"domain": "lists", "text": "I got the eggs", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["eggs"]}}], "accept": [], "tags": ["passive"], "id": "lis-124"}
+{"domain": "lists", "text": "nevermind the bread", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["bread"]}}], "accept": [], "tags": ["idiom"], "id": "lis-125"}
+{"domain": "lists", "text": "I fixed the gate", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["gate"]}}], "accept": [], "tags": ["passive"], "id": "lis-126"}
+{"domain": "lists", "text": "cross off call the vet", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["call the vet"]}}], "accept": [], "tags": [], "id": "lis-127"}
+{"domain": "lists", "text": "I already did the dishes", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["dishes"]}}], "accept": [], "tags": ["passive"], "id": "lis-128"}
+{"domain": "lists", "text": "mark the oil change as done", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["oil change"]}}], "accept": [], "tags": [], "id": "lis-129"}
+{"domain": "lists", "text": "what's on the shopping list", "expect": "call", "calls": [{"tool": "list_read", "args": {"list": "shopping"}}], "accept": [], "tags": [], "id": "lis-130"}
+{"domain": "lists", "text": "read me my to-do list", "expect": "call", "calls": [{"tool": "list_read", "args": {"list": "todo"}}], "accept": [], "tags": [], "id": "lis-131"}
+{"domain": "lists", "text": "what do I need from the store", "expect": "call", "calls": [{"tool": "list_read", "args": {"list": "shopping"}}], "accept": [], "tags": ["implicit"], "id": "lis-132"}
+{"domain": "lists", "text": "is bread on the list", "expect": "call", "calls": [{"tool": "list_read", "args": {"list": "shopping"}}], "accept": [], "tags": [], "id": "lis-133"}
+{"domain": "lists", "text": "what do I have to do today", "expect": "call", "calls": [{"tool": "list_read", "args": {"list": "todo"}}], "accept": [[{"tool": "calendar_read", "args": {"when": "today"}}]], "tags": [], "id": "lis-134"}
+{"domain": "lists", "text": "don't add milk, we have some", "expect": "none", "calls": [], "accept": [], "tags": ["negation"], "id": "lis-135"}
+{"domain": "lists", "text": "add stuff for tacos", "expect": "ask", "calls": [], "accept": [], "tags": ["vague-items"], "id": "lis-136"}
+{"domain": "lists", "text": "I bought everything on the list", "expect": "ask", "calls": [], "accept": [], "tags": ["gap"], "id": "lis-137"}
+{"domain": "calendar", "text": "what's on my calendar today", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "today"}}], "accept": [], "tags": [], "id": "cal-138"}
+{"domain": "calendar", "text": "anything tomorrow?", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "tomorrow"}}], "accept": [], "tags": ["terse"], "id": "cal-139"}
+{"domain": "calendar", "text": "what's my week look like", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "week"}}], "accept": [], "tags": [], "id": "cal-140"}
+{"domain": "calendar", "text": "do I have anything friday", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "friday"}}], "accept": [], "tags": [], "id": "cal-141"}
+{"domain": "calendar", "text": "am I free saturday", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "saturday"}}], "accept": [], "tags": [], "id": "cal-142"}
+{"domain": "calendar", "text": "what's happening this weekend", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "weekend"}}], "accept": [], "tags": [], "id": "cal-143"}
+{"domain": "calendar", "text": "what time is my appointment tomorrow", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "tomorrow"}}], "accept": [], "tags": [], "id": "cal-144"}
+{"domain": "calendar", "text": "anything coming up next week", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "next week"}}], "accept": [], "tags": [], "id": "cal-145"}
+{"domain": "calendar", "text": "what's on tonight", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "tonight"}}], "accept": [], "tags": [], "id": "cal-146"}
+{"domain": "calendar", "text": "do we have anything on the 15th", "expect": "call", "calls": [{"tool": "calendar_read", "args": {"when": "15th"}}], "accept": [], "tags": [], "id": "cal-147"}
+{"domain": "calendar", "text": "when's the vet appointment", "expect": "call", "calls": [{"tool": "calendar_read", "args": {}}], "accept": [], "tags": ["search"], "id": "cal-148"}
+{"domain": "calendar", "text": "put dentist on thursday at 2", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "dentist", "when": "thursday 2"}}], "accept": [], "tags": [], "id": "cal-149"}
+{"domain": "calendar", "text": "add a vet appointment next tuesday at 10am", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "vet", "when": "next tuesday 10am"}}], "accept": [], "tags": [], "id": "cal-150"}
+{"domain": "calendar", "text": "schedule dinner with mom saturday at 6", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "dinner with mom", "when": "saturday 6"}}], "accept": [], "tags": [], "id": "cal-151"}
+{"domain": "calendar", "text": "book the farrier for the 21st", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "farrier", "when": "21st"}}], "accept": [], "tags": [], "id": "cal-152"}
+{"domain": "calendar", "text": "add soccer practice tomorrow at 4", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "soccer practice", "when": "tomorrow 4"}}], "accept": [], "tags": [], "id": "cal-153"}
+{"domain": "calendar", "text": "I have a haircut on monday at noon", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "haircut", "when": "monday noon"}}], "accept": [], "tags": ["passive"], "id": "cal-154"}
+{"domain": "calendar", "text": "add parent teacher conference october 30th at 5:30", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "parent teacher conference", "when": "october 30th 5:30"}}], "accept": [], "tags": [], "id": "cal-155"}
+{"domain": "calendar", "text": "date night friday 7pm", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "date night", "when": "friday 7pm"}}], "accept": [], "tags": ["terse"], "id": "cal-156"}
+{"domain": "calendar", "text": "trash day every tuesday", "expect": "call", "calls": [{"tool": "calendar_add", "args": {"title": "trash", "when": "every tuesday"}}], "accept": [], "tags": ["recurring"], "id": "cal-157"}
+{"domain": "calendar", "text": "add a meeting", "expect": "ask", "calls": [], "accept": [], "tags": ["missing-time"], "id": "cal-158"}
+{"domain": "calendar", "text": "put something on the calendar for friday", "expect": "ask", "calls": [], "accept": [], "tags": ["missing-title"], "id": "cal-159"}
+{"domain": "calendar", "text": "cancel the dentist", "expect": "none", "calls": [], "accept": [], "tags": ["gap"], "id": "cal-160"}
+{"domain": "calendar", "text": "move the vet to wednesday", "expect": "none", "calls": [], "accept": [], "tags": ["gap"], "id": "cal-161"}
+{"domain": "weather", "text": "what's the weather", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "now"}}], "accept": [[{"tool": "weather_get", "args": {"when": "today"}}]], "tags": [], "id": "wea-162"}
+{"domain": "weather", "text": "is it going to rain today", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "today", "aspect": "rain"}}], "accept": [], "tags": [], "id": "wea-163"}
+{"domain": "weather", "text": "will it rain tomorrow", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "tomorrow", "aspect": "rain"}}], "accept": [], "tags": [], "id": "wea-164"}
+{"domain": "weather", "text": "do I need a jacket", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "today"}}], "accept": [[{"tool": "weather_get", "args": {"when": "now"}}]], "tags": ["implicit"], "id": "wea-165"}
+{"domain": "weather", "text": "is it going to freeze tonight", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "tonight", "aspect": "frost"}}], "accept": [], "tags": [], "id": "wea-166"}
+{"domain": "weather", "text": "how cold will it get tonight", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "tonight"}}], "accept": [], "tags": [], "id": "wea-167"}
+{"domain": "weather", "text": "what's the forecast for the weekend", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "weekend"}}], "accept": [], "tags": [], "id": "wea-168"}
+{"domain": "weather", "text": "how windy is it", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "now", "aspect": "wind"}}], "accept": [], "tags": [], "id": "wea-169"}
+{"domain": "weather", "text": "what's the high today", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "today", "aspect": "temperature"}}], "accept": [], "tags": [], "id": "wea-170"}
+{"domain": "weather", "text": "should I water the garden", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "today", "aspect": "rain"}}], "accept": [[{"tool": "weather_get", "args": {"when": "tomorrow", "aspect": "rain"}}]], "tags": ["implicit"], "id": "wea-171"}
+{"domain": "weather", "text": "do I need to cover the plants tonight", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "tonight", "aspect": "frost"}}], "accept": [], "tags": ["implicit"], "id": "wea-172"}
+{"domain": "weather", "text": "what's it like outside", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "now"}}], "accept": [], "tags": [], "id": "wea-173"}
+{"domain": "weather", "text": "week ahead forecast", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "this week"}}], "accept": [], "tags": ["terse"], "id": "wea-174"}
+{"domain": "weather", "text": "any storms coming", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "this week"}}], "accept": [], "tags": ["implicit"], "id": "wea-175"}
+{"domain": "weather", "text": "is it nice out", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "now"}}], "accept": [], "tags": [], "id": "wea-176"}
+{"domain": "weather", "text": "good day to mow?", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "today"}}], "accept": [], "tags": ["implicit"], "id": "wea-177"}
+{"domain": "weather", "text": "will it be warm enough to plant tomatoes this week", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "this week", "aspect": "temperature"}}], "accept": [], "tags": [], "id": "wea-178"}
+{"domain": "weather", "text": "how hot is it gonna get", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "today", "aspect": "temperature"}}], "accept": [], "tags": [], "id": "wea-179"}
+{"domain": "weather", "text": "is it snowing", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "now"}}], "accept": [], "tags": [], "id": "wea-180"}
+{"domain": "weather", "text": "can I hang laundry out today", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "today"}}], "accept": [], "tags": ["implicit"], "id": "wea-181"}
+{"domain": "alerts", "text": "remind me to take the bread out in 20 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "bread out", "when": "20 minutes"}}], "accept": [], "tags": [], "id": "ale-182"}
+{"domain": "alerts", "text": "remind me tomorrow at 8 to call the vet", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "call the vet", "when": "tomorrow 8"}}], "accept": [], "tags": [], "id": "ale-183"}
+{"domain": "alerts", "text": "set a reminder for 5pm to feed the chickens", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "feed the chickens", "when": "5pm"}}], "accept": [], "tags": [], "id": "ale-184"}
+{"domain": "alerts", "text": "in an hour remind me to check the oven", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "check the oven", "when": "hour"}}], "accept": [], "tags": [], "id": "ale-185"}
+{"domain": "alerts", "text": "remind me to move the sprinkler at 3", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "move the sprinkler", "when": "3"}}], "accept": [], "tags": [], "id": "ale-186"}
+{"domain": "alerts", "text": "don't let me forget the trash tonight", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "trash", "when": "tonight"}}], "accept": [], "tags": ["idiom"], "id": "ale-187"}
+{"domain": "alerts", "text": "remind me every morning to give the dog her meds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "dog meds", "when": "every morning"}}], "accept": [], "tags": ["recurring"], "id": "ale-188"}
+{"domain": "alerts", "text": "set an alarm for 6am", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "6am"}}], "accept": [], "tags": ["gap"], "id": "ale-189"}
+{"domain": "alerts", "text": "set a timer for 15 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "15 minutes"}}], "accept": [], "tags": ["gap"], "id": "ale-190"}
+{"domain": "alerts", "text": "what reminders do I have", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "accept": [], "tags": [], "id": "ale-191"}
+{"domain": "alerts", "text": "anything I'm forgetting", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "accept": [], "tags": ["implicit"], "id": "ale-192"}
+{"domain": "alerts", "text": "any alerts?", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "accept": [], "tags": ["terse"], "id": "ale-193"}
+{"domain": "alerts", "text": "dismiss", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "dismiss"}}], "accept": [], "tags": ["terse"], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-194"}
+{"domain": "alerts", "text": "ok got it", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "dismiss"}}], "accept": [["none"]], "tags": ["implicit"], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-195"}
+{"domain": "alerts", "text": "stop beeping", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "dismiss"}}], "accept": [], "tags": [], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-196"}
+{"domain": "alerts", "text": "shut up", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "dismiss"}}], "accept": [["none"]], "tags": ["rude"], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-197"}
+{"domain": "alerts", "text": "snooze", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "snooze"}}], "accept": [], "tags": ["terse"], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-198"}
+{"domain": "alerts", "text": "snooze 10 minutes", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "snooze", "minutes": 10}}], "accept": [], "tags": [], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-199"}
+{"domain": "alerts", "text": "remind me again in 5", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "snooze", "minutes": 5}}], "accept": [[{"tool": "reminder_add", "args": {"when": "5"}}]], "tags": [], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-200"}
+{"domain": "alerts", "text": "later", "expect": "call", "calls": [{"tool": "alert_act", "args": {"action": "snooze"}}], "accept": [], "tags": ["terse"], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-201"}
+{"domain": "alerts", "text": "what was that alert", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "accept": [], "tags": [], "context": "An alert just went off: 'Feed the chickens'.", "id": "ale-202"}
+{"domain": "alerts", "text": "remind me to buy milk", "expect": "ask", "calls": [], "accept": [[{"tool": "list_add", "args": {"list": "shopping", "items": ["milk"]}}]], "tags": ["missing-time"], "id": "ale-203"}
+{"domain": "alerts", "text": "remind me in 10", "expect": "ask", "calls": [], "accept": [], "tags": ["missing-text"], "id": "ale-204"}
+{"domain": "ambiguous", "text": "turn it off", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-205"}
+{"domain": "ambiguous", "text": "add it", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-206"}
+{"domain": "ambiguous", "text": "do the thing", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-207"}
+{"domain": "ambiguous", "text": "the usual", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-208"}
+{"domain": "ambiguous", "text": "more", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-209"}
+{"domain": "ambiguous", "text": "off", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-210"}
+{"domain": "ambiguous", "text": "set it to 50", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-211"}
+{"domain": "ambiguous", "text": "how many", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-212"}
+{"domain": "ambiguous", "text": "change it", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-213"}
+{"domain": "ambiguous", "text": "put it on the list", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-214"}
+{"domain": "ambiguous", "text": "is it on?", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-215"}
+{"domain": "ambiguous", "text": "can you get that", "expect": "ask", "calls": [], "accept": [], "tags": ["no-referent"], "id": "amb-216"}
+{"domain": "none", "text": "thank you", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-217"}
+{"domain": "none", "text": "good morning", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-218"}
+{"domain": "none", "text": "how are you", "expect": "none", "calls": [], "accept": [], "tags": ["companion"], "id": "non-219"}
+{"domain": "none", "text": "you're cute", "expect": "none", "calls": [], "accept": [], "tags": ["companion"], "id": "non-220"}
+{"domain": "none", "text": "what's your name", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-221"}
+{"domain": "none", "text": "tell me a joke", "expect": "none", "calls": [], "accept": [], "tags": ["companion"], "id": "non-222"}
+{"domain": "none", "text": "I love you", "expect": "none", "calls": [], "accept": [], "tags": ["companion"], "id": "non-223"}
+{"domain": "none", "text": "never mind", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-224"}
+{"domain": "none", "text": "cancel", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-225"}
+{"domain": "none", "text": "who won the game last night", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-226"}
+{"domain": "none", "text": "what's the capital of France", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-227"}
+{"domain": "none", "text": "write me a poem", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-228"}
+{"domain": "none", "text": "ignore that", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-229"}
+{"domain": "none", "text": "ugh what a day", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-230"}
+{"domain": "none", "text": "hey hestia", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-231"}
+{"domain": "none", "text": "oops wrong button", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-232"}
+{"domain": "none", "text": "are you listening", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-233"}
+{"domain": "none", "text": "test test", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-234"}
+{"domain": "none", "text": "hmm", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-235"}
+{"domain": "none", "text": "what can you do", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-236"}
+{"domain": "none", "text": "what time is it", "expect": "none", "calls": [], "accept": [], "tags": [], "id": "non-237"}
+{"domain": "none", "text": "good night", "expect": "none", "calls": [], "accept": [[{"tool": "scene_activate", "args": {"name": "goodnight"}}]], "tags": [], "id": "non-238"}
+{"domain": "none", "text": "I'm going to bed", "expect": "none", "calls": [], "accept": [[{"tool": "scene_activate", "args": {"name": "goodnight"}}]], "tags": ["implicit"], "id": "non-239"}
+{"domain": "multi", "text": "turn off the kitchen lights and pause the music", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}, {"tool": "music_control", "args": {"action": "pause"}}], "accept": [], "tags": ["multi"], "id": "mul-240"}
+{"domain": "multi", "text": "we're out of milk and eggs", "expect": "call", "calls": [{"tool": "inventory_mark", "args": {"item": "milk", "level": "out"}}, {"tool": "inventory_mark", "args": {"item": "eggs", "level": "out"}}], "accept": [], "tags": ["multi"], "id": "mul-241"}
+{"domain": "multi", "text": "add milk to the list and remind me to grab it at 5", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["milk"]}}, {"tool": "reminder_add", "args": {"text": "milk", "when": "5"}}], "accept": [], "tags": ["multi"], "id": "mul-242"}
+{"domain": "multi", "text": "movie time, and turn the music down", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "movie"}}, {"tool": "music_control", "args": {"action": "quieter"}}], "accept": [], "tags": ["multi"], "id": "mul-243"}
+{"domain": "multi", "text": "turn off the kitchen and the living room", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}, {"tool": "light_set", "args": {"target": "living room", "state": "off"}}], "accept": [], "tags": ["multi"], "id": "mul-244"}
+{"domain": "multi", "text": "I used 3 2x4s and 20 screws", "expect": "call", "calls": [{"tool": "inventory_adjust", "args": {"item": "2x4", "change": -3}}, {"tool": "inventory_adjust", "args": {"item": "screws", "change": -20}}], "accept": [], "tags": ["multi"], "id": "mul-245"}
+{"domain": "multi", "text": "what's the weather tomorrow and do I have anything on", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "tomorrow"}}, {"tool": "calendar_read", "args": {"when": "tomorrow"}}], "accept": [], "tags": ["multi"], "id": "mul-246"}
+{"domain": "multi", "text": "cross off eggs and add bread", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["eggs"]}}, {"tool": "list_add", "args": {"list": "shopping", "items": ["bread"]}}], "accept": [], "tags": ["multi"], "id": "mul-247"}
