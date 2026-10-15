@@ -33,6 +33,40 @@ item matcher would absorb ("the 2x4s"); the rest are real: roomless "lights off"
 everything instead of asking, the item taken from the wrong noun ("for the cake"), one call
 where the sentence needed two, and chit-chat that reached the caller.
 
+## Caller: data and seeds (2026-10-15)
+
+Room-aware labels (roomless "lights off" leaves target out), five seeds per training set,
+scored on the 235 caller cases. "Wrong actions" counts schema-valid calls that would execute,
+after the said-words gate.
+
+| Training set | Fully right, per seed | Mean | Right tool | Wrong actions after gate |
+|---|---|---|---|---|
+| Templates + 624 Home Assistant sentences (1,876) | 80 79 77 81 79 | 79.2% | 94% | 28 29 27 31 33 (29.6) |
+| + ~1,060 agent-written phrasing templates (3,737) | 78 77 77 81 77 | 78.0% | 95% | 31 33 28 26 29 (29.4) |
+
+Run-to-run spread is about 4 points, so the two sets are a tie: doubling the data with new
+phrasing did not move the caller. Data volume is not the bottleneck at this size; the misses
+left are judgment and policy (negation, cancel/move with no tool, implicit requests). Before
+the room-aware fix, a v3 run scored 76% because a null target trained as the word "None".
+
+## Constrained decoding probe (2026-10-15)
+
+Same checkpoint, scored with and without constrained decoding (constrain.py: names and enums
+from the schema, digits for numbers, free text must continue a phrase the person said).
+
+| | Fully right | Wrong calls | Caught by the gate | Wrong actions that execute |
+|---|---|---|---|---|
+| Model alone | 79% | 47 | 16 | 31 |
+| Constrained | 79% | 46 | 8 | 38 |
+
+Constraining did not reduce wrong calls (47 to 46). It moved them: 4 fixed, 2 right ones
+broken, and 5 that the gate caught became valid-looking wrong actions it cannot see ("what's
+playing?" muted the music; "can't find the good hammer" logged it returned; "hey hestia"
+made a calendar event). An invalid output is the signal that the model is confused, and the
+constraint erases the signal by forcing the nearest legal action. Kept: the gate. Not used:
+constrained decoding, unless a future version turns "the program had to override the model"
+into a reason to ask. (The probe also let "all" into every free-text field, a checker bug.)
+
 ## Notes
 
 - Ollama's FunctionGemma GGUF ships without a chat template; the official one is in the
