@@ -26,6 +26,8 @@ def main():
     ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--show", type=int, default=40, help="failures to print")
     ap.add_argument("--json", help="write per-row results here")
+    ap.add_argument("--constrain", action="store_true",
+                    help="constrained decoding: names, enums, numbers and said phrases (constrain.py)")
     a = ap.parse_args()
 
     tok = AutoTokenizer.from_pretrained(a.model)
@@ -37,12 +39,20 @@ def main():
     rows = [r for r in rows if caller.domain_of(r)]
     prompts = [tok.apply_chat_template(caller.messages(r), tools=caller.DOMAINS[caller.domain_of(r)],
                                        add_generation_prompt=True, tokenize=False) for r in rows]
-    outs = []
+    outs, fallbacks = [], 0
     for i in range(0, len(prompts), a.batch):
         enc = tok(prompts[i:i + a.batch], return_tensors="pt", padding=True, add_special_tokens=False).to("cuda")
+        extra = {}
+        if a.constrain:
+            import constrain
+            from transformers import LogitsProcessorList
+            proc = constrain.Constrain(tok, constrain.checkers_for(rows[i:i + a.batch]), enc["input_ids"].shape[1])
+            extra["logits_processor"] = LogitsProcessorList([proc])
         with torch.no_grad():
             gen = model.generate(**enc, max_new_tokens=96, do_sample=False, eos_token_id=stops,
-                                 pad_token_id=tok.pad_token_id)
+                                 pad_token_id=tok.pad_token_id, **extra)
+        if a.constrain:
+            fallbacks += proc.fallbacks
         outs += tok.batch_decode(gen[:, enc["input_ids"].shape[1]:], skip_special_tokens=False)
 
     by_expect, by_tool, tool_right = defaultdict(Counter), defaultdict(Counter), Counter()
@@ -74,6 +84,8 @@ def main():
     ok = sum(v["ok"] for v in by_expect.values())
     print(f"{a.model} on {a.rows}{' ' + a.split if a.split else ''}: {ok}/{n} = {ok / n:.0%}")
     print(f"right tool on call cases: {tool_right['ok']}/{tool_right['n']} = {tool_right['ok'] / tool_right['n']:.0%}")
+    if a.constrain:
+        print(f"constrained decoding: {fallbacks} steps fell back to the model's own choice")
     print(f"after the said-words gate: wrong actions {gate['wrong kept']} (caught {gate['wrong refused']}),"
           f" right calls refused {gate['right refused']}")
     for k, v in sorted(by_expect.items()):
