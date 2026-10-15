@@ -21,12 +21,16 @@ CALL, END_CALL, ESC = "<start_function_call>", "<end_function_call>", "<escape>"
 DONE = "<start_function_response>"
 
 
-def _phrase_ok(value: str, said: str, starts: list[int]) -> bool:
+# free-text fields that may hold a word the person didn't say: light_set's "everything"
+UNSAID = {("light_set", "target"): ("all",)}
+
+
+def _phrase_ok(value: str, said: str, starts: list[int], unsaid=()) -> bool:
     """value is the start of a phrase in what was said, beginning at a word boundary."""
     v = re.sub(r"\s+", " ", value.lower()).lstrip()
     if not v:
         return True
-    if "all".startswith(v):  # light_set's "everything"
+    if any(u.startswith(v) for u in unsaid):
         return True
     return any(said.startswith(v, i) for i in starts)
 
@@ -92,12 +96,12 @@ class CallChecker:
             used.add(key)
             i += 1
             spec = props[key]
-            got = self._value(s[i:], spec)
+            got = self._value(s[i:], spec, UNSAID.get((name, key), ()))
             if got is True or got is False:
                 return got
             i += got
 
-    def _value(self, s: str, spec: dict):
+    def _value(self, s: str, spec: dict, unsaid=()):
         if spec.get("type") == "integer":
             m = re.match(r"-?\d*", s)
             if m.end() == len(s):
@@ -117,13 +121,13 @@ class CallChecker:
                 if s[i] == "," and i > 1:
                     i += 1
                     continue
-                got = self._string(s[i:], None)
+                got = self._string(s[i:], None, unsaid)
                 if got is True or got is False:
                     return got
                 i += got
-        return self._string(s, spec.get("enum"))
+        return self._string(s, spec.get("enum"), unsaid)
 
-    def _string(self, s: str, enum):
+    def _string(self, s: str, enum, unsaid=()):
         if len(s) < len(ESC):
             return ESC.startswith(s)
         if not s.startswith(ESC):
@@ -134,7 +138,7 @@ class CallChecker:
         if enum is not None:
             fits = any(e.startswith(value) for e in enum) if end < 0 else value in enum
         else:
-            fits = _phrase_ok(value, self.said, self.starts) and (end < 0 or value.strip() != "")
+            fits = _phrase_ok(value, self.said, self.starts, unsaid) and (end < 0 or value.strip() != "")
         if not fits:
             return False
         return True if end < 0 else len(ESC) + end + len(ESC)

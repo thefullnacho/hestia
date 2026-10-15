@@ -57,15 +57,16 @@ from the schema, digits for numbers, free text must continue a phrase the person
 | | Fully right | Wrong calls | Caught by the gate | Wrong actions that execute |
 |---|---|---|---|---|
 | Model alone | 79% | 47 | 16 | 31 |
-| Constrained | 79% | 46 | 8 | 38 |
+| Constrained | 79% | 46 | 9 | 37 |
 
-Constraining did not reduce wrong calls (47 to 46). It moved them: 4 fixed, 2 right ones
-broken, and 5 that the gate caught became valid-looking wrong actions it cannot see ("what's
+Constraining did not reduce wrong calls (47 to 46). It moved them: 4 fixed, 3 right ones
+broken, and 4 that the gate caught became valid-looking wrong actions it cannot see ("what's
 playing?" muted the music; "can't find the good hammer" logged it returned; "hey hestia"
 made a calendar event). An invalid output is the signal that the model is confused, and the
 constraint erases the signal by forcing the nearest legal action. Kept: the gate. Not used:
 constrained decoding, unless a future version turns "the program had to override the model"
-into a reason to ask. (The probe also let "all" into every free-text field, a checker bug.)
+into a reason to ask. (First run let "all" into every free-text field, a checker bug; fixed,
+the constrained row is the rerun: one wrong action became one the gate catches.)
 
 ## Notes
 
