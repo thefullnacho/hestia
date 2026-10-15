@@ -25,7 +25,7 @@
         "description": "Turn a light or room on or off, or change it.",
         "parameters": {
           "target": "string (optional), the light or room as said; 'all' for everything; leave out when no room is named (code uses the device's room)",
-          "state": "on | off",
+          "state": "on | off (optional)",
           "brightness": "integer 0-100 (optional)",
           "color": "string (optional)"
         }
