@@ -52,21 +52,26 @@ the room-aware fix, a v3 run scored 76% because a null target trained as the wor
 ## Constrained decoding probe (2026-10-15)
 
 Same checkpoint, scored with and without constrained decoding (constrain.py: names and enums
-from the schema, digits for numbers, free text must continue a phrase the person said).
+from the schema, digits for numbers, free text must be words the person said).
 
 | | Fully right | Wrong calls | Caught by the gate | Wrong actions that execute |
 |---|---|---|---|---|
 | Model alone | 79% | 47 | 16 | 31 |
-| Constrained | 79% | 46 | 9 | 37 |
+| Constrained | 80% | 43 | 8 | 35 |
 
-Constraining did not reduce wrong calls (47 to 46). It moved them: 4 fixed, 3 right ones
-broken, and 4 that the gate caught became valid-looking wrong actions it cannot see ("what's
-playing?" muted the music; "can't find the good hammer" logged it returned; "hey hestia"
-made a calendar event). An invalid output is the signal that the model is confused, and the
+Constraining cut wrong calls from 47 to 43, but every one it fixed was a garbled copy the gate
+already caught ("greenlight", "haylor"). It also turned 4 errors the gate caught into
+valid-looking wrong actions it cannot see ("what's playing?" muted the music; "can't find the
+good hammer" logged it returned; "hey hestia" made a calendar event), so wrong actions that
+execute went up, 31 to 35. An invalid output is the signal that the model is confused, and the
 constraint erases the signal by forcing the nearest legal action. Kept: the gate. Not used:
 constrained decoding, unless a future version turns "the program had to override the model"
-into a reason to ask. (First run let "all" into every free-text field, a checker bug; fixed,
-the constrained row is the rerun: one wrong action became one the gate catches.)
+into a reason to ask.
+
+The first run of this probe had two checker bugs, both fixed and rerun above: "all" was allowed
+in every free-text field (only light_set's target may say it), and free text had to continue
+one contiguous phrase, so it vetoed right answers like "thursday 2" for "thursday at 2". The
+labels and the gate only ask that every word was said, in any order; the checker now does too.
 
 ## Notes
 

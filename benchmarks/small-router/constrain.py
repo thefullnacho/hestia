@@ -3,8 +3,8 @@ is determined, and the model only chooses where judgment is needed.
 
 At each step the model's top candidates are checked, best first, against a parser of
 FunctionGemma's call format: tool and argument names must be ones this domain offers, enum
-values must be listed, numbers must be digits, and free-text values must continue a phrase the
-person actually said (from a word boundary). A plain-text answer (a question, or nothing) is
+values must be listed, numbers must be digits, and free-text values must be words the person
+actually said. A plain-text answer (a question, or nothing) is
 left alone: asking stays the model's call. If no candidate fits, the model's own choice stands
 and the gate after the caller still applies. This is defense in depth, not a replacement.
 """
@@ -25,33 +25,41 @@ DONE = "<start_function_response>"
 UNSAID = {("light_set", "target"): ("all",)}
 
 
-def _phrase_ok(value: str, said: str, starts: list[int], unsaid=()) -> bool:
-    """value is the start of a phrase in what was said, beginning at a word boundary."""
-    v = re.sub(r"\s+", " ", value.lower()).lstrip()
-    if not v:
+def _phrase_ok(value: str, said: set[str], stems: set[str], unsaid=()) -> bool:
+    """Every word of value is a word the person said, the rule the labels and the said-words gate
+    use (caller.spans_said): any order, filler like "at" may drop. A word still being typed must
+    be the start of one."""
+    v = value.lower()
+    if not v.strip() or any(u.startswith(v.strip()) for u in unsaid):
         return True
-    if any(u.startswith(v) for u in unsaid):
-        return True
-    return any(said.startswith(v, i) for i in starts)
+    ws = caller.words(v)
+    typing = ws.pop() if ws and v[-1].isalnum() else None
+    if any(caller._stem(w) not in stems for w in ws):
+        return False
+    return typing is None or caller._stem(typing) in stems or any(w.startswith(typing) for w in said)
 
 
 class CallChecker:
     """Is a partial model output still a valid call for these tools and this utterance?"""
 
     def __init__(self, tools: list[dict], utterance: str):
+        self.at = None  # where the last ok() left off: what the next token chooses (override.py)
         self.params = {t["function"]["name"]: t["function"]["parameters"]["properties"] for t in tools}
-        self.said = re.sub(r"\s+", " ", utterance.lower())
-        self.starts = [m.start() for m in re.finditer(r"\b\w", self.said)]
+        self.said = set(caller.words(utterance))
+        self.stems = {caller._stem(w) for w in self.said}
 
     def ok(self, text: str) -> bool:
+        self.at = ("text",)
         if not (text.startswith(CALL) or CALL.startswith(text)):
             return CALL not in text  # a plain answer (a question, or nothing) must stay plain
         pos = 0
         while pos < len(text):
             rest = text[pos:]
             if CALL.startswith(rest):
+                self.at = ("open",)
                 return True
             if not rest.startswith(CALL):
+                self.at = ("done",)
                 return DONE.startswith(rest) or rest.startswith(DONE)
             pos += len(CALL)
             got = self._call(text[pos:])
@@ -60,22 +68,26 @@ class CallChecker:
             if got is False:
                 return False
             pos += got
+        self.at = ("open",)
         return True
 
     def _call(self, s: str):
         """True: valid but unfinished. False: invalid. int: length of a complete call."""
         head = "call:"
         if not s.startswith(head):
+            self.at = ("tool", "")
             return head.startswith(s)
         m = re.match(r"call:(\w*)", s)
         name = m.group(1)
         i = m.end()
         if i == len(s):
+            self.at = ("tool", name)
             return any(n.startswith(name) for n in self.params)
         if name not in self.params or s[i] != "{":
             return False
         props, i, used = self.params[name], i + 1, set()
         while True:
+            self.at = ("key", name)
             if i == len(s):
                 return True
             if s[i] == "}":
@@ -96,6 +108,7 @@ class CallChecker:
             used.add(key)
             i += 1
             spec = props[key]
+            self.at = ("value", name, key)
             got = self._value(s[i:], spec, UNSAID.get((name, key), ()))
             if got is True or got is False:
                 return got
@@ -135,10 +148,12 @@ class CallChecker:
         body = s[len(ESC):]
         end = body.find(ESC)
         value = body if end < 0 else body[:end]
+        if end < 0:
+            self.at = self.at[:3] + ("enum" if enum is not None else "span", value)
         if enum is not None:
             fits = any(e.startswith(value) for e in enum) if end < 0 else value in enum
         else:
-            fits = _phrase_ok(value, self.said, self.starts, unsaid) and (end < 0 or value.strip() != "")
+            fits = _phrase_ok(value, self.said, self.stems, unsaid) and (end < 0 or value.strip() != "")
         if not fits:
             return False
         return True if end < 0 else len(ESC) + end + len(ESC)
