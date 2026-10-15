@@ -570,12 +570,122 @@ def v2():
         add("inventory", t, expect="ask", say=q, kind="ask-missing")
 
 
+# Phrasing templates written by helper agents (templates/*.json); slots and labels are filled
+# here, so a template can only ever be wrong about wording, never about the answer. Reviewed
+# 2026-10-15: these state a stock level, which the policy marks in inventory (code then adds
+# to the shopping list), so they are not list adds.
+DROP = {"out of {item}, add it", "we're out of {item}", "we're running low on {item}, add it to the list",
+        "I used the last of the {item}, put it on the list", "we're all out of {item}, put it on the list",
+        "we're out of {item} and {item2}", "out of {item}, and {item2} while you're at it",
+        "we're low on {item} and {item2}, add them", "what are we out of"}
+SLOTS = {"adjust_use": ({"n", "unit", "item"}, {"place"}), "adjust_add": ({"n", "unit", "item"}, {"place"}),
+         "set_count": ({"n", "unit", "item"}, {"place"}), "mark_out": ({"item"}, set()),
+         "mark_low": ({"item"}, set()), "mark_plenty": ({"item"}, set()), "find": ({"item"}, set()),
+         "tool_broke": ({"tool"}, set()), "tool_lent": ({"tool", "person"}, set()),
+         "tool_returned": ({"tool"}, {"person"}), "tool_lost": ({"tool"}, set()),
+         "shop_add": ({"item"}, set()), "shop_add_two": ({"item", "item2"}, set()),
+         "todo_add": ({"chore"}, set()), "shop_remove": ({"item"}, set()), "todo_done": ({"thing"}, set()),
+         "shop_read": (set(), set()), "todo_read": (set(), set()), "cal_read": ({"when"}, set()),
+         "cal_add": ({"event", "day", "time"}, set()), "remind_in": ({"what", "dur"}, set()),
+         "remind_at": ({"what", "clock"}, set()), "timer": ({"dur"}, set()), "alarm": ({"clock"}, set()),
+         "alerts_read": (set(), set()), "dismiss": (set(), set()), "snooze": (set(), set()),
+         "snooze_min": ({"m"}, set()), **{f"weather_{a}": ({"when"}, set())
+                                          for a in ("rain", "frost", "wind", "temp", "general")}}
+CAL_WHEN = [("today", "today"), ("tomorrow", "tomorrow"), ("tonight", "tonight"), ("this week", "week"),
+            ("next week", "next week"), ("this weekend", "weekend"), ("on friday", "friday"),
+            ("on monday", "monday"), ("saturday", "saturday"), ("on the 12th", "12th")]
+W_WHEN = [("today", "today"), ("tonight", "tonight"), ("tomorrow", "tomorrow"), ("this week", "this week"),
+          ("this weekend", "weekend"), ("right now", "now")]
+ASPECT = {"rain": "rain", "frost": "frost", "wind": "wind", "temp": "temperature", "general": None}
+
+
+def agent_templates():
+    A, M, ST, F, TS = "inventory_adjust", "inventory_mark", "inventory_set", "inventory_find", "tool_status"
+    LA, LR, LD, CR, CA = "list_add", "list_remove", "list_read", "calendar_read", "calendar_add"
+    R, AR, AA, W = "reminder_add", "alerts_read", "alert_act", "weather_get"
+    just = "An alert just went off: '{x}'."
+    bad = []
+    for path in sorted((HERE / "templates").glob("*.json")):
+        for kind, temps in json.loads(path.read_text()).items():
+            for t in temps:
+                if kind == "weather_implied":
+                    a = t["aspect"]
+                    add("weather", t["text"], T(W, when="today", **({"aspect": a} if a != "general" else {})),
+                        kind="agent:weather_implied")
+                    continue
+                if t in DROP:
+                    continue
+                need, opt = SLOTS[kind]
+                used = re.findall(r"{(\w+)}", t)
+                if set(used) - need - opt or not need <= set(used) or len(used) != len(set(used)):
+                    bad.append((kind, t))
+                    continue
+                for _ in range(2 if need else 1):
+                    item, unit = rng.choice(STOCK)
+                    v = {"n": rng.choice([2, 3, 4, 5, 6, 8, 10, 12]), "unit": unit or "packs", "item": item,
+                         "place": rng.choice(PLACES), "tool": rng.choice(TOOLS), "person": rng.choice(PEOPLE),
+                         "chore": rng.choice(CHORES), "thing": rng.choice(CHORE_DONE)[1],
+                         "event": rng.choice(EVENTS), "day": rng.choice(DAYS + DATES), "time": rng.choice(TIMES),
+                         "what": rng.choice(REMIND), "dur": rng.choice(DURS), "clock": rng.choice(CLOCK),
+                         "m": rng.choice([5, 10, 15, 20, 30])}
+                    if kind.startswith(("mark", "find", "shop")):
+                        v["item"] = rng.choice(BULK if kind.startswith("mark") else GROCERY)
+                    if kind == "shop_add_two":
+                        v["item"], v["item2"] = rng.sample(GROCERY, 2)
+                    cw, cl = rng.choice(CAL_WHEN)
+                    ww, wl = rng.choice([w for w in W_WHEN if not (kind == "weather_frost" and w[1] == "now")])
+                    v["when"] = cw if kind == "cal_read" else ww
+                    text = re.sub(r"s's\b", "s'", t.format(**v))  # "the kids's" -> "the kids'"
+                    loc = {"location": v["place"]} if "{place}" in t else {}
+                    ctx = just.format(x=rng.choice(REMIND).capitalize())
+                    call = {
+                        "adjust_use": lambda: T(A, item=v["item"], change=-v["n"], **loc),
+                        "adjust_add": lambda: T(A, item=v["item"], change=v["n"], **loc),
+                        "set_count": lambda: T(ST, item=v["item"], count=v["n"], **loc),
+                        "mark_out": lambda: T(M, item=v["item"], level="out"),
+                        "mark_low": lambda: T(M, item=v["item"], level="low"),
+                        "mark_plenty": lambda: T(M, item=v["item"], level="plenty"),
+                        "find": lambda: T(F, item=v["item"]),
+                        "tool_broke": lambda: T(TS, tool=v["tool"], status="broke"),
+                        "tool_lent": lambda: T(TS, tool=v["tool"], status="lent", note=v["person"]),
+                        "tool_returned": lambda: T(TS, tool=v["tool"], status="returned"),
+                        "tool_lost": lambda: T(TS, tool=v["tool"], status="lost"),
+                        "shop_add": lambda: T(LA, list="shopping", items=[v["item"]]),
+                        "shop_add_two": lambda: T(LA, list="shopping", items=[v["item"], v["item2"]]),
+                        "todo_add": lambda: T(LA, list="todo", items=[v["chore"]]),
+                        "shop_remove": lambda: T(LR, list="shopping", items=[v["item"]]),
+                        "todo_done": lambda: T(LR, list="todo", items=[v["thing"]]),
+                        "shop_read": lambda: T(LD, list="shopping"), "todo_read": lambda: T(LD, list="todo"),
+                        "cal_read": lambda: T(CR, when=cl),
+                        "cal_add": lambda: T(CA, title=v["event"], when=f"{v['day']} {v['time']}"),
+                        "remind_in": lambda: T(R, text=v["what"], when=v["dur"]),
+                        "remind_at": lambda: T(R, text=v["what"], when=v["clock"]),
+                        "timer": lambda: T(R, when=v["dur"]), "alarm": lambda: T(R, when=v["clock"]),
+                        "alerts_read": lambda: T(AR), "dismiss": lambda: T(AA, action="dismiss"),
+                        "snooze": lambda: T(AA, action="snooze"),
+                        "snooze_min": lambda: T(AA, action="snooze", minutes=v["m"]),
+                    }.get(kind) or (lambda: T(W, when=wl, **({"aspect": ASPECT[kind[8:]]} if ASPECT[kind[8:]] else {})))
+                    domain = TOOL_DOMAIN_OF[call()["tool"]]
+                    add(domain, text, call(), kind=f"agent:{kind}",
+                        context=ctx if kind in ("dismiss", "snooze", "snooze_min") else None)
+    if bad:
+        print(f"{len(bad)} templates failed the slot check and were skipped:", bad[:5])
+
+
+TOOL_DOMAIN_OF = {**{t: "inventory" for t in ("inventory_adjust", "inventory_mark", "inventory_set",
+                                               "inventory_find", "tool_status")},
+                  **{t: "lists" for t in ("list_add", "list_remove", "list_read")},
+                  **{t: "calendar" for t in ("calendar_read", "calendar_add")},
+                  **{t: "alerts" for t in ("reminder_add", "alerts_read", "alert_act")},
+                  "weather_get": "weather"}
+
+
 def norm(s):
     return re.sub(r"[^a-z0-9 ]", "", s.lower()).strip()
 
 
 def main():
-    for build in (music, lights, inventory, lists, calendar, weather, alerts, nothing, boost, v2):
+    for build in (music, lights, inventory, lists, calendar, weather, alerts, nothing, boost, v2, agent_templates):
         build()
     ha = HERE / "ha_intents.jsonl"  # Home Assistant's phrasing, CC BY 4.0; see NOTICE.md
     if ha.exists():
