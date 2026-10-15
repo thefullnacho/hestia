@@ -23,6 +23,7 @@ DONE = "<start_function_response>"
 
 # free-text fields that may hold a word the person didn't say: light_set's "everything"
 UNSAID = {("light_set", "target"): ("all",)}
+PLAIN = re.compile(r"[a-z0-9 '&,./:-]*")
 
 
 def _phrase_ok(value: str, said: set[str], stems: set[str], unsaid=()) -> bool:
@@ -32,6 +33,8 @@ def _phrase_ok(value: str, said: set[str], stems: set[str], unsaid=()) -> bool:
     v = value.lower()
     if not v.strip() or any(u.startswith(v.strip()) for u in unsaid):
         return True
+    if not PLAIN.fullmatch(v):  # words() skips what isn't a-z0-9, so "pρούν" would pass as "p"
+        return False
     ws = caller.words(v)
     typing = ws.pop() if ws and v[-1].isalnum() else None
     if any(caller._stem(w) not in stems for w in ws):
@@ -116,7 +119,7 @@ class CallChecker:
 
     def _value(self, s: str, spec: dict, unsaid=()):
         if spec.get("type") == "integer":
-            m = re.match(r"-?\d*", s)
+            m = re.match(r"-?[0-9]*", s)
             if m.end() == len(s):
                 return True
             return m.end() if m.end() and s[m.end()] in ",}" and m.group(0) != "-" else False
