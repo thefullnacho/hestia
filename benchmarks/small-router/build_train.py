@@ -189,12 +189,25 @@ def lights():
         for t in rng.sample(["{n} mode", "set the {n} scene", "turn on {n} scene", "switch to {n}",
                              "{n} lighting please"], 3):
             add("lights", t.format(n=sc), T(S, name=sc), kind="scene")
-    for t, q in [("turn the light on", "Which light?"), ("lights on", "Which room?"),
-                 ("shut the lamp off", "Which lamp?"), ("make it brighter", "Which light?"),
-                 ("too bright", "Which light should I dim?"), ("can I get some light", "Which room?"),
-                 ("turn that off", "What should I turn off?"), ("dim it", "Which light?"),
-                 ("lights to 40", "Which room?"), ("make it red", "Which light?")]:
-        add("lights", t, expect="ask", say=q, kind="ask-no-target")
+    # No room named: target is left out and code fills in the room the device is in.
+    here = [("turn the light on", {"state": "on"}), ("lights on", {"state": "on"}),
+            ("lights out", {"state": "off"}), ("can I get some light", {"state": "on"}),
+            ("shut the lights off", {"state": "off"}), ("lights to 40", {"brightness": 40}),
+            ("too bright in here", {"brightness": 30}), ("make the lights red", {"color": "red"}),
+            ("it's dark", {"state": "on"}), ("switch the light off", {"state": "off"}),
+            ("dim the lights", {"brightness": 30}), ("lights all the way up", {"brightness": 100}),
+            ("turn the lights down to 20", {"brightness": 20}), ("hit the lights", {"state": "off"}),
+            ("light please", {"state": "on"}), ("lights", {"state": "on"}),
+            ("make it bright in here", {"brightness": 100}), ("soft white lights", {"color": "soft white"})]
+    for t, args in here:
+        add("lights", t, T(L, **args), kind="light-here")
+    for t, thing, s in [("shut the lamp off", "lamp", "off"), ("turn on the overhead", "overhead", "on"),
+                        ("string lights on", "string lights", "on"), ("ceiling light off", "ceiling light", "off")]:
+        add("lights", t, T(L, target=thing, state=s), kind="light-here-thing")
+    # A pronoun could be the lights or the music: the room doesn't settle it, so ask.
+    for t, q in [("turn that off", "What should I turn off?"), ("dim it", "Dim what?"),
+                 ("make it red", "Which light?"), ("turn it on", "What should I turn on?")]:
+        add("lights", t, expect="ask", say=q, kind="ask-pronoun")
     for t in ["don't turn on the garage light", "leave the barn light on", "is the shop light on?",
               "keep the porch lights off tonight", "who left the basement light on",
               "the den lamp is broken", "don't touch the office lights"]:
@@ -492,8 +505,7 @@ def boost():
             ("lists", "put it on the list", "What should I put on the list?"),
             ("alerts", "remind me", "What should I remind you about?"), ("alerts", "snooze it", "There's no alert going. Did you mean a reminder?"),
             ("calendar", "put it on the calendar", "What should I put on the calendar, and when?"),
-            ("calendar", "when is it", "When is what?"), ("lights", "brighter", "Which light?"),
-            ("lights", "off", "What should I turn off?"), ("lights", "change the color", "Which light, and what color?")]
+            ("calendar", "when is it", "When is what?"), ("lights", "off", "What should I turn off?"), ("lights", "change it", "Change what?")]
     for dom, t, q in asks:
         add(dom, t, expect="ask", say=q, kind="ask-no-referent")
 

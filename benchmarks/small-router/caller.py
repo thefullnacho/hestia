@@ -2,7 +2,8 @@
 
 The caller only ever sees one domain's tools; the router picked the domain. Scoring follows
 build_cases.py: free-text args pass when every expected word is in the model's value, enum and
-number args must match exactly, args not in the expectation are not checked, multi-call cases
+number args must match exactly, args not in the expectation are not checked, an arg expected
+as null must be left out, multi-call cases
 pass when the set of calls matches in any order, and `accept` lists other answers that pass.
 """
 from __future__ import annotations
@@ -75,6 +76,8 @@ def words(s) -> list[str]:
 
 
 def arg_ok(tool: str, key: str, want, got) -> bool:
+    if want is None:  # must be left out, e.g. no room named: code fills in the device's room
+        return got is None or got == ""
     if got is None:
         return False
     spec = PARAMS.get(tool, {}).get(key, {})

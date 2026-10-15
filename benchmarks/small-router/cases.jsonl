@@ -56,10 +56,10 @@
 {"domain": "lights", "text": "turn on the outside lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "outside", "state": "on"}}], "accept": [], "tags": [], "id": "lig-056"}
 {"domain": "lights", "text": "lights on in the kitchen please, thank you", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "accept": [], "tags": [], "id": "lig-057"}
 {"domain": "lights", "text": "can you shut the bathroom light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bathroom", "state": "off"}}], "accept": [], "tags": ["idiom"], "id": "lig-058"}
-{"domain": "lights", "text": "kill the lights", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target"], "id": "lig-059"}
-{"domain": "lights", "text": "it's too dark in here", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target", "implicit"], "id": "lig-060"}
-{"domain": "lights", "text": "lights off", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target"], "id": "lig-061"}
-{"domain": "lights", "text": "turn on the lamp", "expect": "ask", "calls": [], "accept": [], "tags": ["ambiguous-target"], "id": "lig-062"}
+{"domain": "lights", "text": "kill the lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "accept": [], "tags": ["room-aware", "idiom"], "id": "lig-059"}
+{"domain": "lights", "text": "it's too dark in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "accept": [[{"tool": "light_set", "args": {"target": null, "brightness": 100}}]], "tags": ["room-aware", "implicit"], "id": "lig-060"}
+{"domain": "lights", "text": "lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "accept": [], "tags": ["room-aware"], "id": "lig-061"}
+{"domain": "lights", "text": "turn on the lamp", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "lamp", "state": "on"}}], "accept": [], "tags": ["room-aware"], "id": "lig-062"}
 {"domain": "lights", "text": "don't turn off the porch light", "expect": "none", "calls": [], "accept": [], "tags": ["negation"], "id": "lig-063"}
 {"domain": "lights", "text": "the kitchen light is on, right?", "expect": "none", "calls": [], "accept": [], "tags": ["gap"], "id": "lig-064"}
 {"domain": "lights", "text": "goodnight", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "goodnight"}}], "accept": [["none"]], "tags": ["implicit"], "id": "lig-065"}
