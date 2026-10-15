@@ -126,13 +126,19 @@ def passes(row: dict, calls: list[dict], said: str) -> bool:
     return False
 
 
+# free-text fields that may hold a word the person didn't say: light_set's "everything"
+UNSAID = {("light_set", "target"): ("all",)}
+# what free text may be made of: words() skips anything else, so "pρούν" would check as "p"
+PLAIN = re.compile(r"[a-z0-9 '&,./:-]*")
+
+
 def _stem(w: str) -> str:
     return re.sub(r"(ies|es|s)$", "", w)
 
 
 def spans_said(text: str, calls: list[dict]) -> bool:
     """The code gate after the caller: every value must be allowed by the schema, and every
-    free-text value must be words the person said. A tiny model sometimes garbles a copy
+    free-text value must be plain words the person said ("all" only where UNSAID allows it). A tiny model sometimes garbles a copy
     ("porch" -> "patswood") or borrows another tool's value (a light "returned"); refusing
     that call and asking costs a question, acting on it costs a wrong record."""
     said = {_stem(w) for w in words(text)}
@@ -153,8 +159,12 @@ def spans_said(text: str, calls: list[dict]) -> bool:
                     return False
                 continue
             for val in (v if isinstance(v, list) else [v]):
-                if isinstance(val, str) and val.strip().lower() != "all" and any(
-                        _stem(w) not in said for w in words(val)):
+                if not isinstance(val, str):
+                    continue
+                val = val.strip().lower()
+                if val in UNSAID.get((c["tool"], k), ()):
+                    continue
+                if not PLAIN.fullmatch(val) or any(_stem(w) not in said for w in words(val)):
                     return False
     return True
 

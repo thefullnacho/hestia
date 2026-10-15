@@ -21,9 +21,6 @@ CALL, END_CALL, ESC = "<start_function_call>", "<end_function_call>", "<escape>"
 DONE = "<start_function_response>"
 
 
-# free-text fields that may hold a word the person didn't say: light_set's "everything"
-UNSAID = {("light_set", "target"): ("all",)}
-PLAIN = re.compile(r"[a-z0-9 '&,./:-]*")
 
 
 def _phrase_ok(value: str, said: set[str], stems: set[str], unsaid=()) -> bool:
@@ -33,7 +30,7 @@ def _phrase_ok(value: str, said: set[str], stems: set[str], unsaid=()) -> bool:
     v = value.lower()
     if not v.strip() or any(u.startswith(v.strip()) for u in unsaid):
         return True
-    if not PLAIN.fullmatch(v):  # words() skips what isn't a-z0-9, so "pρούν" would pass as "p"
+    if not caller.PLAIN.fullmatch(v):  # words() skips what isn't a-z0-9, so "pρούν" would pass as "p"
         return False
     ws = caller.words(v)
     typing = ws.pop() if ws and v[-1].isalnum() else None
@@ -112,7 +109,7 @@ class CallChecker:
             i += 1
             spec = props[key]
             self.at = ("value", name, key)
-            got = self._value(s[i:], spec, UNSAID.get((name, key), ()))
+            got = self._value(s[i:], spec, caller.UNSAID.get((name, key), ()))
             if got is True or got is False:
                 return got
             i += got
