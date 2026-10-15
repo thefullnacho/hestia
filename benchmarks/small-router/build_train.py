@@ -7,6 +7,8 @@ differences that keep the test fair:
   - the vocabulary is held out: items, tools, artists, titles and errands that appear in the
     test cases are not used here, so a pass means the model generalised, not recognised
   - any utterance that matches a test utterance after normalising is dropped
+  - ha_intents.jsonl (import_ha_intents.py) adds Home Assistant's labelled sentences, mapped
+    onto these tools, when it is present
 
 Labels come from templates, not a model, so every argument is right by construction.
 One policy the test set splits on ("add 2 gallons of milk" -> list, "add 2 dozen eggs" ->
@@ -510,13 +512,74 @@ def boost():
         add(dom, t, expect="ask", say=q, kind="ask-no-referent")
 
 
+def v2():
+    """Patterns the first fine-tune missed: pronouns that only mean one thing in music, words
+    that are numbers, the item inside a longer sentence, two calls in one domain, and amounts
+    too vague to log."""
+    C, L, A, M, LA = "music_control", "light_set", "inventory_adjust", "inventory_mark", "list_add"
+    for t, act in [("turn it up a bit", "louder"), ("crank it", "louder"), ("bring it up", "louder"),
+                   ("turn it down some", "quieter"), ("knock it down a notch", "quieter"),
+                   ("it's way too loud", "quieter"), ("I can barely hear it", "louder"),
+                   ("skip it", "skip"), ("pause it for a sec", "pause"), ("start it again", "resume"),
+                   ("stop it", "stop"), ("back up a song", "previous")]:
+        add("music", t, T(C, action=act), kind="music-pronoun")
+    for t in ["mute it", "mute the music", "silence", "kill the sound", "mute"]:
+        add("music", t, T(C, action="set_volume", level=0), kind="music-mute")
+    for t, lvl in [("volume halfway", 50), ("music at half volume", 50), ("max volume", 100),
+                   ("all the way up on the volume", 100), ("volume a quarter of the way", 25)]:
+        add("music", t, T(C, action="set_volume", level=lvl), kind="music-words")
+    for t, room, b in [("full brightness in the den", "den", 100), ("the shop as bright as it gets", "shop", 100),
+                       ("half light in the attic", "attic", 50), ("basement at half", "basement", 50),
+                       ("the garage at a quarter brightness", "garage", 25), ("max out the patio lights", "patio", 100),
+                       ("barely on in the nursery", "nursery", 10), ("mudroom lights halfway", "mudroom", 50)]:
+        add("lights", t, T(L, target=room, brightness=b), kind="light-words")
+    for t, item, n in [("bought a dozen canning lids", "canning lids", 12), ("picked up two dozen work gloves", "work gloves", 24),
+                       ("got a half dozen jars of honey", "honey", 6), ("we went through a dozen trash bags", "trash bags", -12),
+                       ("added a couple bags of oats", "oats", 2), ("used a pair of rubber gloves", "rubber gloves", -2)]:
+        add("inventory", t, T(A, item=item, change=n), kind="adjust-words")
+    for t, item, n in [("used four cans of black beans in the chili", "black beans", -4),
+                       ("took three bags of charcoal for the cookout", "charcoal", -3),
+                       ("we burned through two bags of wood pellets this weekend", "wood pellets", -2),
+                       ("I used five lag bolts on the deck stairs", "lag bolts", -5),
+                       ("grabbed two bottles of olive oil for the canning", "olive oil", -2),
+                       ("put six boxes of pasta in the pantry for winter", "pasta", 6),
+                       ("used a quart of motor oil on the mower", "motor oil", -1),
+                       ("the kids ate two boxes of cereal", "cereal", -2)]:
+        add("inventory", t, T(A, item=item, change=n), kind="adjust-long")
+    for t, item, lvl in [("we used the last of the maple syrup on pancakes", "maple syrup", "out"),
+                         ("the hot sauce is about gone after taco night", "hot sauce", "low"),
+                         ("just filled the bird feeders so the bird seed is low", "bird seed", "low"),
+                         ("got a full load of firewood stacked", "firewood", "plenty")]:
+        add("inventory", t, T(M, item=item, level=lvl), kind="mark-long")
+    for t, rooms, s in [("turn off the den and the attic", ["den", "attic"], "off"),
+                        ("lights on in the mudroom and the garage", ["mudroom", "garage"], "on"),
+                        ("shut off the shop and the barn lights", ["shop", "barn"], "off"),
+                        ("turn on the patio and back deck lights", ["patio", "back deck"], "on")]:
+        add("lights", t, *[T(L, target=r, state=s) for r in rooms], kind="multi-same")
+    for t, items, lvl in [("we're out of tea and lemons", ["tea", "lemons"], "out"),
+                          ("low on garlic and onions", ["garlic", "onions"], "low"),
+                          ("no more ketchup or hot sauce", ["ketchup", "hot sauce"], "out")]:
+        add("inventory", t, *[T(M, item=i, level=lvl) for i in items], kind="multi-same")
+    for t, pairs in [("used 2 cans of soup and 3 boxes of pasta", [("canned soup", -2), ("pasta", -3)]),
+                     ("bought 4 bags of oats and 2 jars of honey", [("oats", 4), ("honey", 2)])]:
+        add("inventory", t, *[T(A, item=i, change=n) for i, n in pairs], kind="multi-same")
+    for t, q in [("used some of the cat litter", "About how much?"), ("we took a few cans out", "A few cans of what?"),
+                 ("burned a bunch of the firewood", "About how much?"), ("used a little of the bleach", "About how much?"),
+                 ("grabbed some from the barn", "What did you grab?"), ("we're out of the usual", "Out of what?"),
+                 ("used a handful", "A handful of what?"), ("we need more of the good kind", "More of what?")]:
+        add("inventory", t, expect="ask", say=q, kind="ask-missing")
+
+
 def norm(s):
     return re.sub(r"[^a-z0-9 ]", "", s.lower()).strip()
 
 
 def main():
-    for build in (music, lights, inventory, lists, calendar, weather, alerts, nothing, boost):
+    for build in (music, lights, inventory, lists, calendar, weather, alerts, nothing, boost, v2):
         build()
+    ha = HERE / "ha_intents.jsonl"  # Home Assistant's phrasing, CC BY 4.0; see NOTICE.md
+    if ha.exists():
+        OUT.extend(json.loads(l) for l in ha.read_text().splitlines() if l.strip())
     test = [json.loads(l) for l in (HERE / "cases.jsonl").read_text().splitlines() if l.strip()]
     test_text = {norm(c["text"]) for c in test}
     seen, rows, dropped = set(), [], []

@@ -1,0 +1,624 @@
+{"domain": "none", "text": "are any lights on in the kitchen", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "return the mower to base", "expect": "none", "calls": [], "template": "ha:HassLawnMowerDock", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "close the windows in the kitchen", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "unpause", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the overhead light on the first floor off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "open the windows in the kitchen", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes timer called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "are all the windows closed in the bedroom", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "stop playing", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "template": "ha:HassMediaPause", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for half an hour", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "half an hour"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "cancel all timers", "expect": "none", "calls": [], "template": "ha:HassCancelAllTimers", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off all the lights in the home", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "open the curtains", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "weather", "text": "what's the weather?", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "now"}}], "template": "ha:HassGetWeather", "source": "ha-intents"}
+{"domain": "none", "text": "cancel timer named pizza", "expect": "none", "calls": [], "template": "ha:HassCancelTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the thermostat off", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "set temperature to 20.5 degrees", "expect": "none", "calls": [], "template": "ha:HassClimateSetTemperature", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes 30 seconds timer called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off every light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the thermostat on the first floor off", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "are any first floor fans on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "TV play the last track", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "lights", "text": "transition to party mode", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness in here to highest", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "are all the doors locked", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all kitchen fans on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "who is home", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "set the color of all lights in here to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lists", "text": "check crackers off from my shopping list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["crackers"]}}], "template": "ha:HassShoppingListCompleteItem", "source": "ha-intents"}
+{"domain": "lights", "text": "lights off on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "status of my timers", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on Kitchen lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the kitchen lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour 5 minutes 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "set bedroom to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "turn up first floor volume by 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "alerts", "text": "time left on the 45 seconds timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off bedroom lamp", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "which fans are on in the kitchen", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour 5 minutes called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "transition to scene living room party mode", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "transition to party mode in the living room", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "turn down first floor volume by 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "skip to the next item", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "lights", "text": "lights on in the Kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 30 seconds timer for pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "how many fans are on on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "how many doors are locked on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour 30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn play corner lights on the first floor off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "put the office thermostat fan on auto", "expect": "none", "calls": [], "template": "ha:HassClimateSetFanMode", "source": "ha-intents"}
+{"domain": "none", "text": "set the fan mode in the bedroom to low", "expect": "none", "calls": [], "template": "ha:HassClimateSetFanMode", "source": "ha-intents"}
+{"domain": "lights", "text": "unlock front door in the kitchen", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn kitchen fans on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "turn down the volume on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "are any switches on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer named pizza for 5 minutes 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn bedroom to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "increase volume 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "close the curtain left in the living room", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "set the brightness in the bedroom to the lowest", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on all the fans", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness of bedroom to the highest", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "tell me the date", "expect": "none", "calls": [], "template": "ha:HassGetCurrentDate", "source": "ha-intents"}
+{"domain": "music", "text": "volume down by 20% on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom lamp red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "set kitchen fan speed to 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "is the front door locked in the entryway", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the fan in the kitchen", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the kitchen overhead light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "Overhead light off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "change the bedroom to minimum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp to min brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "skip track", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour 5 minutes 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate Overhead light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the kitchen overhead light on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "is the skylight open on the second floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 5 minutes 30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "set the speed of fans in the kitchen to 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "party mode in the living room on", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "ceiling fan 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "music", "text": "next item in living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 5 minutes 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "close the first floor curtains", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "set the speed of the ceiling fan to 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "none", "text": "are all the hallway doors locked", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "kitchen fans 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "none", "text": "are any doors unlocked", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "how many doors are locked in the hallway", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "set the office thermostat fan to auto", "expect": "none", "calls": [], "template": "ha:HassClimateSetFanMode", "source": "ha-intents"}
+{"domain": "alerts", "text": "how much time left on pizza timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer named pizza for 1 hour 5 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "how long is left on the timer in the kitchen", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "none", "text": "are any doors unlocked on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the bedroom lamp off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "30 seconds timer called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the kitchen play corner lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "set living room volume to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "music", "text": "go back to the last track on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the fans in the kitchen on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "set temp of the first floor to 50 degrees", "expect": "none", "calls": [], "template": "ha:HassClimateSetTemperature", "source": "ha-intents"}
+{"domain": "music", "text": "turn volume down to 90 percent in living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the kitchen play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "turn up the volume on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "turn down the TV volume 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "are all the fans off in the kitchen", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "how hot is the living room?", "expect": "none", "calls": [], "template": "ha:HassClimateGetTemperature", "source": "ha-intents"}
+{"domain": "none", "text": "how many first floor doors are locked", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "go back to the previous song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "music", "text": "volume up by 20% in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "is the hallway light on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom maximum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "cancel the timer in the kitchen", "expect": "none", "calls": [], "template": "ha:HassCancelTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn Kitchen lights on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "increase living room volume 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "what's the living room temperature?", "expect": "none", "calls": [], "template": "ha:HassClimateGetTemperature", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour 5 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour timer status", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "music", "text": "replay the previous song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "music", "text": "turn up the volume to 90 on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "none", "text": "cancel 1 hour timer", "expect": "none", "calls": [], "template": "ha:HassCancelTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "how long is left on my 5 minutes timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "music", "text": "living room volume up", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the lights in the home", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "45 seconds timer status", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "none", "text": "set the fan mode to automatic", "expect": "none", "calls": [], "template": "ha:HassClimateSetFanMode", "source": "ha-intents"}
+{"domain": "none", "text": "is jane home", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "decrease living room volume 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "pause the music", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "template": "ha:HassMediaPause", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the thermostat in the living room off", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "unpause my show in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "alerts", "text": "status of timer in kitchen", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "which lights are on on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "how hot is the office thermostat?", "expect": "none", "calls": [], "template": "ha:HassClimateGetTemperature", "source": "ha-intents"}
+{"domain": "lights", "text": "play corner light on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "set office thermostat to 1\u00b0", "expect": "none", "calls": [], "template": "ha:HassClimateSetTemperature", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour 5 minutes 30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes 30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "decrease volume in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "previous track on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "none", "text": "stop mowing", "expect": "none", "calls": [], "template": "ha:HassLawnMowerDock", "source": "ha-intents"}
+{"domain": "music", "text": "turn down the volume 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "are all the first floor fans off", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "set TV volume to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the living room thermostat on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the first floor lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "which first floor switches are on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off thermostat", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "skip to the next song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "lights", "text": "set the lights of the bedroom to 50% brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the party mode scene in the living room on", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "is jane in the home", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the thermostat on the first floor", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "time left on the 5 minutes timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "change to the party mode scene", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "Turn bedroom lamp red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the first floor lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "vacuum living room", "expect": "none", "calls": [], "template": "ha:HassVacuumCleanArea", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp brightness to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "stealth mode on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all the fans on in here", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the lights upstairs", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "upstairs", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the overhead light on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "what time is it", "expect": "none", "calls": [], "template": "ha:HassGetCurrentTime", "source": "ha-intents"}
+{"domain": "music", "text": "volume up", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "skip track on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "lights", "text": "get every light off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom lamp maximum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "volume up in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the overhead light in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "mute the media in here", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 0}}], "template": "ha:HassMediaPlayerMute", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off play corner lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "set the temperature of the office thermostat to 1\u00b0", "expect": "none", "calls": [], "template": "ha:HassClimateSetTemperature", "source": "ha-intents"}
+{"domain": "music", "text": "decrease TV volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "resume TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "music", "text": "resume music in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness in here to 50 percent", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "increase first floor volume 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "open the main valve", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "go back to the previous item", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "music", "text": "skip to the next song on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "none", "text": "is the garage door open on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "never mind", "expect": "none", "calls": [], "template": "ha:HassNevermind", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the first floor lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "play corner light off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate ceiling fan", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "are any kitchen lights on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 5 minutes 30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "increase main valve position to 100", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "set the first floor to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "how many kitchen lights are on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "set the first floor brightness to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness of bedroom to lowest", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on thermostat", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "set the fan mode in here to low", "expect": "none", "calls": [], "template": "ha:HassClimateSetFanMode", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp brightness to the lowest", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 30 seconds timer called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "which switches are on in the kitchen", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "turn ceiling fan on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "how is the outside temperature", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "light up play corner lights in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "volume down in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "TV unpause", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "none", "text": "set the fan mode of the office thermostat to auto", "expect": "none", "calls": [], "template": "ha:HassClimateSetFanMode", "source": "ha-intents"}
+{"domain": "lights", "text": "activate party mode in the living room", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the lights upstairs", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "upstairs", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "make all the lights red in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "set the speed of fans on the first floor to 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "none", "text": "set fan speed to 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the overhead light in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "turn up living room volume by 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "Overhead light on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the thermostat on the first floor", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "close the curtain left", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "cancel the kitchen timer", "expect": "none", "calls": [], "template": "ha:HassCancelTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour timer called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "status of 1 hour timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "music", "text": "decrease TV volume 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "set the bedroom curtains to 50%", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "music", "text": "turn down living room volume by 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "open the curtain left", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn play corner lights on the first floor on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "lights on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "open main valve to 100", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "lists", "text": "check off patch the fence from my chores list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["patch the fence"]}}], "template": "ha:HassListCompleteItem", "source": "ha-intents"}
+{"domain": "music", "text": "increase volume on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "what's the date today", "expect": "none", "calls": [], "template": "ha:HassGetCurrentDate", "source": "ha-intents"}
+{"domain": "lights", "text": "set the brightness in the bedroom to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "start rover in the living room", "expect": "none", "calls": [], "template": "ha:HassVacuumCleanArea", "source": "ha-intents"}
+{"domain": "music", "text": "first floor volume down by 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "turn the volume down", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "play the artist Queen on the TV in the Kitchen", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "queen", "kind": "artist"}}], "template": "ha:HassMediaSearchAndPlay", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "which kitchen lights are on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "return to base", "expect": "none", "calls": [], "template": "ha:HassLawnMowerDock", "source": "ha-intents"}
+{"domain": "music", "text": "go back to the previous song on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the thermostat in the living room", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "living room volume down by 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "change the bedroom to maximum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off ceiling fan", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the lights in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "light up the Kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate all of the lights in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "how many windows are open in the bedroom", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "set the curtains to 50%", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "none", "text": "is the garage door open in the garage", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "all kitchen fans on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "decrease volume on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "turn play corner lights in the kitchen on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "TV resume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "lights", "text": "activate all of the lights in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "stop mower", "expect": "none", "calls": [], "template": "ha:HassLawnMowerDock", "source": "ha-intents"}
+{"domain": "music", "text": "TV play the previous song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "music", "text": "in the living room turn the volume down to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "music", "text": "skip this song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "none", "text": "where can I find jane", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "thermostat off", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on lights in the Kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness of bedroom lamp to 50 percent", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "mute my show", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 0}}], "template": "ha:HassMediaPlayerMute", "source": "ha-intents"}
+{"domain": "none", "text": "cancel timer for 5 minutes", "expect": "none", "calls": [], "template": "ha:HassCancelTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour 5 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "are all the kitchen fans off", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "close the kitchen windows", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "change fans to 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "none", "text": "are any lights on on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "increase volume on the first floor 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "activate lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "skip item", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "lights", "text": "change to the living room party mode scene", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "replay the last track", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the overhead light on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "volume up on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lists", "text": "complete salad dressing on my shopping list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["salad dressing"]}}], "template": "ha:HassShoppingListCompleteItem", "source": "ha-intents"}
+{"domain": "music", "text": "next track", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "music", "text": "go back on TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "none", "text": "how many people are home", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "mute the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 0}}], "template": "ha:HassMediaPlayerMute", "source": "ha-intents"}
+{"domain": "lights", "text": "lock front door", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "which windows are open in the bedroom", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "close the blinds in the bedroom", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn living room fans off", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "volume down", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes 30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour 5 minutes called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate every single light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "kitchen lights out", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "turn up the volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "is the motion sensor occupied in the office", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer named pizza for 1 hour 5 minutes 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "decrease the volume on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "are any hallway doors unlocked", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "light up the kitchen play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "activate play corner lights in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "turn down the TV volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "TV volume up", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "are any fans on in the kitchen", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "thermostat on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "volume down on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the thermostat in the living room on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off play corner lights in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the fans on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change to scene party mode in the living room", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp color to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "where is jane", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "open the first floor curtains", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "what is today's date", "expect": "none", "calls": [], "template": "ha:HassGetCurrentDate", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on play corner lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness of bedroom to 50 percent", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "none", "text": "open the curtains to 50%", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 5 minutes 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "pause my show in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "template": "ha:HassMediaPause", "source": "ha-intents"}
+{"domain": "none", "text": "how's the temperature?", "expect": "none", "calls": [], "template": "ha:HassClimateGetTemperature", "source": "ha-intents"}
+{"domain": "music", "text": "increase volume in the living room 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "alerts", "text": "how much time is left on the timer in the kitchen", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "turn brightness to 50% in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "turn up the volume 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the kitchen fan", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "increase volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "increase the volume to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "music", "text": "resume the music", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "lists", "text": "add cream to my shopping list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["cream"]}}], "template": "ha:HassShoppingListAddItem", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off all the fans in the living room", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "start mowing", "expect": "none", "calls": [], "template": "ha:HassLawnMowerStartMowing", "source": "ha-intents"}
+{"domain": "none", "text": "which windows are open", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "turn brightness to maximum in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "next item", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for half an hour", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "half an hour"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "are all the fans off", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "increase volume in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "change the TV volume to 90", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "none", "text": "how many first floor lights are on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "how many kitchen fans are on", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "what is the temperature in the living room?", "expect": "none", "calls": [], "template": "ha:HassClimateGetTemperature", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the thermostat in the living room", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "cancel pizza timer", "expect": "none", "calls": [], "template": "ha:HassCancelTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "activate party mode scene", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "how many hallway doors are locked", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "close the sliding door on the first floor", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "cancel all timers in the kitchen", "expect": "none", "calls": [], "template": "ha:HassCancelAllTimers", "source": "ha-intents"}
+{"domain": "none", "text": "set bedroom curtain to 50%", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "none", "text": "set main valve to 100", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "alerts", "text": "kitchen timer status", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "none", "text": "how many switches are on in the kitchen", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "cancel mowing", "expect": "none", "calls": [], "template": "ha:HassLawnMowerDock", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off all the lights in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "start rover", "expect": "none", "calls": [], "template": "ha:HassVacuumStart", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer named pizza for 5 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the thermostat on the first floor on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "what's the office thermostat temperature?", "expect": "none", "calls": [], "template": "ha:HassClimateGetTemperature", "source": "ha-intents"}
+{"domain": "none", "text": "clean this room", "expect": "none", "calls": [], "template": "ha:HassVacuumCleanArea", "source": "ha-intents"}
+{"domain": "music", "text": "next item on TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "none", "text": "cancel timer", "expect": "none", "calls": [], "template": "ha:HassCancelTimer", "source": "ha-intents"}
+{"domain": "music", "text": "resume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "none", "text": "make ceiling fan 50%", "expect": "none", "calls": [], "template": "ha:HassFanSetSpeed", "source": "ha-intents"}
+{"domain": "lights", "text": "close Sliding Door", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "status of pizza timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "how long is left on my 45 seconds timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "run stealth mode script", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "what's the current value of outside temperature", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the living room party mode scene", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the overhead light in the kitchen on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 5 minutes 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all the kitchen fans on", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "skip song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "none", "text": "are all the first floor doors locked", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "none", "text": "which fans are on on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "music", "text": "volume down TV 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "activate ceiling fan", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness of bedroom lamp to the highest", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "light off in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "none", "text": "how warm is it?", "expect": "none", "calls": [], "template": "ha:HassClimateGetTemperature", "source": "ha-intents"}
+{"domain": "none", "text": "set the curtains position to 50%", "expect": "none", "calls": [], "template": "ha:HassSetPosition", "source": "ha-intents"}
+{"domain": "lights", "text": "change the brightness of bedroom lamp to lowest", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on kitchen fans", "expect": "none", "calls": [], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "skip this item", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "music", "text": "go back to the last track in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off all fans in the living room", "expect": "none", "calls": [], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "light up play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "increase TV volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "pause TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "template": "ha:HassMediaPause", "source": "ha-intents"}
+{"domain": "music", "text": "turn down the volume in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "unpause TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "none", "text": "are all the doors locked on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the overhead light in the kitchen off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "turn up the TV volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "none", "text": "are all the windows closed on the second floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "none", "text": "are all the lights off in the kitchen", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "lights", "text": "all lights on in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "set the brightness to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "activate play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "none", "text": "are all the switches off on the first floor", "expect": "none", "calls": [], "template": "ha:HassGetState", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "skip this song on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "lights", "text": "change the bedroom to min brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "decrease the volume by 20% on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "turn bedroom lamp off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "pause my show", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "template": "ha:HassMediaPause", "source": "ha-intents"}
+{"domain": "lights", "text": "turn bedroom lamp to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the lights in the kitchen off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "light it up", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "volume down by 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "skip on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour 5 minutes 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "first floor volume down", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "set bedroom lamp to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom lamp to maximum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom brightness 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "next song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "skip"}}], "template": "ha:HassMediaNext", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom brightness to the max", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom lamp brightness 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "volume down by 20% in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "activate Kitchen lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes 30 seconds timer for pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "TV volume down", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "light up play corner lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "unpause the media player", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "resume"}}], "template": "ha:HassMediaUnpause", "source": "ha-intents"}
+{"domain": "music", "text": "volume up by 20% on the first floor", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 5 minutes called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "turn up the volume in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "set volume to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "music", "text": "on the TV increase the volume to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the kitchen play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer named pizza for 1 hour 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the kitchen overhead light off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "pause music in the living room", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "pause"}}], "template": "ha:HassMediaPause", "source": "ha-intents"}
+{"domain": "music", "text": "mute the music", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 0}}], "template": "ha:HassMediaPlayerMute", "source": "ha-intents"}
+{"domain": "music", "text": "in the living room play the last song again", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "music", "text": "turn the volume down to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "music", "text": "mute music", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 0}}], "template": "ha:HassMediaPlayerMute", "source": "ha-intents"}
+{"domain": "alerts", "text": "pizza timer status", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the living room party mode scene", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "30 seconds timer for pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the first floor lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lists", "text": "remove foil on my shopping list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["foil"]}}], "template": "ha:HassShoppingListCompleteItem", "source": "ha-intents"}
+{"domain": "music", "text": "turn TV volume down to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "lights", "text": "transition to scene party mode", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "increase living room volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate play corner lights in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer named pizza for 1 hour", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the kitchen lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 and a half hours", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 and a half hours"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off all the kitchen lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour 5 minutes 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the house lights everywhere", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "all lights off in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "turn volume down to 90 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate play corner lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "play Queen artist", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "queen", "kind": "artist"}}], "template": "ha:HassMediaSearchAndPlay", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the kitchen overhead light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 5 minutes called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 5 and a half minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 and a half minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "go back to the last track", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change the color of the bedroom to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "TV volume down by 20%", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the first floor lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "turn the volume down by 20 percent", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "quieter"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "music", "text": "change the volume to 90", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 5 minutes 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "turn up the volume to 90", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all the lights in here on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the lights off in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "music", "text": "previous item", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on play corner lights in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "increase first floor volume", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "louder"}}], "template": "ha:HassSetVolumeRelative", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes timer for pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "play the song Bohemian Rhapsody in the Kitchen", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "bohemian rhapsody", "kind": "song"}}], "template": "ha:HassMediaSearchAndPlay", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the overhead light on the first floor on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lists", "text": "delete ketchup in my shopping list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["ketchup"]}}], "template": "ha:HassShoppingListCompleteItem", "source": "ha-intents"}
+{"domain": "music", "text": "turn the volume down to 90 percent on the TV", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "set_volume", "level": 90}}], "template": "ha:HassSetVolume", "source": "ha-intents"}
+{"domain": "music", "text": "TV go back to the last song", "expect": "call", "calls": [{"tool": "music_control", "args": {"action": "previous"}}], "template": "ha:HassMediaPrevious", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the overhead light on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour 30 seconds called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp to minimum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all the lights in the kitchen off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the lights upstairs", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "upstairs", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn lights on in the Kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes 30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the first floor lights on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on all of the lights in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes timer status", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "time left on the 1 hour timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "light up", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn lights in the Kitchen on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "first floor lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 1 hour called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom lamp 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "status of the kitchen timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the kitchen play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 5 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom brightness to the minimum", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 1}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 5 minutes timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "set the color of all the lights in the bedroom to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 5 minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "living room party mode on", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn play corner lights in the kitchen off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "first floor lights on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off all lights throughout the home", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "how much time is left on my timers", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the kitchen play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off all of the lights in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the lights in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all the lights in here off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer status", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "how long is left on my 1 hour timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "how long is left on the pizza timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "activate lights in the Kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for half a minute", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "half a minute"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour 5 minutes timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 and a half hours", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 and a half hours"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "how long is left on my timers", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "alerts", "text": "status of 45 seconds timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "change the bedroom to 50% brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "set the first floor color to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom color red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "music", "text": "play the playlist My Favorites", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "my favorites", "kind": "playlist"}}], "template": "ha:HassMediaSearchAndPlay", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate bedroom lamp", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lists", "text": "complete wash the truck on my chores list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["wash the truck"]}}], "template": "ha:HassListCompleteItem", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour 30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "music", "text": "play the track Bohemian Rhapsody", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "bohemian rhapsody", "kind": "song"}}], "template": "ha:HassMediaSearchAndPlay", "source": "ha-intents"}
+{"domain": "lights", "text": "change the color of bedroom lamp to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the kitchen play corner lights on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change bedroom lamp to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer named pizza for 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the lights upstairs", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "upstairs", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "make the lights red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom lamp off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom brightness to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes 30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "switch off all the lights in the house", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "status of 5 minutes timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all the lights off in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on the kitchen overhead light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp to 50% brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "Kitchen lights on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp to maximum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lists", "text": "remove patch the fence on my chores list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["patch the fence"]}}], "template": "ha:HassListRemoveItem", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off lights in every area", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for 5 and a half minutes", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 and a half minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour 5 minutes 30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "make sure every light is off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn the lights off in the house", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "all", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a timer for 1 hour 30 seconds", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "how much time is left on the kitchen timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate play corner lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "Overhead light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 5 minutes timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "brightness bedroom lamp 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn lights on", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes timer for pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "set all the lights in the bedroom to 50%", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 50}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off kitchen lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom to maximum brightness", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 1 hour 5 minutes timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes 30 seconds timer for pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the kitchen overhead light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "kitchen lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "alerts", "text": "5 minutes 30 seconds timer called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "5 minutes 30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "lights off", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate kitchen lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "kitchen", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom color to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 30 seconds timer", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 30 seconds"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "set a 30 seconds timer named pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "30 seconds", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "activate the overhead light in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "change the bedroom lamp to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "deactivate the lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "set the color of the bedroom lamp to red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour 5 minutes timer called pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour 5 minutes", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the overhead light on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lists", "text": "check cream off my list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["cream"]}}], "template": "ha:HassShoppingListCompleteItem", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off Overhead Light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "set the brightness in the bedroom to max", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "alerts", "text": "timer for half a minute", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "half a minute"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "activate play corner lights on the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "play corner", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "music", "text": "play the album Queen", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "queen", "kind": "album"}}], "template": "ha:HassMediaSearchAndPlay", "source": "ha-intents"}
+{"domain": "weather", "text": "what is the weather like", "expect": "call", "calls": [{"tool": "weather_get", "args": {"when": "now"}}], "template": "ha:HassGetWeather", "source": "ha-intents"}
+{"domain": "lists", "text": "put ground beef on the list", "expect": "call", "calls": [{"tool": "list_add", "args": {"list": "shopping", "items": ["ground beef"]}}], "template": "ha:HassShoppingListAddItem", "source": "ha-intents"}
+{"domain": "lights", "text": "light up the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "illuminate the first floor", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "first floor", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "alerts", "text": "1 hour timer for pizza", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"when": "1 hour", "text": "pizza"}}], "template": "ha:HassStartTimer", "source": "ha-intents"}
+{"domain": "alerts", "text": "how long is left on the kitchen timer", "expect": "call", "calls": [{"tool": "alerts_read", "args": {}}], "template": "ha:HassTimerStatus", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off lights", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the overhead light in the kitchen", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn party mode on", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "party mode on", "expect": "call", "calls": [{"tool": "scene_activate", "args": {"name": "party mode"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on all the lights in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lights", "text": "bedroom red", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom", "color": "red"}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "set the brightness to the max", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "set the bedroom lamp brightness to max", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "brightness": 100}}], "template": "ha:HassLightSet", "source": "ha-intents"}
+{"domain": "lights", "text": "turn on Overhead Light", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "overhead light", "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lists", "text": "check off frozen peas from my shopping list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "shopping", "items": ["frozen peas"]}}], "template": "ha:HassShoppingListCompleteItem", "source": "ha-intents"}
+{"domain": "lights", "text": "turn off the bedroom lamp", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": "bedroom lamp", "state": "off"}}], "template": "ha:HassTurnOff", "source": "ha-intents"}
+{"domain": "lights", "text": "turn all the lights on in here", "expect": "call", "calls": [{"tool": "light_set", "args": {"target": null, "state": "on"}}], "template": "ha:HassTurnOn", "source": "ha-intents"}
+{"domain": "lists", "text": "delete drain the hoses in my chores list", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["drain the hoses"]}}], "template": "ha:HassListRemoveItem", "source": "ha-intents"}

@@ -22,6 +22,7 @@ from trl import SFTConfig, SFTTrainer
 import caller
 
 FLOOR = 40  # examples per tool (or per ask/none) after repeating thin ones
+CEIL = 200  # and at most this many, so the big Home Assistant intents don't set the prior
 
 
 def build(tok, rows):
@@ -42,6 +43,9 @@ def balance(data, rng):
     out = list(data)
     for key, n in counts.items():
         pool = [d for d in data if d["key"] == key]
+        if n > CEIL:
+            drop = set(map(id, rng.sample(pool, n - CEIL)))
+            out = [d for d in out if id(d) not in drop]
         out += [rng.choice(pool) for _ in range(max(0, FLOOR - n))]
     rng.shuffle(out)
     return out
