@@ -73,6 +73,54 @@ in every free-text field (only light_set's target may say it), and free text had
 one contiguous phrase, so it vetoed right answers like "thursday 2" for "thursday at 2". The
 labels and the gate only ask that every word was said, in any order; the checker now does too.
 
+## Override gate (2026-10-15)
+
+Constrained decoding where "the program had to override the model" is a reason to ask
+(override.py). Two signals, ask if either fires: **override mass**, the probability the model
+put on tokens the mask threw away (disagreement with the program), and **gap**, the
+log-probability margin between the best allowed token and the best allowed token that says
+something different, at decision points (call or talk, tool name, enum value, first word of a
+span; uncertainty within the allowed set). Thresholds picked on the val split only, minimising
+wrong actions plus needless questions, each counting one. The said-words gate still runs after.
+
+Checkpoint: a fresh fine-tune (seed 1015, the 3,737-row set, 79% fully right, inside the
+five-seed spread). v3b came from the 1,876-row set, whose shuffle puts today's val rows in its
+training. Val picked mass >= 0.07 and gap <= 0.25 (gap alone, unconstrained: <= 0.25).
+
+| Decoding | Gate | Right after gates | Wrong calls | Caught | Wrong actions that execute | Needless asks | Asks |
+|---|---|---|---|---|---|---|---|
+| Model alone | said-words | 81% | 44 | 17 | 27 | 1 | 18 (8%) |
+| Constrained | said-words | 80% | 42 | 5 | 37 | 0 | 5 (2%) |
+| Constrained | override, both signals | 75% | 42 | 26 | 16 | 21 | 47 (20%) |
+| Model alone | gap only | 80% | 44 | 19 | 25 | 3 | 22 (9%) |
+| Model alone | both signals | 75% | 44 | 28 | 16 | 19 | 47 (20%) |
+
+The signals see what the output gate cannot: under the constraint they caught 23 wrong calls
+that had been forced valid. But at the thresholds val picked, the trade is poor: 11 fewer wrong
+actions than the model alone, for 18 more needless questions, and one utterance in five gets
+a question. Val is template-clean (17 wrong calls in 374 rows), so its thresholds fire far more
+often on test speech, the same gap as the router's ask rate (6% on val, 19% on test). The
+signal has a usable region: a diagnostic test sweep, not used to pick, shows mass >= 0.5 on
+the model alone catching 3 more wrong actions with no extra needless asks. Val can't find it.
+
+The constraint still doesn't pay. With the signals on, constrained and unconstrained land in
+the same place (16 wrong actions either way), because override mass can be read off the
+model's own distribution without forcing anything. Constraining alone made it worse again on
+this checkpoint, 27 wrong actions to 37.
+
+Questions are built from the veto (examples from the unconstrained run). Good: "keep playing" ->
+"Should I pause the music, or leave it?"; when a branch was the model asking itself, its own
+words: "add stuff for tacos" -> "What should I add for tacos?"; with no legal option left, the
+field that failed: "remind me to buy milk" -> "What time do you mean?". A forbidden value that
+names a sibling tool is read as that tool: in a dry run on v3b, "can't find the good hammer
+anywhere" -> "Should I mark the good hammer returned, or look up the good hammer?" (this
+checkpoint wanted "lent", and asks "Should I mark the hammer lent?"). Bad: an option only has to
+pass the said-words gate, so "I hate this song" offers "play the song hate this song".
+
+Not shipped. Next: pick the thresholds on real speech. The utterance log's week, split into a
+calibration half and a test half, is the val set this needs. One checkpoint and greedy decoding,
+so the table is K=1; the threshold call should be made at K>=5.
+
 ## Notes
 
 - Ollama's FunctionGemma GGUF ships without a chat template; the official one is in the
