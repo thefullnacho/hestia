@@ -124,5 +124,27 @@ def passes(row: dict, calls: list[dict], said: str) -> bool:
     return False
 
 
+def _stem(w: str) -> str:
+    return re.sub(r"(ies|es|s)$", "", w)
+
+
+def spans_said(text: str, calls: list[dict]) -> bool:
+    """The code gate after the caller: every free-text value must be words the person said.
+    A tiny model sometimes garbles a copy ("porch" -> "patswood"); refusing that call and
+    asking costs a question, acting on it costs a wrong record."""
+    said = {_stem(w) for w in words(text)}
+    for c in calls:
+        props = PARAMS.get(c["tool"], {})
+        for k, v in c["args"].items():
+            spec = props.get(k, {})
+            if "enum" in spec or spec.get("type") == "integer":
+                continue
+            for val in (v if isinstance(v, list) else [v]):
+                if isinstance(val, str) and val.strip().lower() != "all" and any(
+                        _stem(w) not in said for w in words(val)):
+                    return False
+    return True
+
+
 def load_rows(name: str) -> list[dict]:
     return [json.loads(l) for l in (HERE / name).read_text().splitlines() if l.strip()]

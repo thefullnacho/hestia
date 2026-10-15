@@ -65,10 +65,17 @@ def main():
                          f"           want {json.dumps(r['calls']) if r['calls'] else r['expect']}\n"
                          f"           got  {json.dumps(calls) if calls else repr(said)}")
 
+    gate = Counter()
+    for r, res in zip(rows, results):
+        if res["calls"]:
+            kept = caller.spans_said(r["text"], res["calls"])
+            gate[("right" if res["ok"] else "wrong") + (" kept" if kept else " refused")] += 1
     n = sum(v["n"] for v in by_expect.values())
     ok = sum(v["ok"] for v in by_expect.values())
     print(f"{a.model} on {a.rows}{' ' + a.split if a.split else ''}: {ok}/{n} = {ok / n:.0%}")
     print(f"right tool on call cases: {tool_right['ok']}/{tool_right['n']} = {tool_right['ok'] / tool_right['n']:.0%}")
+    print(f"after the said-words gate: wrong actions {gate['wrong kept']} (caught {gate['wrong refused']}),"
+          f" right calls refused {gate['right refused']}")
     for k, v in sorted(by_expect.items()):
         print(f"  expect {k:5} {v['ok']:4}/{v['n']}")
     for k, v in sorted(by_tool.items()):
