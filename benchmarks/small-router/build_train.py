@@ -299,7 +299,7 @@ def lists():
                  ("add what we need for the party", "What do you need for the party?"),
                  ("I got everything", "Should I clear the whole shopping list?")]:
         add("lists", t, expect="ask", say=q, kind="ask-vague")
-    for t in ["don't put cheese on the list", "we still have plenty of bananas, don't add them",
+    for t in ["don't put cheese on the list", "we still have plenty of crackers, don't add them",
               "no need to add tortillas", "skip the bacon this week"]:
         add("lists", t, expect="none", kind="none-negation")
 

@@ -830,7 +830,7 @@
 {"domain": "lists", "text": "finished the hoses", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["hoses"]}}], "template": "remove-todo", "id": "tr-0829", "split": "train"}
 {"domain": "alerts", "text": "set a reminder for 4pm to pick up the kids", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "pick up the kids", "when": "4pm"}}], "template": "reminder", "id": "tr-0830", "split": "val"}
 {"domain": "lists", "text": "I split the firewood", "expect": "call", "calls": [{"tool": "list_remove", "args": {"list": "todo", "items": ["firewood"]}}], "template": "remove-todo", "id": "tr-0831", "split": "train"}
-{"domain": "lists", "text": "we still have plenty of bananas, don't add them", "expect": "none", "calls": [], "template": "none-negation", "id": "tr-0832", "split": "train"}
+{"domain": "lists", "text": "we still have plenty of crackers, don't add them", "expect": "none", "calls": [], "template": "none-negation", "id": "tr-0832", "split": "train"}
 {"domain": "alerts", "text": "45 minutes from now, remind me to start the dishwasher", "expect": "call", "calls": [{"tool": "reminder_add", "args": {"text": "start the dishwasher", "when": "45 minutes"}}], "template": "reminder", "id": "tr-0833", "split": "train"}
 {"domain": "inventory", "text": "there are 11 pairs of rubber gloves left", "expect": "call", "calls": [{"tool": "inventory_set", "args": {"item": "rubber gloves", "count": 11}}], "template": "set", "id": "tr-0834", "split": "train"}
 {"domain": "music", "text": "I want to listen to dolly parton", "expect": "call", "calls": [{"tool": "music_play", "args": {"query": "dolly parton", "kind": "artist"}}], "template": "play-artist", "id": "tr-0835", "split": "train"}
