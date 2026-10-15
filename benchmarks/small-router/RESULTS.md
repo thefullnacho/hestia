@@ -89,24 +89,24 @@ training. Val picked mass >= 0.07 and gap <= 0.25 (gap alone, unconstrained: <= 
 
 | Decoding | Gate | Right after gates | Wrong calls | Caught | Wrong actions that execute | Needless asks | Asks |
 |---|---|---|---|---|---|---|---|
-| Model alone | said-words | 81% | 44 | 17 | 27 | 1 | 18 (8%) |
+| Model alone | said-words | 81% | 44 | 18 | 26 | 1 | 19 (8%) |
 | Constrained | said-words | 80% | 42 | 5 | 37 | 0 | 5 (2%) |
 | Constrained | override, both signals | 75% | 42 | 26 | 16 | 21 | 47 (20%) |
-| Model alone | gap only | 80% | 44 | 19 | 25 | 3 | 22 (9%) |
+| Model alone | gap only | 80% | 44 | 20 | 24 | 3 | 23 (10%) |
 | Model alone | both signals | 75% | 44 | 28 | 16 | 19 | 47 (20%) |
 
 The signals see what the output gate cannot: under the constraint they caught 23 wrong calls
-that had been forced valid. But at the thresholds val picked, the trade is poor: 11 fewer wrong
+that had been forced valid. But at the thresholds val picked, the trade is poor: 10 fewer wrong
 actions than the model alone, for 18 more needless questions, and one utterance in five gets
 a question. Val is template-clean (17 wrong calls in 374 rows), so its thresholds fire far more
 often on test speech, the same gap as the router's ask rate (6% on val, 19% on test). The
 signal has a usable region: a diagnostic test sweep, not used to pick, shows mass >= 0.5 on
-the model alone catching 3 more wrong actions with no extra needless asks. Val can't find it.
+the model alone catching 2 more wrong actions with no extra needless asks. Val can't find it.
 
 The constraint still doesn't pay. With the signals on, constrained and unconstrained land in
 the same place (16 wrong actions either way), because override mass can be read off the
 model's own distribution without forcing anything. Constraining alone made it worse again on
-this checkpoint, 27 wrong actions to 37.
+this checkpoint, 26 wrong actions to 37.
 
 Questions are built from the veto (examples from the unconstrained run). Good: "keep playing" ->
 "Should I pause the music, or leave it?"; when a branch was the model asking itself, its own
@@ -116,6 +116,11 @@ names a sibling tool is read as that tool: in a dry run on v3b, "can't find the 
 anywhere" -> "Should I mark the good hammer returned, or look up the good hammer?" (this
 checkpoint wanted "lent", and asks "Should I mark the hammer lent?"). Bad: an option only has to
 pass the said-words gate, so "I hate this song" offers "play the song hate this song".
+
+The said-words gate had the checker's first and third holes ("all" passed in any field, and
+non-ascii letters checked as no word); fixed the same day, sharing one rule with the checker
+(caller.UNSAID, caller.PLAIN). On this checkpoint it catches one more wrong action, already in
+the table above; v3b's numbers do not move.
 
 Not shipped. Next: pick the thresholds on real speech. The utterance log's week, split into a
 calibration half and a test half, is the val set this needs. One checkpoint and greedy decoding,
