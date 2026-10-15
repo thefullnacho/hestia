@@ -24,7 +24,22 @@ QUERY = "task: classification | query: "
 DOC = "title: none | text: "
 
 
+CACHE = Path.home() / ".cache" / "small-router-embeddings.json"
+
+
 def embed(url, model, texts):
+    """Embeddings, cached by model and exact text so reruns on the Pi are cheap."""
+    cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+    todo = [t for t in dict.fromkeys(texts) if f"{model}\t{t}" not in cache]
+    if todo:
+        for t, v in zip(todo, _embed(url, model, todo)):
+            cache[f"{model}\t{t}"] = v
+        CACHE.parent.mkdir(parents=True, exist_ok=True)
+        CACHE.write_text(json.dumps(cache))
+    return [cache[f"{model}\t{t}"] for t in texts]
+
+
+def _embed(url, model, texts):
     req = urllib.request.Request(
         f"{url}/api/embed",
         data=json.dumps({"model": model, "input": texts}).encode(),
@@ -85,6 +100,40 @@ def report(name, cases, preds):
         print(f"  {c['id']:8} -> {p:9} {s:.3f}  {c['text']}")
 
 
+def gate(cases, ranked, floors, gaps):
+    """Score the act / ask-which-of-two / drop decision.
+
+    ranked: per case, [(sim, domain), ...] best first. Under the floor the device drops it
+    (nothing to do); a top-two gap under `gap` asks which of the two; otherwise it acts.
+    """
+    print("\n== gate: drop under floor, ask top-two when the gap is small, else act")
+    print("requests: act right / ask with the right one offered / act WRONG / ask without it / dropped")
+    print("none: dropped / asked / acted     ambiguous: asked or dropped / acted")
+    for floor in floors:
+        for g in gaps:
+            req, non, amb = Counter(), Counter(), Counter()
+            for c, r in zip(cases, ranked):
+                if c.get("context"):
+                    continue
+                (s1, d1), (s2, d2) = r[0], r[1]
+                act = "drop" if s1 < floor else ("ask" if s1 - s2 < g else "act")
+                if c["gold"] == "none":
+                    non[act] += 1
+                elif c["gold"] is None:
+                    amb["act" if act == "act" else "ok"] += 1
+                elif act == "drop":
+                    req["drop"] += 1
+                elif act == "act":
+                    req["act_ok" if d1 == c["gold"] else "act_bad"] += 1
+                else:
+                    req["ask_ok" if c["gold"] in (d1, d2) else "ask_bad"] += 1
+            n = sum(req.values())
+            print(f"floor {floor:.2f} gap {g:.2f} | {req['act_ok']:3} {req['ask_ok']:3} "
+                  f"{req['act_bad']:3} {req['ask_bad']:3} {req['drop']:3} of {n}"
+                  f" (resolved {(req['act_ok'] + req['ask_ok']) / n:.0%}, asked {(req['ask_ok'] + req['ask_bad']) / n:.0%})"
+                  f" | none {non['drop']:2} {non['ask']:2} {non['act']:2} | amb {amb['ok']:2} {amb['act']:2}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ollama", default="http://localhost:11434")
@@ -99,12 +148,9 @@ def main():
     names = list(tools)
     docs = [d + " ".join(t["description"] for t in tools[n]) for n in names]
     dvecs = embed(a.ollama, a.model, docs)
-    preds = []
-    for v in vecs:
-        sims = [cos(v, dv) for dv in dvecs]
-        i = max(range(len(names)), key=sims.__getitem__)
-        preds.append((names[i], sims[i]))
-    report("describe", cases, preds)
+    ranked = [sorted(((cos(v, dv), n) for dv, n in zip(dvecs, names)), reverse=True) for v in vecs]
+    report("describe", cases, [(r[0][1], r[0][0]) for r in ranked])
+    gate(cases, ranked, floors=(0.25, 0.28, 0.31), gaps=(0.0, 0.02, 0.04, 0.06, 0.08))
 
     labelled = [i for i, c in enumerate(cases) if c["gold"] not in (None, "none")]
     preds = []
