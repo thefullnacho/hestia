@@ -40,8 +40,10 @@ def messages(row: dict, with_answer: bool = False) -> list[dict]:
     msgs = [{"role": "developer", "content": dev}, {"role": "user", "content": row["text"]}]
     if with_answer:
         if row["calls"]:
+            # a null arg means "left out" (no room named): it must not render as the word None
             msgs.append({"role": "assistant", "tool_calls": [
-                {"type": "function", "function": {"name": c["tool"], "arguments": c["args"]}}
+                {"type": "function", "function": {"name": c["tool"], "arguments":
+                    {k: v for k, v in c["args"].items() if v is not None}}}
                 for c in row["calls"]]})
         else:
             msgs.append({"role": "assistant", "content": row.get("say", "")})
@@ -129,15 +131,26 @@ def _stem(w: str) -> str:
 
 
 def spans_said(text: str, calls: list[dict]) -> bool:
-    """The code gate after the caller: every free-text value must be words the person said.
-    A tiny model sometimes garbles a copy ("porch" -> "patswood"); refusing that call and
-    asking costs a question, acting on it costs a wrong record."""
+    """The code gate after the caller: every value must be allowed by the schema, and every
+    free-text value must be words the person said. A tiny model sometimes garbles a copy
+    ("porch" -> "patswood") or borrows another tool's value (a light "returned"); refusing
+    that call and asking costs a question, acting on it costs a wrong record."""
     said = {_stem(w) for w in words(text)}
     for c in calls:
-        props = PARAMS.get(c["tool"], {})
+        props = PARAMS.get(c["tool"])
+        if props is None:
+            return False
         for k, v in c["args"].items():
-            spec = props.get(k, {})
-            if "enum" in spec or spec.get("type") == "integer":
+            spec = props.get(k)
+            if spec is None:
+                return False
+            if "enum" in spec:
+                if str(v) not in spec["enum"]:
+                    return False
+                continue
+            if spec.get("type") == "integer":
+                if not isinstance(v, int):
+                    return False
                 continue
             for val in (v if isinstance(v, list) else [v]):
                 if isinstance(val, str) and val.strip().lower() != "all" and any(

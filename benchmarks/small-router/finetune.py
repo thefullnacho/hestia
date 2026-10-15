@@ -58,11 +58,13 @@ def main():
     ap.add_argument("--epochs", type=float, default=4)
     ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--show", action="store_true", help="print two rendered examples and stop")
+    ap.add_argument("--seed", type=int, default=1015)
+    ap.add_argument("--train", default="train.jsonl", help="training rows (an older set, for comparisons)")
     a = ap.parse_args()
 
-    rng = random.Random(1015)
+    rng = random.Random(a.seed)
     tok = AutoTokenizer.from_pretrained(a.base)
-    rows = [r for r in caller.load_rows("train.jsonl") if r["split"] == "train" and caller.domain_of(r)]
+    rows = [r for r in caller.load_rows(a.train) if r["split"] == "train" and caller.domain_of(r)]
     data = build(tok, rows)
     if a.show:
         for d in data[:2] + [d for d in data if d["key"] == "ask"][:1]:
@@ -76,7 +78,7 @@ def main():
         per_device_train_batch_size=1, gradient_accumulation_steps=16, gradient_checkpointing=True,
         lr_scheduler_type="cosine", warmup_ratio=0.05, weight_decay=0.0,
         bf16=True, logging_steps=10, save_strategy="no", report_to=[],
-        max_length=1024, completion_only_loss=True, seed=1015,
+        max_length=1024, completion_only_loss=True, seed=a.seed,
     )
     trainer = SFTTrainer(model=a.base, args=cfg, processing_class=tok,
                          train_dataset=Dataset.from_list([{"prompt": d["prompt"], "completion": d["completion"]}
