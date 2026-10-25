@@ -1,5 +1,8 @@
 # KittenTTS on the Lite floor hardware
 
+**Picked: nano int8** (operator listening check, 2026-10-24: clear pronunciation and
+enunciation, understood without effort). Smallest, as fast as the others.
+
 Pi 4 Model B, 4GB, no heatsink, ONNX Runtime 1.31, voice "Jasper", 2026-10-24. `tts_bench.py`,
 median of 3 runs per reply, each model started under 55C. Real-time factor (RTF) is synthesis
 time over audio length; under 1.0 speaks faster than real time. "First sentence" is the time
