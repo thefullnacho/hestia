@@ -58,6 +58,30 @@ Ollama 609 MB, plus Moonshine BASE about 430 MB and KittenTTS about 260 MB (thei
 benchmarks): about 2.1 GB. Slots sized to the prompts (the longest is 462 tokens) and the
 embedding model moved into llama.cpp are the next cuts toward a 2 GB board.
 
+## Under 2 GB (same day)
+
+Every process measured together, at the busiest moment of a 30-clip run (`memwatch.py`):
+
+| Process | Start of day | Lean |
+|---|---|---|
+| Caller server | 775 MB | **483 MB**: slots sized to the prompts (640 tokens), 8-bit KV cache, no RAM prompt cache |
+| Embedding | 609 MB + 37 MB Ollama daemon | **421 MB**: EmbeddingGemma as Q8_0 in llama.cpp, Ollama stopped |
+| Pipeline (STT, router, gate) | 447 MB | 447 MB |
+| TTS worker | 216 MB | 216 MB |
+| **All at once** | **2,084 MB** | **1,567 MB** |
+
+That fits a 2 GB board with about 250 MB left after a lean OS. Ollama's EmbeddingGemma file
+is the same model under other labels (`retag_embeddinggemma.py`; at 16 bits the vectors match
+Ollama's to a cosine of 1.00000), and as Q8_0 it agrees to 0.9997 while running about five times
+faster per sentence on the Pi 4. The router's examples were embedded again with it (11 minutes).
+
+Same 30 clips: 29 of 30 decisions identical to the cached-caller run; the kitchen-music miss
+flips between its two wrong answers. Router 0.71 s to **0.17 s**; to the reply audio
+**4.6 s median, 7.0 s worst** (actions). `servers.sh` starts both servers with these settings.
+
+Not cut yet: Moonshine BASE and the TTS worker are two Python processes with their own runtimes
+(about 660 MB together), and the caller still carries the 262k-entry vocabulary.
+
 ## Fixed during the run
 
 - Moonshine writes "to-morrow" and "living-room". The said-words gate compared the caller's

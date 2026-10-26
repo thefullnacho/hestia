@@ -10,11 +10,17 @@ the call is printed, never sent to Home Assistant. Replies are code-built from t
 what the device says is exactly what it did.
 
 Runs in the Moonshine venv; KittenTTS runs as a warm worker in its own venv (say.py). The router
-embeds through the Pi's Ollama. The caller is the v4 checkpoint as a Q8_0 GGUF whose tool-call
+embeds through llama.cpp too (no Ollama needed). The caller is the v4 checkpoint as a Q8_0 GGUF whose tool-call
 tokens are marked plain text (plain_tokens.py), served by llama.cpp with one cached slot per
 domain (start it first; `--caller ollama` is the slower fallback):
 
-    llama-server -m functiongemma-hestia-v4-q8_0.gguf --host 127.0.0.1 --port 8090 -np 7 -c 14336 -t 4
+    llama-server -m functiongemma-hestia-v4-q8_0.gguf --host 127.0.0.1 --port 8090 -np 7 -t 4 \
+        -c 4480 -b 128 -ub 128 -ctk q8_0 -ctv q8_0 --cache-ram 0
+    llama-server -m embeddinggemma-q8_0.gguf --embedding --host 127.0.0.1 --port 8095 -t 4 \
+        -c 512 -b 128 -ub 128 --cache-ram 0
+
+Slots sized to the prompts, an 8-bit cache and no RAM prompt cache took the caller server from
+775 to 457 MB with identical calls (2026-10-26).
 
     ~/moon-venv/bin/python lite.py ~/clips             # every WAV in transcripts.txt
     ~/moon-venv/bin/python lite.py ~/clips/03.wav      # one file
@@ -50,6 +56,10 @@ CALLER = "functiongemma-hestia-v4"
 # call costs only the person's words and the answer. Ollama re-reads the whole prompt unless it
 # is byte-identical (measured 2026-10-26), which made the caller most of the wait.
 SERVER = "http://127.0.0.1:8090"
+# EmbeddingGemma as Q8_0 in llama.cpp (retag_embeddinggemma.py --q8): 380 MB instead of Ollama's
+# 609, and about five times faster per sentence on the Pi 4, with no Ollama running at all.
+EMBED_SERVER = "http://127.0.0.1:8095"
+EMBEDDER = "server"  # or "ollama"; set from --embedder
 QUERY = "task: classification | query: "  # EmbeddingGemma's task prefix, as router_eval uses it
 GAP = 0.08  # top-two gap under this asks which of the two (picked on val, router RESULTS)
 STOPS = ["<start_function_response>", "<end_of_turn>"]
@@ -67,8 +77,14 @@ def ollama(path: str, body: dict) -> dict:
 def embed(texts: list[str]) -> np.ndarray:
     vecs = []
     for i in range(0, len(texts), 64):
-        vecs += ollama("/api/embed", {"model": EMBED, "input": [QUERY + t for t in texts[i:i + 64]],
-                                      "keep_alive": -1})["embeddings"]
+        chunk = [QUERY + t for t in texts[i:i + 64]]
+        if EMBEDDER == "server":
+            req = urllib.request.Request(f"{EMBED_SERVER}/v1/embeddings", data=json.dumps({"input": chunk}).encode(),
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                vecs += [d["embedding"] for d in sorted(json.load(r)["data"], key=lambda d: d["index"])]
+        else:
+            vecs += ollama("/api/embed", {"model": EMBED, "input": chunk, "keep_alive": -1})["embeddings"]
     v = np.array(vecs, dtype=np.float32)
     return v / np.linalg.norm(v, axis=1, keepdims=True)
 
@@ -80,7 +96,8 @@ def examples() -> tuple[np.ndarray, list[str]]:
     gold = [caller.TOOL_DOMAIN[r["calls"][0]["tool"]] if r["calls"] else
             ("none" if r["expect"] == "none" else r["domain"]) for r in rows]
     texts = [r["text"] for r in rows]
-    key = hashlib.sha256("\n".join(texts).encode()).hexdigest()
+    # the vectors depend on which copy of the model made them, so that is part of the key
+    key = hashlib.sha256((EMBEDDER + "\n" + "\n".join(texts)).encode()).hexdigest()
     if CACHE.exists():
         z = np.load(CACHE)
         if str(z["key"]) == key:
@@ -224,6 +241,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("input", help="a WAV, or a folder with transcripts.txt (file<TAB>text)")
     ap.add_argument("--out", default=str(Path.home() / "lite/out"))
+    ap.add_argument("--embedder", choices=["server", "ollama"], default="server",
+                    help="EmbeddingGemma Q8_0 in llama.cpp (start it first), or Ollama")
     ap.add_argument("--caller", choices=["server", "ollama"], default="server",
                     help="llama.cpp server with a cached slot per domain (start it first), or Ollama")
     a = ap.parse_args()
@@ -233,6 +252,8 @@ def main():
         jobs = [(src / name, text) for name, text in rows]
     else:
         jobs = [(src, None)]
+    global EMBEDDER
+    EMBEDDER = a.embedder
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
