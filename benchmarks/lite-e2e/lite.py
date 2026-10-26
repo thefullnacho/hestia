@@ -9,9 +9,12 @@ run proves they hold together on one 4GB board and times each stage. Actions are
 the call is printed, never sent to Home Assistant. Replies are code-built from the call, so
 what the device says is exactly what it did.
 
-Runs in the Moonshine venv; KittenTTS runs as a warm worker in its own venv (say.py), and the
-router and caller go through the Pi's Ollama. The caller is the v4 checkpoint as a GGUF whose
-tool-call tokens are marked plain text, because Ollama's raw output drops special tokens.
+Runs in the Moonshine venv; KittenTTS runs as a warm worker in its own venv (say.py). The router
+embeds through the Pi's Ollama. The caller is the v4 checkpoint as a Q8_0 GGUF whose tool-call
+tokens are marked plain text (plain_tokens.py), served by llama.cpp with one cached slot per
+domain (start it first; `--caller ollama` is the slower fallback):
+
+    llama-server -m functiongemma-hestia-v4-q8_0.gguf --host 127.0.0.1 --port 8090 -np 7 -c 14336 -t 4
 
     ~/moon-venv/bin/python lite.py ~/clips             # every WAV in transcripts.txt
     ~/moon-venv/bin/python lite.py ~/clips/03.wav      # one file
@@ -43,6 +46,10 @@ import caller  # noqa: E402
 OLLAMA = "http://localhost:11434"
 EMBED = "embeddinggemma"
 CALLER = "functiongemma-hestia-v4"
+# llama.cpp's server keeps one slot per domain with that domain's tool prompt already read, so a
+# call costs only the person's words and the answer. Ollama re-reads the whole prompt unless it
+# is byte-identical (measured 2026-10-26), which made the caller most of the wait.
+SERVER = "http://127.0.0.1:8090"
 QUERY = "task: classification | query: "  # EmbeddingGemma's task prefix, as router_eval uses it
 GAP = 0.08  # top-two gap under this asks which of the two (picked on val, router RESULTS)
 STOPS = ["<start_function_response>", "<end_of_turn>"]
@@ -107,13 +114,32 @@ def route(text: str, ex_vecs: np.ndarray, ex_dom: list[str]) -> tuple[str, list]
     return ("drop" if d1 == "none" else "act"), ranked
 
 
-def call(domain: str, text: str, prompts: dict) -> tuple[list[dict], str, str]:
+def _server(body: dict) -> dict:
+    req = urllib.request.Request(f"{SERVER}/completion", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=300) as r:
+        return json.load(r)
+
+
+def warm_slots(prompts: dict) -> None:
+    """Read every domain's tool prompt into its own slot once, at startup."""
+    for slot, (before, _) in enumerate(prompts.values()):
+        _server({"prompt": before, "id_slot": slot, "cache_prompt": True, "n_predict": 0})
+
+
+def call(domain: str, text: str, prompts: dict, use_server: bool) -> tuple[list[dict], str, str]:
     before, after = prompts[domain]
-    out = ollama("/api/generate", {"model": CALLER, "prompt": before + text + after, "raw": True,
-                                   "stream": False, "keep_alive": -1,
-                                   "options": {"temperature": 0, "num_predict": 96, "stop": STOPS}})
-    calls, said = caller.parse(out["response"])
-    return calls, said, out["response"]
+    if use_server:
+        out = _server({"prompt": before + text + after, "id_slot": list(prompts).index(domain),
+                       "cache_prompt": True, "n_predict": 96, "temperature": 0, "stop": STOPS})
+        response = out["content"]
+    else:
+        response = ollama("/api/generate", {"model": CALLER, "prompt": before + text + after, "raw": True,
+                                            "stream": False, "keep_alive": -1,
+                                            "options": {"temperature": 0, "num_predict": 96,
+                                                        "stop": STOPS}})["response"]
+    calls, said = caller.parse(response)
+    return calls, said, response
 
 
 def _list(items) -> str:
@@ -158,7 +184,7 @@ def reply(calls: list[dict]) -> str:
     return " ".join(p[:1].upper() + p[1:] for p in parts)
 
 
-def handle(wav: Path, tr, ex, prompts) -> dict:
+def handle(wav: Path, tr, ex, prompts, use_server: bool = False) -> dict:
     t = {}
     t0 = time.perf_counter()
     data, rate = mv.load_wav_file(str(wav))
@@ -177,7 +203,7 @@ def handle(wav: Path, tr, ex, prompts) -> dict:
         say = f"Did you mean {top[0][0]} or {top[1][0]}?"
     else:
         t2 = time.perf_counter()
-        calls, said, raw = call(top[0][0], heard, prompts)
+        calls, said, raw = call(top[0][0], heard, prompts, use_server)
         t["call"] = time.perf_counter() - t2
         rec["calls"], rec["raw"] = calls, raw
         if calls and not caller.spans_said(heard, calls):
@@ -198,6 +224,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("input", help="a WAV, or a folder with transcripts.txt (file<TAB>text)")
     ap.add_argument("--out", default=str(Path.home() / "lite/out"))
+    ap.add_argument("--caller", choices=["server", "ollama"], default="server",
+                    help="llama.cpp server with a cached slot per domain (start it first), or Ollama")
     a = ap.parse_args()
     src = Path(a.input).expanduser()
     if src.is_dir():
@@ -213,15 +241,18 @@ def main():
     tr = Transcriber(path, model_arch=arch)
     ex = examples()
     prompts = json.loads((HERE / "prompts.json").read_text())
+    use_server = a.caller == "server"
+    if use_server:
+        warm_slots(prompts)
     tts = subprocess.Popen([str(KITTEN_PY), str(HERE / "say.py")], stdin=subprocess.PIPE,
                            stdout=subprocess.PIPE, text=True)
     json.loads(tts.stdout.readline())
     # warm every model once so the timings below are a device that is already listening
-    handle(jobs[0][0], tr, ex, prompts)
+    handle(jobs[0][0], tr, ex, prompts, use_server)
     print(json.dumps({"startup_s": round(time.perf_counter() - t0, 1)}), flush=True)
 
     for wav, expected in jobs:
-        rec = handle(wav, tr, ex, prompts)
+        rec = handle(wav, tr, ex, prompts, use_server)
         if rec["say"]:
             tts.stdin.write(json.dumps({"text": rec["say"], "out": str(out / wav.name)}) + "\n")
             tts.stdin.flush()

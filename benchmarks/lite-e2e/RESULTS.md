@@ -39,6 +39,25 @@ on every call, because Ollama keeps one cached prompt per model and the domain c
 turns. The same call took 1.8 s warm with the prompt cached. Levers, not yet tried: a cached
 prompt per domain, shorter tool descriptions, and speaking the reply sentence by sentence.
 
+## The caller with a cached prompt per domain (same day)
+
+llama.cpp's server (built on the Pi, v0.7.0) with seven slots, one per domain, each holding its
+tool prompt already read. Same 30 clips: 29 of 30 decisions identical to the Ollama run (the
+kitchen-music miss is still a miss, now playing "music").
+
+| Stage (16 actions) | Ollama, prompt re-read | llama.cpp, prompt cached |
+|---|---|---|
+| Caller, median / worst | 3.7 / 5.3 s | **2.05 / 2.5 s** |
+| To reply audio, median / worst | 7.1 / 9.8 s | **5.2 / 7.6 s** |
+
+What is left of the caller is writing the call: about 20 tokens at roughly 80 ms each, because
+each token is scored against the 262k-entry vocabulary.
+
+Memory, models loaded: caller server 728 MB (7 slots of 2,048 tokens), EmbeddingGemma in
+Ollama 609 MB, plus Moonshine BASE about 430 MB and KittenTTS about 260 MB (their own
+benchmarks): about 2.1 GB. Slots sized to the prompts (the longest is 462 tokens) and the
+embedding model moved into llama.cpp are the next cuts toward a 2 GB board.
+
 ## Fixed during the run
 
 - Moonshine writes "to-morrow" and "living-room". The said-words gate compared the caller's
