@@ -112,6 +112,27 @@ wrong actions at or under 2% on val) picks a gap of 0, because the val split has
 on the tests that gap acts wrongly on 5.9%. The device uses a fixed 0.08. Val drawn from the
 templates no longer calibrates the gate; real speech has to.
 
+## Real speech: the operator's voice (Pi 5, same day)
+
+The same 30 commands read by the operator on a phone, one recording split on its pauses into
+30 clips (the audio stays out of the repo). Moonshine BASE alone, padded with 0.5 s of silence:
+**7.9% word error, 20 of 30 exact** (synthetic: 1.8%, 28 of 30). Cut tight to the speech, one
+whole command came back as "10."; the padding fixed it and `lite.py` now always pads.
+
+End to end (`run_2026-10-26_pi5_real.jsonl`):
+
+| | Real voice | Synthetic |
+|---|---|---|
+| Actions right | **13 of 16** | 15 of 16 |
+| Stayed quiet right | 6 of 6 | 6 of 6 |
+| To the reply audio, median / worst | 1.62 / 4.09 s | 1.58 / 2.50 s |
+
+The two new misses both start in speech to text: "We're out of coffee" heard as "Were out of
+coffee", which the caller read as a question (searched instead of marking it out), and "move
+the hose" heard as "move the house". The worst case is the reply: one long sentence took 3 s to
+synthesize in one piece. Next: contractions without apostrophes in the caller's training data,
+household words (Moonshine's streaming models take keyterms), and speaking sentence by sentence.
+
 ## Fixed during the run
 
 - Moonshine writes "to-morrow" and "living-room". The said-words gate compared the caller's

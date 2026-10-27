@@ -63,6 +63,10 @@ EMBEDDER = "server"  # or "ollama"; set from --embedder
 QUERY = "task: classification | query: "  # EmbeddingGemma's task prefix, as router_eval uses it
 GAP = 0.08  # top-two gap under this asks which of the two (picked on val, router RESULTS)
 STOPS = ["<start_function_response>", "<end_of_turn>"]
+# Moonshine needs a little silence before the speech: a real recording cut 0.15 s before the
+# first word came back as "10." for a whole dim command, and fine with this much (2026-10-26).
+# A live mic's voice detector keeps this much pre-roll anyway.
+PAD_S = 0.5
 KITTEN_PY = Path.home() / "kitten-venv/bin/python"
 CACHE = Path.home() / ".cache/lite-e2e-examples.npz"
 
@@ -205,6 +209,8 @@ def handle(wav: Path, tr, ex, prompts, use_server: bool = False) -> dict:
     t = {}
     t0 = time.perf_counter()
     data, rate = mv.load_wav_file(str(wav))
+    pad = np.zeros(int(rate * PAD_S), dtype=np.float32)
+    data = np.concatenate([pad, np.asarray(data, dtype=np.float32), pad])
     heard = clean(" ".join(l.text for l in tr.transcribe_without_streaming(data, sample_rate=rate).lines).strip())
     t["stt"] = time.perf_counter() - t0
 
