@@ -1,0 +1,240 @@
+
+== describe
+top-1 domain, threshold off: 159/186 = 85%
+with none threshold 0.300 (tuned on these cases): 172/216 = 80%
+  alerts      10/12 
+  calendar    20/20 
+  inventory   23/39 
+  lights      28/30 
+  lists       19/29 
+  music       31/35 
+  none        20/30 
+  weather     21/21 
+misses:
+  mus-028      music -> none      0.231  turn it up
+  mus-029      music -> none      0.195  a little louder please
+  mus-030      music -> none      0.245  turn it down
+  mus-031      music -> none      0.238  it's too loud
+  mus-036       none -> music     0.334  what's playing?
+  lig-046     lights -> none      0.244  movie time
+  lig-063       none -> lights    0.521  don't turn off the porch light
+  lig-064       none -> lights    0.487  the kitchen light is on, right?
+  inv-068  inventory -> lists     0.412  add 50 deck screws to the garage bin
+  inv-071  inventory -> lists     0.369  put 6 jars of salsa in the pantry
+  inv-079  inventory -> none      0.259  we're out of milk
+  inv-081  inventory -> lists     0.313  we're low on rice
+  inv-082  inventory -> none      0.298  plenty of potatoes now
+  inv-083  inventory -> none      0.299  the dog food is almost gone
+  inv-084  inventory -> none      0.294  coffee's running low
+  inv-086  inventory -> lists     0.338  I finished the last roll of duct tape
+  inv-092  inventory -> none      0.266  where's the caulk gun
+  inv-093  inventory -> none      0.278  how many furnace filters do we have
+  inv-094  inventory -> none      0.293  do we have any AA batteries
+  inv-095  inventory -> none      0.266  where did we put the extension cords
+  inv-098  inventory -> none      0.269  where do we keep the spare fuses
+  inv-099  inventory -> none      0.241  can't find the good hammer anywhere
+  inv-100  inventory -> none      0.223  the circular saw broke
+  lis-112      lists -> none      0.275  I need to fix the gate
+  lis-116      lists -> lights    0.323  add sharpen the mower blades
+  lis-119      lists -> none      0.237  we need to call the plumber
+  lis-120      lists -> lights    0.326  add 2 gallons of milk
+  lis-124      lists -> none      0.250  I got the eggs
+  lis-125      lists -> none      0.276  nevermind the bread
+  lis-126      lists -> none      0.256  I fixed the gate
+  lis-127      lists -> none      0.275  cross off call the vet
+  lis-128      lists -> none      0.279  I already did the dishes
+  lis-134      lists -> alerts    0.485  what do I have to do today
+  lis-135       none -> lights    0.330  don't add milk, we have some
+  cal-160       none -> alerts    0.341  cancel the dentist
+  cal-161       none -> calendar  0.426  move the vet to wednesday
+  ale-189     alerts -> none      0.241  set an alarm for 6am
+  ale-190     alerts -> none      0.208  set a timer for 15 minutes
+  non-233       none -> music     0.327  are you listening
+  non-234       none -> weather   0.309  test test
+  non-235       none -> weather   0.364  hmm
+  non-236       none -> alerts    0.320  what can you do
+  mul-241  inventory -> none      0.292  we're out of milk and eggs
+  mul-243     lights -> music     0.323  movie time, and turn the music down
+ambiguous (reported, not scored), under threshold 2/22:
+  inv-104  -> inventory 0.403  we used some of the chicken feed
+  inv-105  -> inventory 0.433  used a bunch of the tape
+  inv-106  -> inventory 0.276  we're out of the good screws
+  inv-107  -> inventory 0.344  used one
+  lis-136  -> lists     0.433  add stuff for tacos
+  lis-137  -> lists     0.485  I bought everything on the list
+  cal-158  -> calendar  0.493  add a meeting
+  cal-159  -> calendar  0.554  put something on the calendar for friday
+  ale-203  -> alerts    0.526  remind me to buy milk
+  ale-204  -> alerts    0.472  remind me in 10
+  amb-205  -> lights    0.415  turn it off
+  amb-206  -> lists     0.422  add it
+  amb-207  -> music     0.366  do the thing
+  amb-208  -> weather   0.340  the usual
+  amb-209  -> weather   0.317  more
+  amb-210  -> lights    0.376  off
+  amb-211  -> lights    0.363  set it to 50
+  amb-212  -> weather   0.336  how many
+  amb-213  -> lights    0.422  change it
+  amb-214  -> lists     0.522  put it on the list
+  amb-215  -> music     0.343  is it on?
+  amb-216  -> weather   0.288  can you get that
+
+== gate: drop under floor, ask top-two when the gap is small, else act
+requests: act right / ask with the right one offered / act WRONG / ask without it / dropped
+none: dropped / asked / acted     ambiguous: asked or dropped / acted
+floor 0.25 gap 0.00 | 153   0  22   0  11 of 186 (resolved 82%, asked 0%) | none  9  0 21 | amb  0 22
+floor 0.25 gap 0.02 | 147  16   7   5  11 of 186 (resolved 88%, asked 11%) | none  9  5 16 | amb  3 19
+floor 0.25 gap 0.04 | 141  25   2   7  11 of 186 (resolved 89%, asked 17%) | none  9  6 15 | amb  7 15
+floor 0.25 gap 0.06 | 133  34   1   7  11 of 186 (resolved 90%, asked 22%) | none  9 10 11 | amb  8 14
+floor 0.25 gap 0.08 | 120  48   0   7  11 of 186 (resolved 90%, asked 30%) | none  9 11 10 | amb 10 12
+floor 0.28 gap 0.00 | 151   0  13   0  22 of 186 (resolved 81%, asked 0%) | none 13  0 17 | amb  1 21
+floor 0.28 gap 0.02 | 146  11   4   3  22 of 186 (resolved 84%, asked 8%) | none 13  3 14 | amb  4 18
+floor 0.28 gap 0.04 | 140  19   1   4  22 of 186 (resolved 85%, asked 12%) | none 13  4 13 | amb  7 15
+floor 0.28 gap 0.06 | 133  27   0   4  22 of 186 (resolved 86%, asked 17%) | none 13  7 10 | amb  8 14
+floor 0.28 gap 0.08 | 120  40   0   4  22 of 186 (resolved 86%, asked 24%) | none 13  8  9 | amb 10 12
+floor 0.31 gap 0.00 | 149   0   8   0  29 of 186 (resolved 80%, asked 0%) | none 21  0  9 | amb  2 20
+floor 0.31 gap 0.02 | 145   7   3   2  29 of 186 (resolved 82%, asked 5%) | none 21  2  7 | amb  5 17
+floor 0.31 gap 0.04 | 140  14   1   2  29 of 186 (resolved 83%, asked 9%) | none 21  3  6 | amb  7 15
+floor 0.31 gap 0.06 | 133  22   0   2  29 of 186 (resolved 83%, asked 13%) | none 21  3  6 | amb  8 14
+floor 0.31 gap 0.08 | 120  35   0   2  29 of 186 (resolved 83%, asked 20%) | none 21  3  6 | amb 10 12
+
+== loo-knn (ceiling, leaky)
+top-1 domain, threshold off: 167/186 = 90%
+with none threshold 0.615 (tuned on these cases): 179/216 = 83%
+  alerts       9/12 
+  calendar    19/20 
+  inventory   33/39 
+  lights      29/30 
+  lists       19/29 
+  music       34/35 
+  none        15/30 
+  weather     21/21 
+misses:
+  mus-035      music -> alerts    0.862  mute it
+  lig-063       none -> lights    0.821  don't turn off the porch light
+  lig-064       none -> lights    0.837  the kitchen light is on, right?
+  lig-065     lights -> alerts    0.683  goodnight
+  inv-067  inventory -> lists     0.752  I just bought 12 eggs
+  inv-078  inventory -> none      0.597  used 2 quarts of oil on the tractor
+  inv-083  inventory -> lists     0.650  the dog food is almost gone
+  inv-084  inventory -> lists     0.679  coffee's running low
+  inv-088  inventory -> none      0.550  restocked the first aid kit
+  inv-093  inventory -> none      0.562  how many furnace filters do we have
+  lis-110      lists -> inventory 0.679  we need coffee filters
+  lis-115      lists -> inventory 0.762  add dog food
+  lis-116      lists -> none      0.601  add sharpen the mower blades
+  lis-117      lists -> inventory 0.770  also add butter
+  lis-120      lists -> inventory 0.717  add 2 gallons of milk
+  lis-124      lists -> inventory 0.752  I got the eggs
+  lis-125      lists -> alerts    0.637  nevermind the bread
+  lis-128      lists -> none      0.570  I already did the dishes
+  lis-129      lists -> none      0.597  mark the oil change as done
+  lis-135       none -> lists     0.708  don't add milk, we have some
+  cal-157   calendar -> alerts    0.719  trash day every tuesday
+  cal-160       none -> calendar  0.653  cancel the dentist
+  cal-161       none -> calendar  0.790  move the vet to wednesday
+  ale-187     alerts -> calendar  0.719  don't let me forget the trash tonight
+  ale-190     alerts -> none      0.517  set a timer for 15 minutes
+  ale-191     alerts -> calendar  0.799  what reminders do I have
+  non-217       none -> alerts    0.731  thank you
+  non-218       none -> lights    0.701  good morning
+  non-219       none -> alerts    0.643  how are you
+  non-223       none -> lights    0.622  I love you
+  non-224       none -> alerts    0.772  never mind
+  non-225       none -> alerts    0.784  cancel
+  non-229       none -> alerts    0.732  ignore that
+  non-234       none -> alerts    0.709  test test
+  non-235       none -> alerts    0.733  hmm
+  non-236       none -> lists     0.672  what can you do
+  mul-247      lists -> inventory 0.791  cross off eggs and add bread
+ambiguous (reported, not scored), under threshold 1/22:
+  inv-104  -> inventory 0.715  we used some of the chicken feed
+  inv-105  -> inventory 0.633  used a bunch of the tape
+  inv-106  -> inventory 0.875  we're out of the good screws
+  inv-107  -> alerts    0.676  used one
+  lis-136  -> inventory 0.766  add stuff for tacos
+  lis-137  -> inventory 0.606  I bought everything on the list
+  cal-158  -> calendar  0.856  add a meeting
+  cal-159  -> calendar  0.850  put something on the calendar for friday
+  ale-203  -> alerts    0.927  remind me to buy milk
+  ale-204  -> alerts    0.883  remind me in 10
+  amb-205  -> lights    0.943  turn it off
+  amb-206  -> lists     0.771  add it
+  amb-207  -> music     0.649  do the thing
+  amb-208  -> alerts    0.695  the usual
+  amb-209  -> music     0.753  more
+  amb-210  -> lights    0.840  off
+  amb-211  -> music     0.686  set it to 50
+  amb-212  -> alerts    0.679  how many
+  amb-213  -> alerts    0.661  change it
+  amb-214  -> lists     0.813  put it on the list
+  amb-215  -> alerts    0.620  is it on?
+  amb-216  -> alerts    0.752  can you get that
+
+== examples: 3363 training utterances as the router's examples, none is a domain
+requests: act right / ask with the right one offered / act WRONG / ask without it / dropped
+gap picked on the val split, then applied once to the test cases
+val  gap 0.00 |  324    0    2    0    4 of 330 (resolved 98%, asked 0%, wrong act 0.6%) | none  23   0   5 | amb   0   0
+val  gap 0.01 |  323    2    2    0    3 of 330 (resolved 98%, asked 1%, wrong act 0.6%) | none  22   1   5 | amb   0   0
+val  gap 0.02 |  321    4    2    0    3 of 330 (resolved 98%, asked 1%, wrong act 0.6%) | none  22   1   5 | amb   0   0
+val  gap 0.03 |  319    6    2    0    3 of 330 (resolved 98%, asked 2%, wrong act 0.6%) | none  22   2   4 | amb   0   0
+val  gap 0.04 |  317   10    1    0    2 of 330 (resolved 99%, asked 3%, wrong act 0.3%) | none  22   4   2 | amb   0   0
+val  gap 0.05 |  312   15    1    0    2 of 330 (resolved 99%, asked 5%, wrong act 0.3%) | none  21   5   2 | amb   0   0
+val  gap 0.06 |  307   20    1    0    2 of 330 (resolved 99%, asked 6%, wrong act 0.3%) | none  20   6   2 | amb   0   0
+val  gap 0.08 |  295   34    0    0    1 of 330 (resolved 100%, asked 10%, wrong act 0.0%) | none  17   9   2 | amb   0   0
+TEST gap 0.00 |  173    0   11    0    2 of 186 (resolved 93%, asked 0%, wrong act 5.9%) | none  24   0   6 | amb   3  19
+
+== examples, top-1 (no gate)
+top-1 domain, threshold off: 173/186 = 93%
+with none threshold 0.000 (tuned on these cases): 198/216 = 92%
+  alerts      11/12 
+  calendar    19/20 
+  inventory   37/39 
+  lights      28/30 
+  lists       22/29 
+  music       35/35 
+  none        25/30 
+  weather     21/21 
+misses:
+  mus-036       none -> music     1.000  what's playing?
+  lig-046     lights -> calendar  1.000  movie time
+  inv-086  inventory -> lists     1.000  I finished the last roll of duct tape
+  inv-093  inventory -> none      1.000  how many furnace filters do we have
+  lis-115      lists -> inventory 1.000  add dog food
+  lis-116      lists -> none      1.000  add sharpen the mower blades
+  lis-119      lists -> calendar  1.000  we need to call the plumber
+  lis-120      lists -> inventory 1.000  add 2 gallons of milk
+  lis-124      lists -> alerts    1.000  I got the eggs
+  lis-127      lists -> alerts    1.000  cross off call the vet
+  lis-128      lists -> alerts    1.000  I already did the dishes
+  cal-157   calendar -> lists     1.000  trash day every tuesday
+  ale-187     alerts -> lists     1.000  don't let me forget the trash tonight
+  non-225       none -> alerts    1.000  cancel
+  non-226       none -> calendar  1.000  who won the game last night
+  non-230       none -> alerts    1.000  ugh what a day
+  non-236       none -> lists     1.000  what can you do
+  mul-243     lights -> music     1.000  movie time, and turn the music down
+ambiguous (reported, not scored), under threshold 0/22:
+  inv-104  -> inventory 1.000  we used some of the chicken feed
+  inv-105  -> inventory 1.000  used a bunch of the tape
+  inv-106  -> inventory 1.000  we're out of the good screws
+  inv-107  -> inventory 1.000  used one
+  lis-136  -> lists     1.000  add stuff for tacos
+  lis-137  -> lists     1.000  I bought everything on the list
+  cal-158  -> calendar  1.000  add a meeting
+  cal-159  -> calendar  1.000  put something on the calendar for friday
+  ale-203  -> alerts    1.000  remind me to buy milk
+  ale-204  -> alerts    1.000  remind me in 10
+  amb-205  -> lights    1.000  turn it off
+  amb-206  -> lists     1.000  add it
+  amb-207  -> alerts    1.000  do the thing
+  amb-208  -> none      1.000  the usual
+  amb-209  -> alerts    1.000  more
+  amb-210  -> lights    1.000  off
+  amb-211  -> music     1.000  set it to 50
+  amb-212  -> inventory 1.000  how many
+  amb-213  -> none      1.000  change it
+  amb-214  -> lists     1.000  put it on the list
+  amb-215  -> none      1.000  is it on?
+  amb-216  -> alerts    1.000  can you get that
+DONE

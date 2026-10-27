@@ -4,6 +4,9 @@
 set -euo pipefail
 BIN="${LLAMA_SERVER:-$HOME/llama/llama.cpp-0.7.0/build/bin/llama-server}"
 DIR="${LITE_DIR:-$HOME/lite}"
+# --no-repack: on a chip with int8 dot-product instructions (Pi 5, CM5) llama.cpp keeps a second,
+# rearranged copy of the weights. On the Pi 5 that cost 520 MB for no measurable speed (2026-10-26).
+EXTRA="${LITE_SERVER_FLAGS:---no-repack}"
 
 # exact path match on the binary, so this never matches the shell that runs it
 for pid in $(pgrep -x llama-server || true); do
@@ -13,9 +16,9 @@ sleep 1
 
 cd "$DIR"
 nohup "$BIN" -m functiongemma-hestia-v4-q8_0.gguf --host 127.0.0.1 --port 8090 -np 7 -t 4 \
-  -c 4480 -b 128 -ub 128 -ctk q8_0 -ctv q8_0 --cache-ram 0 --no-webui > caller.log 2>&1 < /dev/null &
+  -c 4480 -b 128 -ub 128 -ctk q8_0 -ctv q8_0 --cache-ram 0 --no-webui $EXTRA > caller.log 2>&1 < /dev/null &
 nohup "$BIN" -m embeddinggemma-q8_0.gguf --embedding --host 127.0.0.1 --port 8095 -t 4 \
-  -c 512 -b 128 -ub 128 --cache-ram 0 --no-webui > embed.log 2>&1 < /dev/null &
+  -c 512 -b 128 -ub 128 --cache-ram 0 --no-webui $EXTRA > embed.log 2>&1 < /dev/null &
 
 for port in 8090 8095; do
   for _ in $(seq 60); do curl -sf "localhost:$port/health" > /dev/null && break; sleep 0.5; done

@@ -82,6 +82,36 @@ flips between its two wrong answers. Router 0.71 s to **0.17 s**; to the reply a
 Not cut yet: Moonshine BASE and the TTS worker are two Python processes with their own runtimes
 (about 660 MB together), and the caller still carries the 262k-entry vocabulary.
 
+## Pi 5 (same day, same SD card)
+
+Raspberry Pi 5, 8 GB, active cooler, llama.cpp rebuilt for its cores (Cortex-A76: int8 dot
+product and 16-bit float math, which the Pi 4's A72 lacks). Same 30 clips, same settings.
+
+| To the reply audio (16 actions) | Pi 4 | **Pi 5** |
+|---|---|---|
+| Speech to text | 1.14 s | **0.38 s** |
+| Router | 0.17 s | **0.03 s** |
+| Caller | 2.00 s | **0.65 s** |
+| Reply speech | 1.39 s | **0.51 s** |
+| **Median / worst** | 4.58 / 6.97 s | **1.58 / 2.50 s** |
+
+Same 30 decisions. Peak 56°C, fan about 4,600 rpm, never throttled. On the A76 llama.cpp
+repacks the 8-bit weights for its dot-product kernels and keeps both copies: 2,091 MB peak with
+it, **1,512 MB with `--no-repack`** at the same speed, so `servers.sh` now passes it by default.
+The Pi 5 build is the CM5's silicon.
+
+## 8-bit embeddings, the router benchmark (Pi 5)
+
+`router_eval.py --server` against the 16-bit relabelled file (`router_eval_bf16_pi5.txt`) and
+the Q8_0 one (`router_eval_q8_pi5.txt`), same 247 cases and 3,363 training examples: 173 of 186
+top-1 both ways, identical test rows, and no table cell more than one case apart. The 8-bit
+embedder costs no measurable routing accuracy.
+
+Side finding: with this larger example set, the benchmark's own rule (cheapest gap that keeps
+wrong actions at or under 2% on val) picks a gap of 0, because the val split has become easy;
+on the tests that gap acts wrongly on 5.9%. The device uses a fixed 0.08. Val drawn from the
+templates no longer calibrates the gate; real speech has to.
+
 ## Fixed during the run
 
 - Moonshine writes "to-morrow" and "living-room". The said-words gate compared the caller's

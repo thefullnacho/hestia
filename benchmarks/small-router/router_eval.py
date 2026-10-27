@@ -25,6 +25,7 @@ DOC = "title: none | text: "
 
 
 CACHE = Path.home() / ".cache" / "small-router-embeddings.json"
+SERVER = ""  # set by --server; --model then only names the cache entries
 
 
 def embed(url, model, texts):
@@ -41,6 +42,11 @@ def embed(url, model, texts):
 
 
 def _embed(url, model, texts):
+    if SERVER:  # llama.cpp's OpenAI-style endpoint (the Lite device's embedder)
+        req = urllib.request.Request(f"{SERVER}/v1/embeddings", data=json.dumps({"input": texts}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=600) as r:
+            return [d["embedding"] for d in sorted(json.load(r)["data"], key=lambda d: d["index"])]
     req = urllib.request.Request(
         f"{url}/api/embed",
         data=json.dumps({"model": model, "input": texts}).encode(),
@@ -183,7 +189,11 @@ def main():
     ap.add_argument("--ollama", default="http://localhost:11434")
     ap.add_argument("--model", default="embeddinggemma")
     ap.add_argument("--no-prefix", action="store_true", help="skip EmbeddingGemma's task prefixes")
+    ap.add_argument("--server", default="", help="a llama.cpp embedding server instead of Ollama, "
+                    "e.g. http://127.0.0.1:8095 (give --model a distinct name so the cache stays apart)")
     a = ap.parse_args()
+    global SERVER
+    SERVER = a.server
     q, d = ("", "") if a.no_prefix else (QUERY, DOC)
 
     tools, cases, tool_domain = load()
