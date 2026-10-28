@@ -126,6 +126,43 @@ Not shipped. Next: pick the thresholds on real speech. The utterance log's week,
 calibration half and a test half, is the val set this needs. One checkpoint and greedy decoding,
 so the table is K=1; the threshold call should be made at K>=5.
 
+## d1-2B as the gate (2026-10-27)
+
+Liquid's d1-2B answers typed questions in one forward pass with calibrated probabilities. One
+yes/no question per proposed call (`d1_gate.py`): the utterance and the call in plain words
+(`override.say`), "will the device's action do exactly what the person asked?". 1 - P(yes)
+stands in for override mass, so `pick` and `table` are unchanged: thresholds from val only, the
+said-words gate after. Same v4 rows, regenerated with `--observe`; they reproduce the table above
+(16 wrong actions, 47 asks with both signals).
+
+| Gate (test) | Wrong actions that execute | Needless asks | Asks |
+|---|---|---|---|
+| Said-words only | 26 | 1 | 19 (8%) |
+| Override, both signals (val-picked) | 16 | 19 | 47 (20%) |
+| d1, val-picked (P(yes) <= 0.027) | 25 | 1 | 20 (9%) |
+| d1, P(yes) < 0.5 (test sweep, not a pick) | 11 | 31 | 64 (27%) |
+
+How well each signal ranks right calls above wrong ones (AUROC, calls only):
+
+| Signal | Val | Test |
+|---|---|---|
+| Override mass (free, from the caller's own logits) | 0.935 | 0.795 |
+| Gap | 0.932 | 0.720 |
+| d1 P(yes) | 0.823 | 0.743 |
+| d1 P(yes) minus mass, unweighted | 0.882 | **0.849** |
+
+- **Not calibrated here out of the box.** It is underconfident: on val, calls it gave P(yes)
+  0.1 to 0.3 were right 86% of the time; on test, 52%. Its shipped calibration is fitted on
+  Liquid's rows, and the card says to set thresholds on your own data.
+- **Alone it ranks worse than override mass**, which costs nothing because it comes from the
+  caller's own distribution.
+- **Combined, it is the best ranker on test.** d1 catches wrong calls the caller was confident
+  about, so it sees errors the mass can't. But the combination ranks worse than mass alone on
+  val, so val would never pick it. Same wall as the override gate: template val is too clean to
+  calibrate for real speech. The week of real utterances decides this too.
+- **Cost on the device is unmeasured.** d1 runs only in transformers (`trust_remote_code`,
+  reviewed: no network, exec or file writes), 2B beside a 270M caller. No GGUF path yet.
+
 ## Notes
 
 - Ollama's FunctionGemma GGUF ships without a chat template; the official one is in the
