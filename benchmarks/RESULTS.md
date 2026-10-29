@@ -314,6 +314,15 @@ held-out: entity right           66.3%            86.7%
 held-out: EXACT                  66.3%  189s      86.7%  268s
 ```
 
+Same day, Nanbeige4.2-3B (Apache 2.0, a looped 4B that runs its 22 layers twice), converted
+from the official safetensors to Q8_0 with upstream llama.cpp, reasoning off, same suite:
+key-match 80% (148s), held-out fired 82.5%, EXACT 77.1% (722s), 34 tok/s on the 4060 Ti
+against LFM3's 117. Every key-match miss answered in prose, and the prose claims the action:
+"Saved that to memory", "It's queued and downloading", with no tool called. That is the
+fake-receipt failure Hestia's harness exists to prevent, so the scores don't matter until it
+stops. Its card recommends thinking on and temperature 1.0 for agent work; not tried here,
+because the brain runs reasoning off at 0.3.
+
 ## Findings
 
 - **Picking the tool is solved at 1.7B; filling it in is not.** Key-match ties at 100%,
