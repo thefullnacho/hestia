@@ -409,8 +409,9 @@ Gemma 4 12B       100%        92.1%            ~7.6 GB (resident, for reference)
 ```
 
 Liquid's QAD-Q4_0 (quantization-aware distillation, trained to recover what Q4_0 loses) scores
-above its own 8-bit build and within a point of the resident, at a seventh of its size. One run
-of 315 tries: the gap over Q8_0 wants a repeat before it is trusted. Quality is a property of
+above its own 8-bit build and within a point of the resident, at a seventh of its size. Repeated
+twice more: 287 of 315 all three times. Sampling does vary (about 23 rows differ between any two
+runs, and 5 cases disagree across their own repeats), but the score does not move. Quality is a property of
 the weights and quantization, not the device, so this is what the phone would decide; the
 phone itself only has to show speed, memory and heat.
 
