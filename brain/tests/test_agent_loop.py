@@ -105,3 +105,22 @@ def test_timed_out_tool_holds_its_worker_slot_until_it_really_finishes(monkeypat
     finally:
         release.set()
         pool.shutdown(wait=True)
+
+
+def test_openai_messages_give_every_tool_call_a_type_and_an_id():
+    """llama-server refuses Ollama-shaped tool calls on the second model call of a turn
+    ("Missing tool call type"), which ended every multi-step turn on that backend."""
+    out = hestia._openai_messages([
+        {"role": "user", "content": "shut off the outside"},
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"function": {"name": "home", "arguments": {"action": "get_state"}}},
+            {"function": {"name": "weather", "arguments": {}}}]},
+        {"role": "tool", "tool_name": "home", "content": "Outside lights=on"},
+        {"role": "tool", "tool_name": "weather", "content": "clear"},
+    ])
+    calls = out[1]["tool_calls"]
+    assert [c["type"] for c in calls] == ["function", "function"]
+    assert calls[0]["function"]["arguments"] == '{"action": "get_state"}'
+    assert [m["tool_call_id"] for m in out[2:]] == [calls[0]["id"], calls[1]["id"]]
+    assert "tool_name" not in out[2]
+    assert out[0] == {"role": "user", "content": "shut off the outside"}

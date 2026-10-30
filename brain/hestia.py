@@ -401,6 +401,33 @@ def _almanac_pages() -> str:
     return "\n\n".join(pages)
 
 
+def _openai_messages(messages: list[dict]) -> list[dict]:
+    """The conversation in the OpenAI shape. The loop keeps Ollama's (a tool call without a type
+    or id, its result keyed by tool_name), which a strict server refuses on the second model call
+    of a turn: llama-server answers 500 "Missing tool call type". Each call gets an id here, and
+    each tool result the id of the call it answers, in order."""
+    out, pending, n = [], [], 0
+    for m in messages:
+        if m.get("role") == "assistant" and m.get("tool_calls"):
+            calls = []
+            for c in m["tool_calls"]:
+                fn = c.get("function", {})
+                args = fn.get("arguments", {})
+                n += 1
+                cid = c.get("id") or f"call_{n}"
+                calls.append({"id": cid, "type": "function", "function": {
+                    "name": fn.get("name", ""),
+                    "arguments": args if isinstance(args, str) else json.dumps(args)}})
+            pending = [c["id"] for c in calls]
+            out.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": calls})
+        elif m.get("role") == "tool":
+            cid = m.get("tool_call_id") or (pending.pop(0) if pending else f"call_{n}")
+            out.append({"role": "tool", "tool_call_id": cid, "content": m.get("content", "")})
+        else:
+            out.append(m)
+    return out
+
+
 async def _openai_chat(messages: list[dict], schemas: list | None = None) -> dict:
     """OpenAI-compatible backend (POST /v1/chat/completions), e.g. mlx_lm.server.
 
@@ -409,7 +436,7 @@ async def _openai_chat(messages: list[dict], schemas: list | None = None) -> dic
     dropped; the repair prompt text is unchanged. Selected by HESTIA_BACKEND=openai.
     """
     trace = _trace.get()
-    body = {"model": OPENAI_MODEL, "messages": messages,
+    body = {"model": OPENAI_MODEL, "messages": _openai_messages(messages),
             "tools": tools.SCHEMAS if schemas is None else schemas,
             "stream": False, "temperature": 0.3, "max_tokens": OUTPUT_TOKENS}
     repair = trace.repair_tool if trace else ''
@@ -422,7 +449,7 @@ async def _openai_chat(messages: list[dict], schemas: list | None = None) -> dic
     if repair:
         body['tools'] = []
         body['temperature'] = 0
-        body['messages'] = [*messages, {'role': 'system', 'content':
+        body['messages'] = [*body['messages'], {'role': 'system', 'content':
             f'Return only the JSON argument object for the {repair} tool, matching the supplied schema. '
             'The harness will validate it before execution. Do not claim completion. '
             'Omit optional fields the user did not specify, especially location and timestamps. '
