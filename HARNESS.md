@@ -249,9 +249,14 @@ that tool; a call written as text is never run from the text. A second failure p
 non-completion response and is not learned. This catches a measured native Ollama case
 that generated tokens but returned an empty message with no parsed tool call. Detection
 is intentionally limited to explicit command forms and does not prove all user intents
-were completed. A light command counts only when the text names a light or refers back
-to one, because the home tool actuates nothing else. Missing arguments may still
-require a clarifying question.
+were completed. A light command counts only when the text names a light, refers back to one
+with an on/off verb ("turn it off"), or ends on an area the house's lights are named for
+("shut off the outside", from "Outside lights"), because the home tool actuates nothing else.
+Turn, switch, flip and shut need on/off; kill, cut and put need a light named, so "cut it out"
+and "put it on the list" stay talk. Only a name that says "lights" is an area: "turn off the
+TV" may mean the set, not the light called TV. With no catalog read yet, only light words
+count. A detected command keeps its tools after a look-up, so a model that checks the lights
+first can still act. Missing arguments may still require a clarifying question.
 
 When one explicit write tool is missing and was offered for the request, recovery uses
 Ollama's schema-constrained JSON output for that tool's arguments, then the ordinary

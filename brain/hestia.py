@@ -652,16 +652,34 @@ def _required_writes(text: str) -> set[str]:
     start = r"(?:^|\band\s+|\bthen\s+)(?:please\s+)?"
     patterns = {
         'records': start + r"(?:log|record)\b",
-        'home': start + r"turn\b[^.!?]{0,120}\b(?:on|off)\b",
+        'home': start + r"(?:(?:turn|switch|flip|shut)\b[^.!?]{0,120}\b(?:on|off)\b|(?:kill|cut|put)\b)",
         'reminder': start + r"(?:remind me|set (?:a |an )?(?:timer|reminder))\b",
         'shopping': start + r"add\b[^.!?]*\b(?:shopping|grocery) list\b",
         'calendar': start + r"(?:add|put|schedule)\b[^.!?]*\bcalendar\b",
     }
     found = {name for name, pattern in patterns.items() if re.search(pattern, text, re.I)}
     # The home tool only actuates lights: "turn on the news" is not a write it could attempt.
-    if 'home' in found and not re.search(r"\b(?:light|lights|lamp|lamps|it|them|those|everything|all)\b", text, re.I):
+    # "Kill", "cut" and "put" need a light named: "cut it out" and "put it on the list" are not
+    # light commands. Only turn/switch/flip/shut with on/off may refer back ("turn it off").
+    on_off = re.search(start + r"(?:turn|switch|flip|shut)\b[^.!?]{0,120}\b(?:on|off)\b", text, re.I)
+    referent = r"light|lights|lamp|lamps|everything|all" + (r"|it|them|those" if on_off else "")
+    if 'home' in found and not (re.search(rf"\b(?:{referent})\b", text, re.I)
+                                or _names_a_light_area(text, start)):
         found.discard('home')
     return found
+
+
+def _names_a_light_area(text: str, start: str) -> bool:
+    """"Shut off the outside": a command whose object is one of the house's light areas and
+    ends the sentence, so "kill the outside noise" or "turn on the kitchen radio" stays talk."""
+    areas = tools.home.light_areas()
+    if not areas:
+        return False
+    area = r"(?:the\s+|my\s+)?(?:" + "|".join(map(re.escape, areas)) + r")(?:\s+lights?)?"
+    tail = r"\s*(?:now|please)?\s*[.!]*\s*$"
+    verb_first = r"(?:(?:turn|switch|flip|put)\s+(?:on|off)|shut\s+off|kill|cut)\s+"
+    verb_last = r"(?:turn|switch|flip|put|shut)\s+" + area + r"\s+(?:on|off)" + tail
+    return bool(re.search(start + r"(?:" + verb_first + area + tail + "|" + verb_last + ")", text, re.I))
 
 
 def _finishes_open_step(query: str) -> bool:
@@ -1051,6 +1069,7 @@ async def _agent_loop(messages: list[dict]) -> str:
         if (read_names <= {'home', 'weather', 'memory', 'records', 'status', 'shopping', 'calendar'}
                 and all(not mutation(c['function'].get('name'), c['function'].get('arguments')) for c in calls)
                 and not (_trace.get() and _trace.get().actions)
+                and not required_writes  # a detected command keeps its tools after a look-up
                 and not re.search(r"\b(?:and|then|also|remind|save|add|turn|log|record)\b", user_text, re.I)):
             schemas = []
         # The model ignored the nudge and is still repeating itself — stop looping and answer from

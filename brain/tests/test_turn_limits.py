@@ -2,6 +2,7 @@ import asyncio
 import json
 
 import httpx
+import pytest
 
 import hestia
 from eval_support import fixtures
@@ -215,7 +216,8 @@ def test_non_light_turn_on_is_not_a_required_write():
 def test_explicit_light_command_always_offers_home():
     with fixtures():
         for text in ['Log that Biscuit was vaccinated, then turn on the porch lights.',
-                     'Turn them back on.']:
+                     'Turn them back on.', 'shut off the outside', 'kill the outside',
+                     'put on the outside', 'switch on the lights in the outside']:
             token = hestia._prepared.set(None)
             try:
                 offered = {s['function']['name'] for s in hestia._request_schemas(text)}
@@ -242,3 +244,66 @@ def test_repair_is_skipped_for_a_tool_the_request_did_not_offer(monkeypatch):
             finally:
                 hestia._trace.reset(token)
     asyncio.run(scenario())
+
+
+
+# A command whose object is a light area the house names ("Outside lights" is "outside"), with
+# the verbs people actually use. LFM3-1.7B read "shut off the outside" as a state question on
+# 14% of held-out tries, and the detector, wanting the word "light", never asked for the write.
+@pytest.mark.parametrize("text", [
+    "shut off the outside", "kill the outside", "cut the outside", "turn on the outside",
+    "put on the outside", "turn the outside on", "switch on the lights in the outside",
+    "kill the lights in the outside", "flip on the lights in the outside", "shut off the living room",
+])
+def test_bare_area_commands_are_required_light_writes(monkeypatch, text):
+    monkeypatch.setitem(hestia.tools.home._cache, "areas", ["kitchen", "living room", "outside"])
+    assert hestia._required_writes(text) == {"home"}
+
+
+@pytest.mark.parametrize("text", [
+    "kill the outside noise", "turn on the kitchen radio", "turn off the kitchen timer",
+    "shut off the kitchen faucet", "turn off the outside faucet", "put it on the list",
+    "cut it out", "kill it", "put on some music", "How do I turn the outside off?",
+    "turn on the living room tv",
+])
+def test_talk_that_mentions_an_area_is_not_a_light_command(monkeypatch, text):
+    monkeypatch.setitem(hestia.tools.home._cache, "areas", ["kitchen", "living room", "outside"])
+    assert "home" not in hestia._required_writes(text)
+
+
+def test_with_no_catalog_read_yet_only_light_words_count(monkeypatch):
+    monkeypatch.setitem(hestia.tools.home._cache, "areas", [])
+    assert hestia._required_writes("shut off the outside") == set()
+    assert hestia._required_writes("shut off the outside lights") == {"home"}
+
+
+def test_only_names_that_say_lights_become_areas(monkeypatch):
+    import time
+    from tools import home
+    monkeypatch.setattr(home, "_cache", {"t": 0.0, "catalog": "", "soil": "", "areas": []})
+    monkeypatch.setattr(time, "time", lambda: 1.0)
+    home._cache_states([
+        {"entity_id": "light.light_outside_lights", "state": "off", "attributes": {"friendly_name": "Outside lights"}},
+        {"entity_id": "light.light_dining_room_lights", "state": "off", "attributes": {"friendly_name": "Dining room lights"}},
+        {"entity_id": "light.tv", "state": "off", "attributes": {"friendly_name": "TV"}},
+        {"entity_id": "light.fan", "state": "off", "attributes": {"friendly_name": "Fan"}},
+    ])
+    assert home.light_areas() == ["dining room", "outside"]
+
+
+def test_a_detected_command_keeps_its_tools_after_a_read(monkeypatch):
+    """LFM3 looked up the lights before "shut off the outside"; the loop then dropped tools for a
+    quick answer, so the write it needed next could never happen."""
+    seen = []
+    replies = [{'tool_calls': [{'function': {'name': 'home', 'arguments': {'action': 'get_state'}}}]},
+               {'tool_calls': [{'function': {'name': 'home', 'arguments': {
+                   'action': 'turn_off', 'entity_id': 'light.light_kitchen_lights'}}}]},
+               {'content': 'Done.'}]
+    async def chat(convo, schemas):
+        seen.append([s['function']['name'] for s in schemas])
+        return replies.pop(0)
+    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    with fixtures() as state:
+        asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'shut off the kitchen'}]))
+        assert state['light'] == 'off'
+    assert 'home' in seen[1]

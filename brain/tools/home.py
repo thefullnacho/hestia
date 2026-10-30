@@ -6,6 +6,7 @@ read live here, never cached in memory. Uses the long-lived token from secrets/h
 from __future__ import annotations
 
 import os
+import re
 import time
 
 import httpx
@@ -42,7 +43,7 @@ SCHEMA = {
     },
 }
 
-_cache: dict = {"t": 0.0, "catalog": "", "soil": ""}
+_cache: dict = {"t": 0.0, "catalog": "", "soil": "", "areas": []}
 
 
 def _soil(states: list[dict]) -> list[dict]:
@@ -72,6 +73,11 @@ def _cache_states(states: list[dict]) -> None:
     out += [_line(s) for s in groups]
     out += ["Individual lights:"] + [_line(s) for s in singles]
     soil = _soil(states)
+    # Only a name that says "lights" is an area ("Outside lights" is "outside"). A bare device
+    # name ("TV", "Fan") stays a device: "turn off the TV" may mean the set, not its light.
+    names = {s["attributes"].get("friendly_name", "").lower() for s in lights}
+    areas = {m.group(1).strip() for n in names if (m := re.match(r"(.+?)\s+lights?$", n))}
+    _cache["areas"] = sorted(a for a in areas if a)
     _cache.update(t=time.time(), catalog="\n".join(out),
                   soil="\n".join(_line(s) for s in soil) if soil else "")
 
@@ -108,6 +114,12 @@ async def context_catalogs(lights: bool = False, soil: bool = False) -> tuple[st
             err = f"(home catalog unavailable: {e})"
             return (err if lights else "", err if soil else "")
     return (_cache["catalog"] if lights else "", _cache["soil"] if soil else "")
+
+
+def light_areas() -> list[str]:
+    """Areas named by the house's lights: "Outside lights" is "outside". From the last catalog
+    read; empty until one has happened, so callers fall back to light words."""
+    return list(_cache.get("areas") or [])
 
 
 def catalog() -> str:

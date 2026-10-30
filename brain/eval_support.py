@@ -35,6 +35,8 @@ def fixtures():
         stack.enter_context(patch.object(memory_store, "MEMORY_DIR", root / "memory"))
         stack.enter_context(patch.object(config, "ALMANAC_DIR", root / "almanac"))
         stack.enter_context(patch.object(tools.recipe, "RECIPES_DIR", root / "recipes"))
+        # The areas the fixture catalog's lights name, as tools.home derives them from HA.
+        stack.enter_context(patch.dict(tools.home._cache, {"areas": ["kitchen", "outside"]}))
         # reminders_store uses records_store._conn, and shares its isolated database.
         records_store.upsert_entity("pet", "Biscuit", attrs={"breed": "corgi"})
         memory_store.write("The good coffee comes in the orange bag.", type="preference")
