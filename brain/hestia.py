@@ -190,6 +190,9 @@ _DID = (r"(?:saved|logged|recorded|added|set|scheduled|created|stored|queued|sta
         r"downloaded|marked|updated|removed|deleted|turned|switched|booked)")
 _OPENER = r"(?:(?:done|ok(?:ay)?|sure|got it|all set)\W+)?"
 _QUESTION = re.compile(r"\b(?:what|how|why|which|where|should|tell me)\b|\?", re.I)
+# A tool call written out as text ("records:log(did='vaccinated', ...)"): the model knew the call
+# and fumbled the format. Never run from the text; it only earns the schema-checked repair.
+_TEXT_CALL = re.compile(r"^\s*`?[a-z_]+[:.][a-z_]+\((?:[a-z_]+\s*=|\))", re.I)
 _SAID_DONE = re.compile(
     rf"\bI(?:'ve| have)?\s+(?:just\s+|now\s+|also\s+|already\s+)?{_DID}\b"
     rf"|^{_OPENER}{_DID}\s+(?:that|it|this|them|those|to)\b"
@@ -896,7 +899,7 @@ async def _agent_loop(messages: list[dict]) -> str:
             clarification = bool(content) and content.endswith('?')
             # A reply that says it did something no tool did: the model usually knows the call
             # and fumbled the delivery, so ask once for the real call before refusing.
-            claimed = bool(content) and not attempted and _claims_action(content)
+            claimed = bool(content) and not attempted and (_claims_action(content) or bool(_TEXT_CALL.match(content)))
             if (not content or (missing and not clarification) or claimed) and not (trace and trace.emitted):
                 if not recovery_used:
                     recovery_used = True

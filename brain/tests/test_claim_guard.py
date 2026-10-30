@@ -124,3 +124,29 @@ def test_a_claim_twice_is_refused(monkeypatch):
         "Remember that the good coffee is the bag with the orange label."}]))
     assert answer == hestia._UNDONE_CLAIM
     assert len(calls) == 2
+
+
+def test_a_call_written_as_text_gets_the_schema_checked_repair(monkeypatch):
+    """Gemma 4 E4B wrote the right call as prose. Retry through the repair; never run the text."""
+    replies = [{"content": "records:log(did='vaccinated', subject='dogs', kind='health')"},
+               {"tool_calls": [{"function": {"name": "records", "arguments": {
+                   "action": "log", "did": "vaccinated", "subject": "dogs", "kind": "health"}}}]},
+               {"content": "Logged."}]
+    async def chat(*_):
+        return replies.pop(0)
+    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    monkeypatch.setattr(hestia, "_request_schemas", lambda _: [
+        s for s in hestia.tools.SCHEMAS if s["function"]["name"] == "records"])
+    ran = []
+    monkeypatch.setattr(hestia.tools, "dispatch", lambda name, args: ran.append((name, args)) or "logged")
+    trace = hestia.TurnTrace()
+    asyncio.run(hestia.run_agent([{"role": "user", "content": "I vaccinated the dogs today."}], trace=trace))
+    assert [name for name, _ in ran] == ["records"]
+
+
+@pytest.mark.parametrize("text", [
+    "Use records:log to keep it, or ask me later.",
+    "The format is key: value (one per line).",
+])
+def test_prose_that_mentions_a_tool_is_not_a_text_call(text):
+    assert not hestia._TEXT_CALL.match(text)
