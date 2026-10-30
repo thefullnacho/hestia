@@ -70,6 +70,8 @@ because the service runs with `WorkingDirectory=brain`. Keep it that way.
    A third, decided 2026-10-30 and temporary: pilot problem reports, one flagged turn at a
    time, sent as a file by the person, never by the brain, and deleted before any install
    outside the pilot (SECURITY.md, "Pilot problem reports").
+   A fourth, decided 2026-10-30: phone notifications through Apple's push service, saying
+   only that something is waiting, never what (SECURITY.md, "Phone notifications").
    Anything beyond those needs a decision, not a commit.
 
 ## This repo is public

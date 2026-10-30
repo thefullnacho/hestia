@@ -18,10 +18,13 @@ is public. Those live in the operator's private notes.
 - **Decided: pilot problem reports** (SECURITY.md, CLAUDE.md invariant 5). Code flags a turn that
   went wrong, the person sees exactly what would go and sends it themselves as a file. One turn,
   never a history export. The code is deleted before any install outside the pilot.
-- **Still open:** iOS push. HA's Local Push skips Apple only on home Wi-Fi; away it goes through
-  Nabu Casa's relay and Apple. Either way the proposal is a content-free ping.
-- **Next concrete action:** decide the push question, then whether to build the phone app (serve
-  the model over the OpenAI backend while open, box keeps the loop).
+- **Decided: phone notifications carry no content** (SECURITY.md, CLAUDE.md invariant 5). The ping
+  goes through Apple (or Nabu Casa then Apple, if HA's app carries it away from home); the phone
+  fetches the briefing over the tailnet. HA's Local Push only skips Apple on home Wi-Fi.
+- **First pilot household:** Alex's brother is interested. His reference point is the ChatGPT
+  voice app, so expectations get set before he tries it.
+- **Next concrete action:** decide whether to build the phone app (serve the model over the
+  OpenAI backend while open, box keeps the loop). Both invariant-5 decisions are made.
 
 ---
 

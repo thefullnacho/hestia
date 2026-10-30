@@ -75,6 +75,13 @@ the operator. Nothing is sent automatically, and there is no export of history.
 - **When it ends:** the reporting code is deleted, not switched off, before Hestia is installed
   anywhere outside the pilot. Pilot households are told all of this before they start.
 
+**Phone notifications carry no content.** (Decided 2026-10-30, not built.) An iPhone app can only
+be woken from outside through Apple's push service, so a phone notification leaves the house. It
+says only that something is waiting ("your briefing is ready"), never what. The phone then
+fetches the content from the brain over the tailnet. Home Assistant's iOS app is no way around
+this: its Local Push skips Apple only on Wi-Fi networks you name, and away from them it goes
+through Nabu Casa's relay and then Apple. Whatever carries the ping, the ping is empty.
+
 ## Tokens & secrets
 
 - All secrets live in `secrets/` (HA token, `*arr`/media creds, ingest token, service hosts).
