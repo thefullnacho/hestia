@@ -127,6 +127,11 @@ def soil_catalog() -> str:
     return _cache["soil"]
 
 
+def _id_key(entity_id: str) -> tuple[str, str]:
+    domain, _, name = entity_id.lower().partition(".")
+    return domain, name.removeprefix(domain + "_")
+
+
 def _resolve(entity_id: str, states: list[dict]) -> str | None:
     """Map a loose reference to a real entity_id. Exact id wins; otherwise match a
     sensor/light by friendly name (so 'Carrots' or 'beets' finds the right sensor),
@@ -136,6 +141,13 @@ def _resolve(entity_id: str, states: list[dict]) -> str | None:
     if entity_id in by_id:
         return entity_id
     q = entity_id.lower().strip()
+    if "." in q:
+        # This house's ids repeat the domain (light.light_outside_lights); a small model tidies
+        # that to light.outside_lights. Same domain and the same name once the repeat is gone.
+        same = [s for s in states if _id_key(s["entity_id"]) == _id_key(q)]
+        if len(same) == 1:
+            return same[0]["entity_id"]
+        q = q.split(".", 1)[1].replace("_", " ")
     named = [s for s in states if q in s["attributes"].get("friendly_name", "").lower()]
     if len(named) == 1:
         return named[0]["entity_id"]
@@ -183,6 +195,19 @@ def execute(action: str, entity_id: str | None = None,
         service = {"turn_on": "turn_on", "turn_off": "turn_off", "toggle": "toggle"}.get(action)
         if not service:
             return f"Error: unknown action '{action}'."
+        # HA accepts a service call for an entity that doesn't exist and changes nothing, so an
+        # id is resolved against the real lights before anything is sent. If the state list
+        # can't be read, the id goes as given, the way it always has.
+        try:
+            states = httpx.get(f"{HA_URL}/api/states", headers=_HDRS, timeout=8).json()
+        except Exception:  # noqa: BLE001 — resolution is a guard, not a dependency
+            states = None
+        if isinstance(states, list):
+            lights = [s for s in states if s.get("entity_id", "").startswith("light.")]
+            resolved = _resolve(entity_id, lights)
+            if not resolved:
+                return f"No light matches '{entity_id}'; nothing was sent. Check the catalog for the exact name."
+            entity_id = resolved
         data: dict = {"entity_id": entity_id}
         if action == "turn_on":
             if brightness_pct is not None:
@@ -204,6 +229,8 @@ def execute(action: str, entity_id: str | None = None,
             label = chk.get("attributes", {}).get("friendly_name") or entity_id
         except Exception:  # noqa: BLE001 — only the read-back failed
             return f"Sent {action} to {entity_id}, but couldn't confirm the new state."
+        if state is None:
+            return f"Sent {action} to {entity_id}, but Home Assistant reports no such light, so nothing changed."
         if state == "unavailable":
             return f"Sent {action} to {entity_id}, but it's currently unavailable (bulb may be powered off at the switch)."
         return f"Done — {label} is now {state}."

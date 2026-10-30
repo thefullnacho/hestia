@@ -231,13 +231,21 @@ measurement: that day it was 0.8 to 1.0 on every proposal, junk included.
 
 A simple single light on/off command returns its verified tool receipt after one
 model round; the receipt names the light by its Home Assistant friendly name, since it
-is spoken aloud by the voice clients. Successful mixed informational/action requests retain the informational
+is spoken aloud by the voice clients. Before an on/off is sent, the entity_id is resolved
+against the real lights: an exact id, the same id with this house's repeated domain tidied
+away (`light.outside_lights` for `light.light_outside_lights`, which LFM3-1.7B wrote on a
+quarter of held-out commands), or a unique friendly name. An id that matches nothing is
+refused with nothing sent, because Home Assistant accepts a call for a missing entity and
+changes nothing, and a read-back that finds no such light never reports "Done". Successful mixed informational/action requests retain the informational
 answer alongside explicit verified receipts. Known failed or unknown writes override
 model completion prose. Interrupted streams retain the visible partial answer plus
 the failure in the replay receipt and are never sent to background learning.
 
-Empty model replies and unattempted explicit log/record, light, reminder and shopping
-commands receive at most one recovery instruction. A second failure produces an honest
+Empty model replies, unattempted explicit log/record, light, reminder and shopping
+commands, and replies that claim an action no tool took (or write a tool call out as text)
+receive at most one recovery instruction. When a claim comes with exactly one tool offered
+and the person did not ask a question, the recovery is the schema-checked argument repair for
+that tool; a call written as text is never run from the text. A second failure produces an honest
 non-completion response and is not learned. This catches a measured native Ollama case
 that generated tokens but returned an empty message with no parsed tool call. Detection
 is intentionally limited to explicit command forms and does not prove all user intents

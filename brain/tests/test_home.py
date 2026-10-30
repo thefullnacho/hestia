@@ -85,3 +85,60 @@ def test_receipt_uses_friendly_name_when_ha_supplies_one(monkeypatch):
     out = home.execute("turn_off", entity_id="light.light_kitchen_lights")
     assert out == "Done — Kitchen lights is now off."
     assert "light.light_kitchen_lights" not in out
+
+
+# ----- actuation resolves before it sends (2026-10-29) --------------------------
+# LFM3-1.7B wrote light.outside_lights for light.light_outside_lights on a quarter of held-out
+# commands. HA accepted the call, changed nothing, and the tool replied "Done ... is now None".
+
+LIGHTS = [
+    {"entity_id": "light.light_outside_lights", "state": "off",
+     "attributes": {"friendly_name": "Outside lights"}},
+    {"entity_id": "light.light_kitchen_lights", "state": "on",
+     "attributes": {"friendly_name": "Kitchen lights"}},
+    {"entity_id": "light.porch_light", "state": "off",
+     "attributes": {"friendly_name": "Porch light"}},
+]
+
+
+def test_resolve_a_tidied_id_to_the_real_one():
+    assert home._resolve("light.outside_lights", LIGHTS) == "light.light_outside_lights"
+    assert home._resolve("light.kitchen_lights", LIGHTS) == "light.light_kitchen_lights"
+    assert home._resolve("light.porch_light", LIGHTS) == "light.porch_light"
+    assert home._resolve("light.outside_lights".upper(), LIGHTS) == "light.light_outside_lights"
+
+
+def _ha(monkeypatch, posted):
+    def get(url, **_):
+        if url.endswith("/api/states"):
+            return httpx.Response(200, json=LIGHTS)
+        eid = url.rsplit("/", 1)[1]
+        hit = next((s for s in LIGHTS if s["entity_id"] == eid), None)
+        return httpx.Response(200 if hit else 404, json=hit or {"message": "Entity not found."})
+    monkeypatch.setattr(home.httpx, "get", get)
+    monkeypatch.setattr(home.httpx, "post", lambda url, json=None, **_: posted.append(json) or _Resp())
+
+
+def test_actuation_sends_the_resolved_id(monkeypatch):
+    posted = []
+    _ha(monkeypatch, posted)
+    out = home.execute("turn_on", entity_id="light.outside_lights")
+    assert posted == [{"entity_id": "light.light_outside_lights"}]
+    assert out == "Done — Outside lights is now off."  # the stub doesn't flip state
+
+
+def test_an_unknown_light_is_refused_and_nothing_is_sent(monkeypatch):
+    posted = []
+    _ha(monkeypatch, posted)
+    out = home.execute("turn_off", entity_id="light.garage")
+    assert posted == []
+    assert "nothing was sent" in out
+
+
+def test_a_missing_light_on_read_back_is_never_done(monkeypatch):
+    monkeypatch.setattr(home.httpx, "post", lambda *a, **k: _Resp())
+    monkeypatch.setattr(home.httpx, "get", lambda url, **_: httpx.Response(
+        404, json={"message": "Entity not found."}))
+    out = home.execute("turn_on", entity_id="light.ghost")
+    assert not out.startswith("Done")
+    assert "no such light" in out
