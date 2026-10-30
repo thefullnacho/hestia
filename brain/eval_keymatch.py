@@ -34,6 +34,8 @@ from eval_support import first_message, run, fixtures, hestia
 
 OLLAMA = "http://127.0.0.1:11434"
 REPEATS = int(os.environ.get("EVAL_REPEATS", "5"))
+# EVAL_LOOP=1 runs the full turn, so harness recovery counts; the default reads one model turn.
+LOOP = os.environ.get("EVAL_LOOP") == "1"
 
 # Each case: a user line, the acceptable tool(s), and tools that would be a clear miss.
 # 'forbid' is the diagnostic half — it catches the specific confusion we expect.
@@ -75,10 +77,20 @@ CASES = [
 
 
 def first_tool(model: str, prompt: str) -> tuple[str, int]:
+    if LOOP:
+        return loop_tool(prompt)
     with fixtures():
         msg, offered = run(first_message(model, prompt))
     calls = msg.get("tool_calls") or []
     return (calls[0].get("function", {}).get("name", "?") if calls else "∅:final", offered)
+
+
+def loop_tool(prompt: str) -> tuple[str, int]:
+    """The whole turn, harness recovery included, against the fixtures: the first tool that ran."""
+    with fixtures() as state:
+        offered = len(hestia._request_schemas(prompt))
+        run(hestia.run_agent([{"role": "user", "content": prompt}]))
+    return (state["calls"][0]["name"] if state["calls"] else "∅:final", offered)
 
 
 def eval_model(model: str) -> None:
