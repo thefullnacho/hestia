@@ -435,3 +435,37 @@ Key-match is narrow: scoping hands most of its cases one or two tools, so it sat
 Held-out grades only home actuation. Both models were graded against the same gold, but
 no multi-turn, passive capture, or conversation quality is measured here. Model license
 is the LFM Open License v1.0, free for commercial use only under $10M annual revenue.
+
+## LFM3-1.7B QAD-Q4_0 on an iPhone 17 Pro (2026-10-30)
+
+The same 1.05 GB file, from `LiquidAI/LFM3-1.7B-GGUF`, run in llama.cpp's `llama.swiftui`
+bench (pp 512, tg 128, Metal). Launched from the home screen with no debugger attached.
+
+```
+                        pp 512 t/s     tg 128 t/s
+first bench, cool       1513.90        56.06
+ten in a row, 1-5       -              55.40 57.39 57.10 54.22 54.41
+ten in a row, 6-10      -              48.62 43.72 37.53 38.84 39.07
+```
+
+Memory: about 250 MB of app memory on Xcode's gauge, plus the 0.97 GiB of weights, which
+llama.cpp maps from the file and the gauge does not count. About 1.25 GB in all. iOS did not
+kill the app in 24 benches.
+
+## Findings
+
+- **Speed is not the obstacle.** 56 tokens a second generating, and a 512-token prompt read in
+  a third of a second. A short reply lands in a second or two.
+- **It throttles under sustained load, to about two thirds.** Five benches at full speed, then
+  down to 38 to 39 by run 8, where it levelled off. Ten back-to-back benches are far heavier
+  than a conversation, which comes in short bursts; even throttled it is faster than reading.
+- **Run it from the home screen when measuring.** Launched from Xcode, with the debugger
+  attached, the same phone benched about 585 pp and 33 tg, flat across 13 runs: the debug
+  scheme's GPU checks, not heat. The memory gauge needs Xcode; the speed numbers must not
+  have it.
+
+## Caveats
+
+One phone, one sitting, room temperature, unplugged. The bench is synthetic: a real Hestia
+turn has a longer prompt (system prompt and tools) and usually two model calls. Heat was not
+measured directly, only inferred from the speed falling.

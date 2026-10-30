@@ -7,6 +7,20 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-30 - the phone runs the small brain at 56 tokens a second
+
+- **LFM3 QAD-Q4_0 on the iPhone 17 Pro** (`benchmarks/RESULTS.md`): 1514 t/s reading a prompt,
+  56 t/s generating, about 1.25 GB in memory (250 MB app plus the mapped weights). Ten benches in
+  a row throttle it to about 38 to 39 t/s from run 8 on, still faster than reading. Quality was
+  already measured on the box (91.1% against the resident's 92.1%), so the phone answers speed,
+  memory and heat, and none of them blocks it.
+- **Lesson:** bench with no debugger attached. Launched from Xcode the same phone read 33 t/s.
+- **Next concrete action:** decide whether to build the phone app (serve the model over the
+  OpenAI backend while open, box keeps the loop). The two invariant-5 decisions (APNs push,
+  pilot data contribution) come before any of it ships.
+
+---
+
 ## 2026-10-27 to 10-30 - small brains measured, the harness hardened for them, one photo can't say edible
 
 - **Small models through the real suite** (`benchmarks/RESULTS.md`): LFM3-1.7B, Nanbeige4.2-3B,
