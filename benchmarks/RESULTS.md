@@ -398,6 +398,22 @@ The first like-for-like comparison: LFM3 is 5 points behind the resident on the 
 both still miss is the same family ("kill the outside", "put on the outside"): LFM3 sometimes
 sends `turn_off` with no entity (refused by validation), the 12B names a light the fixture lacks.
 
+At the size a phone would load (same whole-turn suite, deployed main, K=5, reasoning off):
+
+```
+LFM3-1.7B         key-match   held-out exact   size
+Q8_0              -           87.3%            1.85 GB
+Q4_K_M            100%        85.7%            1.10 GB
+QAD-Q4_0          98%         91.1%            1.05 GB
+Gemma 4 12B       100%        92.1%            ~7.6 GB (resident, for reference)
+```
+
+Liquid's QAD-Q4_0 (quantization-aware distillation, trained to recover what Q4_0 loses) scores
+above its own 8-bit build and within a point of the resident, at a seventh of its size. One run
+of 315 tries: the gap over Q8_0 wants a repeat before it is trusted. Quality is a property of
+the weights and quantization, not the device, so this is what the phone would decide; the
+phone itself only has to show speed, memory and heat.
+
 ## Findings
 
 - **Picking the tool is solved at 1.7B; filling it in is not.** Key-match ties at 100%,
