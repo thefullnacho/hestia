@@ -7,6 +7,49 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-27 to 10-30 - small brains measured, the harness hardened for them, one photo can't say edible
+
+- **Small models through the real suite** (`benchmarks/RESULTS.md`): LFM3-1.7B, Nanbeige4.2-3B,
+  Gemma 4 E4B and E2B, all on llama.cpp (upgraded in place to b11946 for LFM3). Faking the
+  receipt ("Saved that to memory" with no call) is the common small-model failure.
+- **Live brain, deployed and verified:** the claim guard catches the small-model phrasings and
+  gives a claimed action one real retry (schema-checked repair when one tool is offered and no
+  question was asked); a call written as text earns the same repair, never runs from the text.
+  The home tool resolves a light before sending to it, and never confirms one that doesn't exist
+  (a wrong id used to come back "Done ... is now None"). "Shut off the outside" counts as a light
+  command, and a detected command keeps its tools after a look-up. The OpenAI backend sends tool
+  calls in its own shape: llama-server had refused the second model call of every turn.
+  `EVAL_LOOP=1` scores key-match on the whole turn.
+- **Result:** LFM3-1.7B's quantization-aware 4-bit build (QAD-Q4_0, 1.05 GB) scores 91.1% on the
+  whole-turn held-out against the resident's 92.1%, the same in three runs. One light, 63
+  phrasings: commands, not conversation.
+- **d1-2B as the act-or-ask gate** (`exp/small-router`, `707c659`): not calibrated out of the box,
+  but combined with override mass it is the best ranker of wrong calls on test (AUROC 0.85);
+  template val can't see it. The utterance week decides.
+- **Field station** (`209f6b6`, `5b4b5f2` there): the 0.85 single-photo shortcut is gone. Two toxic
+  mushroom photos cleared it as lion's mane (0.91) and chanterelle (0.87), SAFE, through the live
+  `/identify`. Every edible verdict now needs two agreeing photos; verified on the live brain.
+  Of five single-photo signals the top1-top2 margin ranks best, but only the second photo moves
+  the trade. The public Space still runs the old rule: org write access was disabled after the
+  hackathon.
+- **Direction, not decided:** the phone carries the brain, iPhone first. The box keeps the loop,
+  stores and timers; the phone app serves the model over the OpenAI backend while it is open.
+  The briefing: the box gathers facts at 7:10 and pushes, the phone narrates when opened. Two
+  decisions against "nothing phones home" come first: iOS push goes through Apple (a
+  content-free ping, the briefing fetched over the tailnet), and a data-contribution flow for
+  pilot households (opt in per item, names stripped by code, a file the person sends).
+- **Next concrete action (yours):** LFM3 QAD-Q4_0 on the iPhone 17 Pro in llama.cpp's
+  `llama.swiftui`: speed, ten benches for heat, memory. Then decide whether to build the app.
+
+[non-production] Bench LFM3 on the iPhone 17 Pro (queued).
+[non-production] Field station: a personal Hugging Face Space and deploy to it; the org Space is waiting on Hugging Face (queued).
+[non-production] Write "I checked what my TV actually phones home" (queued).
+[non-production] Reach out to the pilot households: the farm friend first, then your brother (queued).
+[non-production] Decide Virginia creeper's tier in the field station: CAUTION, or warn harder (queued).
+[non-production] Bedroom Roku: limit ad tracking, reset the ad id, microphone access off (queued).
+
+---
+
 ## 2026-10-25 to 10-27 - species ID live, photos backed up, Hestia Lite end to end on a Pi 5
 
 - **Species ID** (`/identify`, in the app menu): the forager_ml router and experts on CPU, loaded
