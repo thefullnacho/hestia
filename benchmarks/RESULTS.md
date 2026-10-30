@@ -363,6 +363,17 @@ E4B returns `{"animal_type": "dogs"}`, validation refuses it and nothing runs. T
 llama.cpp call sometimes fails with an HTTP error; the person still sees the write's receipt.
 Not diagnosed; a mid-conversation system message is not the cause (llama-server accepts one).
 
+## LFM3-1.7B through the harness (2026-10-29)
+
+Every one of LFM3's 315 held-out tries, categorized: 189 exact, **82 the right action on
+`light.outside_lights`** (the house's real id is `light.light_outside_lights`; the model tidies
+the repeated domain away), 35 `get_state` with no entity on bare-area commands ("shut off the
+outside"), 9 no call. The home tool sent an id to Home Assistant as given, HA accepted the call
+for a missing entity and changed nothing, and the read-back's 404 became "Done ... is now None".
+`fix/home-resolve` resolves the id against the real lights first. The same 315 rows rescored
+through the resolver: **exact 60.0% to 86.0%** (Gemma 4 12B: 86.7%), with none resolved to the
+wrong light. The bare-area commands are what's left.
+
 ## Findings
 
 - **Picking the tool is solved at 1.7B; filling it in is not.** Key-match ties at 100%,
