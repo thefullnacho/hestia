@@ -66,3 +66,61 @@ def test_a_link_with_a_request_still_reaches_the_model(monkeypatch):
 
 def test_an_undone_claim_stays_out_of_the_thread():
     assert hestia._UNDONE_CLAIM in hestia._NO_LEARN
+
+
+# The shapes smaller models claim in (2026-10-29: Nanbeige 4.2 3B, Gemma 4 E4B and E2B, each
+# with no tool call behind the sentence). The guard was tuned on the resident model's phrasing
+# and missed seven of these nine.
+@pytest.mark.parametrize("reply", [
+    "I have saved that the good coffee is the bag with the orange label.",
+    "Saved that to memory — the good coffee comes in the orange bag.",
+    "I have recorded Biscuit as a corgi pet in our records.",
+    "I have logged that you vaccinated the dogs today.",
+    "Turning off the kitchen lights.",
+    "Grabbing the latest season of Severance for you now.",
+    "It's queued and downloading in the background.",
+    "Okay, I've turned off the porch light.",
+])
+def test_small_model_claims_are_caught(reply):
+    assert hestia._claims_action(reply)
+
+
+@pytest.mark.parametrize("reply", [
+    "Turning off the water before a freeze protects the pipes.",
+    "Turning the compost every week helps it heat up.",
+    "Saved seeds keep for years in a cool, dry jar.",
+    "Downloading is slow over the hotspot, so it may take a while.",
+    "I can save that to memory if you like.",
+    "You told me the good coffee is the bag with the orange label.",
+])
+def test_small_model_advice_shapes_still_pass(reply):
+    assert not hestia._claims_action(reply)
+
+
+def test_a_claim_with_no_call_gets_one_try_at_the_real_call(monkeypatch):
+    """The model claims the save, is told nothing ran, and then makes the call."""
+    replies = [{"content": "I have saved that the good coffee is the orange bag."},
+               {"tool_calls": [{"function": {"name": "memory", "arguments": {
+                   "op": "write", "content": "The good coffee is the bag with the orange label."}}}]},
+               {"content": "Noted."}]
+    async def chat(*_):
+        return replies.pop(0)
+    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    ran = []
+    monkeypatch.setattr(hestia.tools, "dispatch", lambda name, args: ran.append(name) or "remembered")
+    asyncio.run(hestia.run_agent([{"role": "user", "content":
+        "Remember that the good coffee is the bag with the orange label."}]))
+    assert ran == ["memory"]
+
+
+def test_a_claim_twice_is_refused(monkeypatch):
+    calls = []
+    async def chat(*_):
+        calls.append(1)
+        return {"content": "I have saved that the good coffee is the orange bag."}
+    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    monkeypatch.setattr(hestia.tools, "dispatch", lambda name, args: pytest.fail("nothing may run"))
+    answer = asyncio.run(hestia.run_agent([{"role": "user", "content":
+        "Remember that the good coffee is the bag with the orange label."}]))
+    assert answer == hestia._UNDONE_CLAIM
+    assert len(calls) == 2
