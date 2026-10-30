@@ -15,9 +15,13 @@ is public. Those live in the operator's private notes.
   already measured on the box (91.1% against the resident's 92.1%), so the phone answers speed,
   memory and heat, and none of them blocks it.
 - **Lesson:** bench with no debugger attached. Launched from Xcode the same phone read 33 t/s.
-- **Next concrete action:** decide whether to build the phone app (serve the model over the
-  OpenAI backend while open, box keeps the loop). The two invariant-5 decisions (APNs push,
-  pilot data contribution) come before any of it ships.
+- **Decided: pilot problem reports** (SECURITY.md, CLAUDE.md invariant 5). Code flags a turn that
+  went wrong, the person sees exactly what would go and sends it themselves as a file. One turn,
+  never a history export. The code is deleted before any install outside the pilot.
+- **Still open:** iOS push. HA's Local Push skips Apple only on home Wi-Fi; away it goes through
+  Nabu Casa's relay and Apple. Either way the proposal is a content-free ping.
+- **Next concrete action:** decide the push question, then whether to build the phone app (serve
+  the model over the OpenAI backend while open, box keeps the loop).
 
 ---
 

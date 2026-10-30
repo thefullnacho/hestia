@@ -59,6 +59,22 @@ cannot be written. It offers only the tools named in its `READ_ONLY` table (defa
 deciding whether the operator gets it. What the operator's chat reads goes wherever that chat
 goes, which is an operator-side choice; the brain itself still calls nothing outside the house.
 
+**Pilot problem reports are one turn at a time, sent by the person, and they end with the pilot.**
+(Decided 2026-10-30, not built.) Pilot households run Hestia in their own homes to test it before
+anyone else does. When a turn goes wrong, Hestia offers to package that one turn as a report for
+the operator. Nothing is sent automatically, and there is no export of history.
+
+- **What flags a turn is code, not the model:** a tool call that errors, the claim guard having to
+  retry, a correction on the next turn ("no, the porch"), the same request made again, or the
+  person pressing "report a problem" themselves.
+- **What is in a report:** that turn's request, the tool calls and their results, the reply, and
+  which signal flagged it. Not the thread, not memory, not records. Names of people and places
+  are replaced by code before the person sees it.
+- **How it leaves:** the person sees the whole report, then sends it themselves as a file, by
+  whatever channel they choose. Ignoring the offer sends nothing. The brain never sends it.
+- **When it ends:** the reporting code is deleted, not switched off, before Hestia is installed
+  anywhere outside the pilot. Pilot households are told all of this before they start.
+
 ## Tokens & secrets
 
 - All secrets live in `secrets/` (HA token, `*arr`/media creds, ingest token, service hosts).

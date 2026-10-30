@@ -67,6 +67,9 @@ because the service runs with `WorkingDirectory=brain`. Keep it that way.
    keyless and account-free, sending only a lat/lon. A forecast cannot be computed locally.
    A second, decided 2026-10-14: the nightly feed's fixed queries through SearXNG and plain
    GETs of the result pages, off the hot path (SECURITY.md, "The feed fetcher").
+   A third, decided 2026-10-30 and temporary: pilot problem reports, one flagged turn at a
+   time, sent as a file by the person, never by the brain, and deleted before any install
+   outside the pilot (SECURITY.md, "Pilot problem reports").
    Anything beyond those needs a decision, not a commit.
 
 ## This repo is public
