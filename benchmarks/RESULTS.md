@@ -345,6 +345,24 @@ speed, 4060 Ti         46 tok/s       82 tok/s
   were wrong calls, not fake ones). The brain's claim guard (`_claims_action`) misses 7 of the 9
   phrasings collected today, so a smaller brain would get past it.
 
+Then the fix (`fix/claim-guard`): the guard catches those shapes, a claimed action with nothing
+written gets the loop's one recovery try (the schema-checked repair when one tool is offered and
+the person didn't ask a question), and a call written out as text earns the same repair, never
+running from the text. Scored on the whole turn (`EVAL_LOOP=1`), K=5:
+
+```
+                       before    after
+E4B key-match          67%       78%
+12B key-match (ctrl)   -         100%
+```
+
+"Remember that the good coffee..." went 0/5 to 5/5: a real memory write every time. "I
+vaccinated the dogs today" stays 0/5: the trigger fires, but asked for the records arguments
+E4B returns `{"animal_type": "dogs"}`, validation refuses it and nothing runs. The new puppy
+(two tools offered, so no repair) ends at the honest refusal. After a recovered write the next
+llama.cpp call sometimes fails with an HTTP error; the person still sees the write's receipt.
+Not diagnosed; a mid-conversation system message is not the cause (llama-server accepts one).
+
 ## Findings
 
 - **Picking the tool is solved at 1.7B; filling it in is not.** Key-match ties at 100%,
