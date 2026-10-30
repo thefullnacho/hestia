@@ -25,7 +25,8 @@ is public. Those live in the operator's private notes.
   voice app, so expectations get set before he tries it.
 - **Decided: build the iPhone app, one harness.** The box keeps the loop, stores, timers and the
   briefing facts; the native app hosts the model while open and shows the existing `/app` in a web
-  view, plus the content-free ping. A phone-only harness was weighed and set aside: two codebases,
+  view, plus the content-free ping. Speech uses Apple's on-device recognition and voice, to
+  leave the phone's memory to the model. A phone-only harness was weighed and set aside: two codebases,
   and the 91.1% belongs to this harness. Revisit only if the box is what stops people.
 - **Pilot shape:** a cheap box Alex sets up and lends for 30 days, then collects it or the household
   keeps it if it is doing something for them. Keeping it is the measure. First households: brother
