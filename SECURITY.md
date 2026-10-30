@@ -73,7 +73,9 @@ the operator. Nothing is sent automatically, and there is no export of history.
 - **How it leaves:** the person sees the whole report, then sends it themselves as a file, by
   whatever channel they choose. Ignoring the offer sends nothing. The brain never sends it.
 - **When it ends:** the reporting code is deleted, not switched off, before Hestia is installed
-  anywhere outside the pilot. Pilot households are told all of this before they start.
+  anywhere outside the pilot, and from a pilot household's box when its 30 days are up, whether
+  the box goes back or stays. A box that goes back is wiped first. Pilot households are told all
+  of this before they start.
 
 **Phone notifications carry no content.** (Decided 2026-10-30, not built.) An iPhone app can only
 be woken from outside through Apple's push service, so a phone notification leaves the house. It

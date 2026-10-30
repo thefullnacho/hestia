@@ -23,8 +23,16 @@ is public. Those live in the operator's private notes.
   fetches the briefing over the tailnet. HA's Local Push only skips Apple on home Wi-Fi.
 - **First pilot household:** Alex's brother is interested. His reference point is the ChatGPT
   voice app, so expectations get set before he tries it.
-- **Next concrete action:** decide whether to build the phone app (serve the model over the
-  OpenAI backend while open, box keeps the loop). Both invariant-5 decisions are made.
+- **Decided: build the iPhone app, one harness.** The box keeps the loop, stores, timers and the
+  briefing facts; the native app hosts the model while open and shows the existing `/app` in a web
+  view, plus the content-free ping. A phone-only harness was weighed and set aside: two codebases,
+  and the 91.1% belongs to this harness. Revisit only if the box is what stops people.
+- **Pilot shape:** a cheap box Alex sets up and lends for 30 days, then collects it or the household
+  keeps it if it is doing something for them. Keeping it is the measure. First households: brother
+  (apartment: recipes, library, recommendations by taste, maybe the feed; Govee lights, smart TV) and
+  sister (a "house manager": warranties, maintenance, inventory, the house's documents, goals).
+- **Next concrete action:** a one-page app spec. First question in it: the app connects to the box
+  and the box sends model requests back down that connection, so the phone never listens.
 
 ---
 
