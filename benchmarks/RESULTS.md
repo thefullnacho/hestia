@@ -323,6 +323,28 @@ fake-receipt failure Hestia's harness exists to prevent, so the scores don't mat
 stops. Its card recommends thinking on and temperature 1.0 for agent work; not tried here,
 because the brain runs reasoning off at 0.3.
 
+Same day, Gemma 4 E4B and E2B (Google's phone-size models, converted from the official weights
+to Q8_0), same suite, reasoning off. Control: the resident 12B's own weights through this same
+llama.cpp path score key-match 100% and call every passive-capture case, so the path is sound.
+
+```
+                       E4B            E2B            12B (llama.cpp control)
+key-match              67%   50s      62%   31s      100%
+held-out fired         81.3%           0.0%           -
+held-out EXACT         81.3%  275s     0.0%  109s     -
+speed, 4060 Ti         46 tok/s       82 tok/s
+```
+
+- **E4B is exact whenever it acts** (256 of 256 calls right) and fails only by not acting.
+  But in place of the call it claims one: "I have saved that the good coffee is the bag with
+  the orange label", "I have recorded Biscuit as a corgi pet in our records", and once wrote
+  the call as text, `records:log(did='vaccinated', ...)`.
+- **E2B never fires a home call in the production prompt**, though it does in a bare one-tool
+  smoke test, and replies "Turning off the kitchen lights." with nothing called.
+- **Faking the receipt is the common small-model failure** (Nanbeige, E4B, E2B; LFM3's misses
+  were wrong calls, not fake ones). The brain's claim guard (`_claims_action`) misses 7 of the 9
+  phrasings collected today, so a smaller brain would get past it.
+
 ## Findings
 
 - **Picking the tool is solved at 1.7B; filling it in is not.** Key-match ties at 100%,
