@@ -374,6 +374,30 @@ for a missing entity and changed nothing, and the read-back's 404 became "Done .
 through the resolver: **exact 60.0% to 86.0%** (Gemma 4 12B: 86.7%), with none resolved to the
 wrong light. The bare-area commands are what's left.
 
+The bare-area commands hid three harness bugs, each behind the one before (`fix/bare-area-commands`):
+
+1. **Detection.** "Shut off the outside" wanted the word "light" and the verb "turn", so it was
+   never a required write. Now turn/switch/flip/shut with on/off, kill/cut/put with a light
+   named, or a command ending on an area the house's lights are named for ("Outside lights").
+2. **The OpenAI backend.** The loop replays tool calls in Ollama's shape (no type, no id, results
+   keyed by `tool_name`). llama-server answered the second model call of every multi-step turn
+   with 500 "Missing tool call type". This was the unexplained error after recovered writes.
+3. **Tools dropped after a look-up.** After a read, the loop answers without tools unless the
+   message has an action word, and "shut" wasn't one. A detected command now keeps its tools.
+
+Held-out on the whole turn (`run_agent` against the fixtures, the first on/off that ran, its id
+resolved the way the home tool resolves it), K=5:
+
+```
+                       main      branch
+LFM3-1.7B              86.0%     87.3%
+Gemma 4 12B (Ollama)   91.7%     92.1%
+```
+
+The first like-for-like comparison: LFM3 is 5 points behind the resident on the whole turn. What
+both still miss is the same family ("kill the outside", "put on the outside"): LFM3 sometimes
+sends `turn_off` with no entity (refused by validation), the 12B names a light the fixture lacks.
+
 ## Findings
 
 - **Picking the tool is solved at 1.7B; filling it in is not.** Key-match ties at 100%,
