@@ -10,7 +10,7 @@ kitchen mic, and Home Assistant are all clients of that same brain, sharing one 
 tool set. Nothing runs in the cloud. Nothing is exposed to the public internet.
 
 `ARCHITECTURE.md` is the long version. `MEMORY-DESIGN.md` covers the memory plan. `SECURITY.md`
-and `AUDIT.md` hold the security posture. Read those before proposing structural changes.
+and `AUDIT.md` hold the security posture. `PHONE-APP.md` is the draft spec for the iPhone app. Read those before proposing structural changes.
 
 ## Commands
 

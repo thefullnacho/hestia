@@ -32,8 +32,12 @@ is public. Those live in the operator's private notes.
   keeps it if it is doing something for them. Keeping it is the measure. First households: brother
   (apartment: recipes, library, recommendations by taste, maybe the feed; Govee lights, smart TV) and
   sister (a "house manager": warranties, maintenance, inventory, the house's documents, goals).
-- **Next concrete action:** a one-page app spec. First question in it: the app connects to the box
-  and the box sends model requests back down that connection, so the phone never listens.
+- **Spec drafted:** `PHONE-APP.md`, for Alex's review. Found while writing it: the journal, feed,
+  briefing, note-taker and recipe organizer call Ollama directly, not through `backend.py`, so
+  they move first or they never reach the phone.
+- **`hestia.py` split** (`edd221f`, `6c202c6`, `55e205a`): the model calls, the guards and the
+  routing are their own modules now, behavior unchanged, deployed 2026-10-30.
+- **Next concrete action:** Alex reviews `PHONE-APP.md`, above all open question 1 (whose tailnet).
 
 ---
 
