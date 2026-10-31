@@ -146,7 +146,7 @@ on the public internet.
 
 ## Open questions
 
-1. **The smallest phone. The 17 Pro has room to spare. Bench the oldest iPhone a pilot owns
+1. **The smallest phone.** The 17 Pro has room to spare. Bench the oldest iPhone a pilot owns
    before promising it.
 2. **Distribution.** TestFlight needs a paid Apple developer account, and so does the push
    key. That is the operator's account and card.
