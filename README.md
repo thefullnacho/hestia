@@ -196,6 +196,7 @@ ignores it). Nothing is exposed to the public internet.
 ```
 brain/
   hestia.py       # the agent loop: /v1/chat/completions + /health, tools, memory, note-taker hook
+  backend.py      # the model calls: Ollama native or OpenAI-compatible, one contract
   config.py       # single source of paths + secret loading; makes the brain relocatable
   prompt.py       # SYSTEM_PROMPT — persona + hardened safety rules
   records_store.py / memory_store.py   # SQLite entities+events / markdown soft facts

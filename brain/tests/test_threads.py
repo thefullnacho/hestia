@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 import context_budget
+import backend  # noqa: E402
 import hestia
 import threads_store
 import tools
@@ -188,7 +189,7 @@ def _lights_off(monkeypatch):
 
     async def chat(*_):
         return replies.pop(0)
-    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    monkeypatch.setattr(backend, "ollama_chat", chat)
 
 
 def test_stream_events_carry_status_and_receipts(brain, monkeypatch):

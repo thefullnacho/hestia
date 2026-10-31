@@ -10,6 +10,7 @@ import asyncio
 
 import pytest
 
+import backend  # noqa: E402
 import hestia
 
 
@@ -19,7 +20,7 @@ def _run(monkeypatch, user_text, reply):
     async def chat(*_):
         calls.append(1)
         return {"content": reply}
-    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    monkeypatch.setattr(backend, "ollama_chat", chat)
     answer = asyncio.run(hestia.run_agent([{"role": "user", "content": user_text}]))
     return answer, calls
 
@@ -105,7 +106,7 @@ def test_a_claim_with_no_call_gets_one_try_at_the_real_call(monkeypatch):
                {"content": "Noted."}]
     async def chat(*_):
         return replies.pop(0)
-    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    monkeypatch.setattr(backend, "ollama_chat", chat)
     ran = []
     monkeypatch.setattr(hestia.tools, "dispatch", lambda name, args: ran.append(name) or "remembered")
     asyncio.run(hestia.run_agent([{"role": "user", "content":
@@ -118,7 +119,7 @@ def test_a_claim_twice_is_refused(monkeypatch):
     async def chat(*_):
         calls.append(1)
         return {"content": "I have saved that the good coffee is the orange bag."}
-    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    monkeypatch.setattr(backend, "ollama_chat", chat)
     monkeypatch.setattr(hestia.tools, "dispatch", lambda name, args: pytest.fail("nothing may run"))
     answer = asyncio.run(hestia.run_agent([{"role": "user", "content":
         "Remember that the good coffee is the bag with the orange label."}]))
@@ -134,7 +135,7 @@ def test_a_call_written_as_text_gets_the_schema_checked_repair(monkeypatch):
                {"content": "Logged."}]
     async def chat(*_):
         return replies.pop(0)
-    monkeypatch.setattr(hestia, "_ollama_chat", chat)
+    monkeypatch.setattr(backend, "ollama_chat", chat)
     monkeypatch.setattr(hestia, "_request_schemas", lambda _: [
         s for s in hestia.tools.SCHEMAS if s["function"]["name"] == "records"])
     ran = []

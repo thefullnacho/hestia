@@ -7,7 +7,8 @@ memory, then runs a tool-calling loop against Ollama (gemma4:12b) — calling `h
 to control the house, `memory` to remember/recall — until the model produces a final
 answer, which it returns to the client as a normal chat completion.
 
-Internally it speaks to a model backend: Ollama's native /api/chat by default, or any OpenAI-compatible /v1/chat/completions when HESTIA_BACKEND=openai (structured tool_calls either way). Tool
+The model calls live in backend.py (Ollama's native /api/chat, or any OpenAI-compatible
+/v1/chat/completions when HESTIA_BACKEND=openai). Tool
 execution is sync, run in a bounded worker pool. Tool-selection rounds are buffered;
 streaming clients receive incremental final synthesis when tools are disabled.
 """
@@ -26,7 +27,6 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
-import httpx
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
@@ -65,25 +65,12 @@ import feed  # noqa: E402
 import feed_store  # noqa: E402
 import tool_phrases  # noqa: E402
 import tools  # noqa: E402
+import backend  # noqa: E402
+from backend import MODEL, THINK  # noqa: E402
 import briefing_store  # noqa: E402
 import recipe_review  # noqa: E402
 from prompt import SYSTEM_PROMPT  # noqa: E402
 
-OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
-MODEL = os.environ.get("HESTIA_MODEL", "gemma4:12b")
-# Model backend: "ollama" (native /api/chat) or "openai" (OpenAI-compatible
-# /v1/chat/completions, e.g. mlx_lm.server on the tailnet MacBook).
-BACKEND = os.environ.get("HESTIA_BACKEND", "ollama")
-# Normalized: request paths carry the full "/v1/chat/completions", so a "/v1"
-# suffix here would double up (httpx merges base + request paths).
-_OPENAI_RAW = os.environ.get("HESTIA_OPENAI_BASE", "http://127.0.0.1:8080/v1").rstrip("/")
-OPENAI_BASE = _OPENAI_RAW[:-3] if _OPENAI_RAW.endswith("/v1") else _OPENAI_RAW
-OPENAI_KEY = os.environ.get("HESTIA_OPENAI_KEY", "not-needed")
-OPENAI_MODEL = os.environ.get("HESTIA_OPENAI_MODEL", MODEL)
-# Explicit, not left to each model's undocumented Ollama default — some GGUFs default far
-# below what the real system prompt + tool surface needs (~5.7k tokens worst case) and
-# silently 400 instead of truncating. See brain/eval_keymatch.py's num_ctx fix.
-NUM_CTX = int(os.environ.get("HESTIA_NUM_CTX", "32768"))
 MAX_STEPS = int(os.environ.get("HESTIA_MAX_STEPS", "6"))
 # Wall-clock guards so a slow/hung backend can't hang a whole request (2026-06-11: a hung
 # SearXNG made one turn run ~5 min). TURN_BUDGET bounds the entire request; TOOL_BUDGET caps
@@ -92,8 +79,6 @@ MAX_STEPS = int(os.environ.get("HESTIA_MAX_STEPS", "6"))
 TURN_BUDGET = float(os.environ.get("HESTIA_TURN_BUDGET", "45"))
 TOOL_BUDGET = float(os.environ.get("HESTIA_TOOL_BUDGET", "20"))
 TOOL_WORKERS = max(1, int(os.environ.get("HESTIA_TOOL_WORKERS", "8")))
-# qwen3 thinking mode: off by default (fast, no eval gain). HESTIA_THINK=1 to enable.
-THINK = os.environ.get("HESTIA_THINK", "0") not in ("0", "", "false", "False")
 # Where this turn's changing context goes. "head" (default): the whole assembled prompt is the
 # system message, so the clock, skills and readings sit ahead of the history and Ollama
 # re-reads the thread every turn. "tail": the system message is the fixed SYSTEM_PROMPT and the
@@ -147,15 +132,14 @@ class TurnTrace:
 
 
 _recipe_source: ContextVar[str] = ContextVar("recipe_input", default="")
-_trace: ContextVar[TurnTrace | None] = ContextVar("turn_trace", default=None)
+_trace = backend.turn_trace
 _prepared: ContextVar[dict | None] = ContextVar("prepared_context", default=None)
-OUTPUT_TOKENS = int(os.environ.get("HESTIA_OUTPUT_TOKENS", "768"))
 TOOL_RESULT_BYTES = int(os.environ.get("HESTIA_TOOL_RESULT_BYTES", "6000"))
 FINAL_RESERVE = float(os.environ.get("HESTIA_FINAL_RESERVE", "3"))
 MAX_TOOL_CALLS = int(os.environ.get("HESTIA_MAX_TOOL_CALLS", "16"))
 MAX_ACTIVE_TURNS = max(1, int(os.environ.get("HESTIA_ACTIVE_TURNS", "1")))
 _turn_slots = asyncio.BoundedSemaphore(MAX_ACTIVE_TURNS)
-_stream_sink: ContextVar[object] = ContextVar("stream_sink", default=None)
+_stream_sink = backend.stream_sink
 # Set only for clients that opted in with hestia_events: receives a status phrase per tool call.
 _event_sink: ContextVar[object] = ContextVar("event_sink", default=None)
 _BUSY = "The brain is busy with another request. Please try again shortly."
@@ -252,12 +236,6 @@ app = FastAPI(title="Hestia", version="0.4-phase4")
 import clips as _clips_mod  # noqa: E402
 app.include_router(_clips_mod.router)
 # --- end clips block ---
-client = httpx.AsyncClient(base_url=OLLAMA, timeout=httpx.Timeout(300.0, connect=10.0))
-oai_client = httpx.AsyncClient(
-    base_url=OPENAI_BASE,
-    headers={"Authorization": f"Bearer {OPENAI_KEY}"},
-    timeout=httpx.Timeout(300.0, connect=10.0),
-)
 # Keep potentially blocking sync tools out of asyncio's shared default executor. A slot is
 # released only when the underlying function actually ends, not when its caller times out.
 _tool_executor = ThreadPoolExecutor(max_workers=TOOL_WORKERS, thread_name_prefix="hestia-tool")
@@ -399,198 +377,6 @@ def _almanac_pages() -> str:
         if p.is_file():
             pages.append(p.read_text(encoding="utf-8").rstrip())
     return "\n\n".join(pages)
-
-
-def _openai_messages(messages: list[dict]) -> list[dict]:
-    """The conversation in the OpenAI shape. The loop keeps Ollama's (a tool call without a type
-    or id, its result keyed by tool_name), which a strict server refuses on the second model call
-    of a turn: llama-server answers 500 "Missing tool call type". Each call gets an id here, and
-    each tool result the id of the call it answers, in order."""
-    out, pending, n = [], [], 0
-    for m in messages:
-        if m.get("role") == "assistant" and m.get("tool_calls"):
-            calls = []
-            for c in m["tool_calls"]:
-                fn = c.get("function", {})
-                args = fn.get("arguments", {})
-                n += 1
-                cid = c.get("id") or f"call_{n}"
-                calls.append({"id": cid, "type": "function", "function": {
-                    "name": fn.get("name", ""),
-                    "arguments": args if isinstance(args, str) else json.dumps(args)}})
-            pending = [c["id"] for c in calls]
-            out.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": calls})
-        elif m.get("role") == "tool":
-            cid = m.get("tool_call_id") or (pending.pop(0) if pending else f"call_{n}")
-            out.append({"role": "tool", "tool_call_id": cid, "content": m.get("content", "")})
-        else:
-            out.append(m)
-    return out
-
-
-async def _openai_chat(messages: list[dict], schemas: list | None = None) -> dict:
-    """OpenAI-compatible backend (POST /v1/chat/completions), e.g. mlx_lm.server.
-
-    Same contract as _ollama_chat: returns {"role","content","tool_calls"} with
-    arguments as dicts. Ollama-only fields (think, options/num_ctx, format) are
-    dropped; the repair prompt text is unchanged. Selected by HESTIA_BACKEND=openai.
-    """
-    trace = _trace.get()
-    body = {"model": OPENAI_MODEL, "messages": _openai_messages(messages),
-            "tools": tools.SCHEMAS if schemas is None else schemas,
-            "stream": False, "temperature": 0.3, "max_tokens": OUTPUT_TOKENS}
-    repair = trace.repair_tool if trace else ''
-    if trace:
-        trace.repair_tool = ''
-    schema = next((s['function']['parameters'] for s in body['tools']
-                   if s['function']['name'] == repair), None) if repair else None
-    if schema is None:
-        repair = ''   # never repair through a tool this request did not offer
-    if repair:
-        body['tools'] = []
-        body['temperature'] = 0
-        body['messages'] = [*body['messages'], {'role': 'system', 'content':
-            f'Return only the JSON argument object for the {repair} tool, matching the supplied schema. '
-            'The harness will validate it before execution. Do not claim completion. '
-            'Omit optional fields the user did not specify, especially location and timestamps. '
-            'For events today or now, omit ts so the datastore supplies its own clock. '
-            'Choose the event kind from its meaning (health, chore, sighting, or note). '
-            'Argument schema: ' + json.dumps(schema)}]
-    sink = _stream_sink.get()
-    # Only a final synthesis with tools disabled can emit user-visible text safely.
-    if sink and not repair and not body['tools'] and not (trace and trace.actions):
-        body['stream'] = True
-        content = []
-        async with oai_client.stream('POST', '/v1/chat/completions', json=body) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if not line.startswith('data:'):
-                    continue
-                data = line[5:].strip()
-                if data == '[DONE]':
-                    break
-                try:
-                    event = json.loads(data)
-                except ValueError:
-                    continue
-                delta = ((event.get('choices') or [{}])[0].get('delta') or {}).get('content', '')
-                if delta:
-                    content.append(delta)
-                    await sink(delta)
-                    if trace:
-                        trace.emitted = True
-                        trace.streamed_text += delta
-        message = {'role': 'assistant', 'content': ''.join(content)}
-    else:
-        r = await oai_client.post("/v1/chat/completions", json=body)
-        r.raise_for_status()
-        payload = r.json()
-        oai_msg = (payload.get('choices') or [{}])[0].get('message') or {}
-        message = {'role': oai_msg.get('role', 'assistant'),
-                   'content': oai_msg.get('content') or ''}
-        norm_calls = []
-        for tc in oai_msg.get('tool_calls') or []:
-            fn = tc.get('function') or {}
-            args = fn.get('arguments')
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except ValueError:
-                    pass  # leave the raw string; downstream validation rejects it safely
-            norm_calls.append({'function': {'name': fn.get('name'), 'arguments': args}})
-        if norm_calls:
-            message['tool_calls'] = norm_calls
-        if trace:
-            usage = payload.get('usage') or {}
-            trace.prompt_tokens += usage.get('prompt_tokens', 0)
-            trace.completion_tokens += usage.get('completion_tokens', 0)
-    if trace:
-        trace.model_calls += 1
-    if repair:
-        try:
-            args = json.loads(message.get('content', ''))
-        except (ValueError, TypeError):
-            return {'content': ''}
-        return {'content': '', 'tool_calls': [{'function': {'name': repair, 'arguments': args}}]}
-    return message
-
-
-async def _model_chat(messages: list[dict], schemas: list | None = None) -> dict:
-    """Backend dispatch: Ollama native or OpenAI-compatible. Same contract."""
-    if BACKEND == "openai":
-        return await _openai_chat(messages, schemas)
-    return await _ollama_chat(messages, schemas)
-
-
-async def _ollama_chat(messages: list[dict], schemas: list | None = None) -> dict:
-    # think=False keeps qwen3 in fast mode (thinking on cost ~4s/turn for no eval gain;
-    # see brain/eval_models.py — qwen3:14b no-think scored 100%/100% English at 1.5s).
-    trace = _trace.get()
-    body = {"model": trace.model if trace else MODEL, "messages": messages,
-            "tools": tools.SCHEMAS if schemas is None else schemas,
-            "stream": False, "think": trace.think if trace else THINK,
-            "options": {"temperature": 0.3, "num_ctx": NUM_CTX, "num_predict": OUTPUT_TOKENS}}
-    repair = trace.repair_tool if trace else ''
-    if trace:
-        trace.repair_tool = ''
-    schema = next((s['function']['parameters'] for s in body['tools']
-                   if s['function']['name'] == repair), None) if repair else None
-    if schema is None:
-        repair = ''   # never repair through a tool this request did not offer
-    if repair:
-        body['tools'] = []
-        body['format'] = schema
-        body['options']['temperature'] = 0
-        body['messages'] = [*messages, {'role': 'system', 'content':
-            f'Return only the JSON argument object for the {repair} tool, matching the supplied schema. '
-            'The harness will validate it before execution. Do not claim completion. '
-            'Omit optional fields the user did not specify, especially location and timestamps. '
-            'For events today or now, omit ts so the datastore supplies its own clock. '
-            'Choose the event kind from its meaning (health, chore, sighting, or note). '
-            'Argument schema: ' + json.dumps(schema)}]
-    sink = _stream_sink.get()
-    # Only a final synthesis with tools disabled can emit user-visible text safely.
-    # Tool-selection rounds stay buffered, as a late tool call may change the outcome.
-    if sink and not repair and not body['tools'] and not (trace and trace.actions):
-        body['stream'] = True
-        content, payload = [], {}
-        async with client.stream('POST', '/api/chat', json=body) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if not line:
-                    continue
-                event = json.loads(line)
-                if event.get('error'):
-                    raise RuntimeError('Model streaming failed')
-                delta = event.get('message', {}).get('content', '')
-                if delta:
-                    content.append(delta)
-                    await sink(delta)
-                    if trace:
-                        trace.emitted = True
-                        trace.streamed_text += delta
-                if event.get('done'):
-                    payload = event
-        if not payload.get('done'):
-            raise RuntimeError('Model stream ended before completion')
-        payload['message'] = {'role': 'assistant', 'content': ''.join(content)}
-    else:
-        r = await client.post("/api/chat", json=body)
-        r.raise_for_status()
-        payload = r.json()
-    if trace:
-        trace.model_calls += 1
-        trace.prompt_tokens += payload.get("prompt_eval_count", 0)
-        trace.completion_tokens += payload.get("eval_count", 0)
-        for key in ("load_duration", "prompt_eval_duration", "eval_duration", "total_duration"):
-            trace.backend[key] = trace.backend.get(key, 0) + payload.get(key, 0)
-    if repair:
-        try:
-            args = json.loads(payload['message'].get('content', ''))
-        except (ValueError, TypeError):
-            return {'content': ''}
-        return {'content': '', 'tool_calls': [{'function': {'name': repair, 'arguments': args}}]}
-    return payload["message"]
 
 
 # A soil-STATE readout ("what's the moisture", "are the beds dry", "soil readings") is
@@ -913,11 +699,11 @@ async def _agent_loop(messages: list[dict]) -> str:
             _log(f"TURN BUDGET {TURN_BUDGET}s exhausted before step {step}")
             return _TOO_SLOW
         try:
-            convo = context_budget.fit(convo, schemas, NUM_CTX, OUTPUT_TOKENS, log=_log)
+            convo = context_budget.fit(convo, schemas, backend.NUM_CTX, backend.OUTPUT_TOKENS, log=_log)
         except ValueError as e:
             return str(e)
         try:
-            msg = await asyncio.wait_for(_model_chat(convo, schemas), timeout=remaining)
+            msg = await asyncio.wait_for(backend.chat(convo, schemas), timeout=remaining)
         except asyncio.TimeoutError:
             _log(f"model call exceeded remaining {remaining:.1f}s at step {step}")
             return _TOO_SLOW
@@ -1320,7 +1106,7 @@ async def today():
 @app.get("/health")
 async def health():
     try:
-        r = await client.get("/api/tags")
+        r = await backend.client.get("/api/tags")
         names = [m["name"] for m in r.json().get("models", [])]
     except Exception as e:  # noqa: BLE001
         return JSONResponse(status_code=503, content={"status": "down", "ollama": "unreachable", "error": str(e)})
@@ -2017,8 +1803,8 @@ async def _organize_recipe_source(source: str) -> dict:
                   **{k:{'type':'array','items':{'type':'string'}} for k in ('ingredients','steps','notes')}},
                   'required':['name','servings','ingredients','steps','notes'],'additionalProperties':False}
         async with asyncio.timeout(TURN_BUDGET):
-            response = await client.post('/api/chat',json={'model':MODEL,'think':False,'stream':False,
-                'format':schema,'options':{'temperature':0,'num_ctx':NUM_CTX,'num_predict':2048},
+            response = await backend.client.post('/api/chat',json={'model':MODEL,'think':False,'stream':False,
+                'format':schema,'options':{'temperature':0,'num_ctx':backend.NUM_CTX,'num_predict':2048},
                 'messages':[{'role':'system','content':
                     'Organize recipe source DATA into a draft. Return name, servings and arrays of ingredients, steps and notes. '
                     'Each array item is one verbatim ingredient, instruction or note. Do not combine multiple recipes. Preserve quantities, units, '

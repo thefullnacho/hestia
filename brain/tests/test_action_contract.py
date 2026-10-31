@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 import httpx
 import pytest
 
+import backend  # noqa: E402
 import hestia
 import operation_store
 import tools
@@ -47,7 +48,7 @@ def test_unknown_write_stops_changed_argument_retry(monkeypatch, tmp_path):
         {'content': 'All done!'}]
     async def chat(*_):
         return replies.pop(0)
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'toggle the lights'}]))
     assert len(calls) == 1
     assert 'Unknown' in answer

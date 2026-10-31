@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 import httpx
 import pytest
 
+import backend  # noqa: E402
 import hestia
 
 
@@ -30,7 +31,7 @@ def test_ollama_outage_returns_graceful_answer(monkeypatch):
     async def boom(convo, schemas):
         raise httpx.ConnectError("connection refused")
 
-    monkeypatch.setattr(hestia, "_ollama_chat", boom)
+    monkeypatch.setattr(backend, "ollama_chat", boom)
     assert _run() == hestia._BACKEND_DOWN
 
 
@@ -40,7 +41,7 @@ def test_ollama_http_error_returns_graceful_answer(monkeypatch):
             "500", request=httpx.Request("POST", "http://x"),
             response=httpx.Response(500))
 
-    monkeypatch.setattr(hestia, "_ollama_chat", boom)
+    monkeypatch.setattr(backend, "ollama_chat", boom)
     assert _run() == hestia._BACKEND_DOWN
 
 
@@ -60,7 +61,7 @@ def test_malformed_tool_args_are_refused_not_run(monkeypatch):
     async def fake_chat(convo, schemas):
         return replies.pop(0)
 
-    monkeypatch.setattr(hestia, "_ollama_chat", fake_chat)
+    monkeypatch.setattr(backend, "ollama_chat", fake_chat)
     monkeypatch.setattr(hestia.tools, "dispatch",
                         lambda name, args: called.append((name, args)) or "ran")
     out = _run("log something")
@@ -110,7 +111,7 @@ def test_timed_out_tool_holds_its_worker_slot_until_it_really_finishes(monkeypat
 def test_openai_messages_give_every_tool_call_a_type_and_an_id():
     """llama-server refuses Ollama-shaped tool calls on the second model call of a turn
     ("Missing tool call type"), which ended every multi-step turn on that backend."""
-    out = hestia._openai_messages([
+    out = backend.openai_messages([
         {"role": "user", "content": "shut off the outside"},
         {"role": "assistant", "content": "", "tool_calls": [
             {"function": {"name": "home", "arguments": {"action": "get_state"}}},

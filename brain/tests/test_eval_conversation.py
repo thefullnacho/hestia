@@ -21,7 +21,7 @@ def test_probe_stops_on_cpu_offload_and_restores(monkeypatch, tmp_path):
             pass
     monkeypatch.setattr(evaluation, 'warm', warm)
     monkeypatch.setattr(evaluation, 'gpu', lambda: [])
-    monkeypatch.setattr(evaluation.hestia, 'client', Client())
+    monkeypatch.setattr(evaluation.backend, 'client', Client())
     args = argparse.Namespace(output=tmp_path, context=32768, fill_chars=0,
         restore_context=32768, models=['candidate'], modes=['hestia'], context_only=True,
         probe_contexts=[32768,65536,131072], restore='resident')
@@ -47,7 +47,7 @@ def test_initial_load_failure_still_restores_and_saves(monkeypatch, tmp_path):
         async def aclose(self):
             pass
     monkeypatch.setattr(evaluation, 'warm', warm)
-    monkeypatch.setattr(evaluation.hestia, 'client', Client())
+    monkeypatch.setattr(evaluation.backend, 'client', Client())
     args = argparse.Namespace(output=tmp_path, context=32768, fill_chars=0,
         restore_context=32768, models=['candidate'], modes=['hestia'], context_only=True,
         probe_contexts=[], restore='resident')

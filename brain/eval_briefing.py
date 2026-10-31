@@ -7,7 +7,7 @@ import sys
 import time
 
 import briefing_store
-from eval_support import fixtures, hestia
+from eval_support import backend, fixtures, hestia
 from tool_contract import mutation
 
 
@@ -56,7 +56,7 @@ async def main():
         path.write_text(json.dumps({'model':model,'rows':rows},indent=2))
         print(path)
     finally:
-        await hestia.client.aclose()
+        await backend.client.aclose()
 
 
 if __name__ == '__main__':

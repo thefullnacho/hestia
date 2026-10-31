@@ -1,6 +1,7 @@
 import asyncio
 import httpx
 
+import backend  # noqa: E402
 import hestia
 
 
@@ -15,12 +16,12 @@ def test_backend_metrics_and_settings_are_request_local(monkeypatch):
 
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
-            monkeypatch.setattr(hestia, 'client', client)
+            monkeypatch.setattr(backend, 'client', client)
             trace = hestia.TurnTrace(model='test-model', think=True)
             token = hestia._trace.set(trace)
             try:
-                await hestia._ollama_chat([], [])
-                await hestia._ollama_chat([], [])
+                await backend.ollama_chat([], [])
+                await backend.ollama_chat([], [])
             finally:
                 hestia._trace.reset(token)
             assert trace.usage() == {'prompt_tokens': 40, 'completion_tokens': 10, 'total_tokens': 50}
@@ -37,7 +38,7 @@ def test_eval_uses_isolated_real_write_path(monkeypatch):
             return {'content': 'Logged.'}
         return {'tool_calls': [{'function': {'name': 'records', 'arguments': {
             'action': 'log', 'subject': 'Biscuit', 'did': 'vaccinated', 'kind': 'health'}}}]}
-    monkeypatch.setattr(hestia, '_ollama_chat', fake_chat)
+    monkeypatch.setattr(backend, 'ollama_chat', fake_chat)
     original = records_store.DB_PATH
     with fixtures() as state:
         asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'Log Biscuit vaccination'}]))
@@ -57,11 +58,11 @@ def test_structured_repair_uses_schema_then_normal_validation(monkeypatch):
             'action': 'log', 'subject': 'Biscuit', 'did': 'vaccinated'})}})
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
-            monkeypatch.setattr(hestia, 'client', client)
+            monkeypatch.setattr(backend, 'client', client)
             trace = hestia.TurnTrace(repair_tool='records')
             token = hestia._trace.set(trace)
             try:
-                msg = await hestia._ollama_chat([], hestia.tools.SCHEMAS)
+                msg = await backend.ollama_chat([], hestia.tools.SCHEMAS)
                 fn = msg['tool_calls'][0]['function']
                 assert fn['name'] == 'records'
                 assert validate(fn['name'], fn['arguments'], hestia.tools.SCHEMAS) is None

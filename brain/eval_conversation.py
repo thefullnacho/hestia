@@ -14,7 +14,7 @@ import statistics
 import subprocess
 import time
 
-from eval_support import fixtures, hestia
+from eval_support import backend, fixtures, hestia
 
 CASES = [
     {"id": "explanation", "turns": [
@@ -82,7 +82,7 @@ def gpu():
 
 
 async def chat(model, messages, context, *, output=768):
-    response = await hestia.client.post('/api/chat', json={'model': model,
+    response = await backend.client.post('/api/chat', json={'model': model,
         'messages': messages, 'stream': False, 'think': False, 'keep_alive': -1,
         'options': {'num_ctx': context, 'num_predict': output, 'temperature': .3}})
     response.raise_for_status()
@@ -91,7 +91,7 @@ async def chat(model, messages, context, *, output=768):
 
 async def warm(model, context):
     await chat(model, [{'role': 'user', 'content': 'Say ready.'}], context, output=8)
-    response = await hestia.client.get('/api/ps')
+    response = await backend.client.get('/api/ps')
     response.raise_for_status()
     return next(m for m in response.json()['models'] if m['name'] == model)
 
@@ -121,7 +121,7 @@ async def run(args):
             'conversations': [], 'contexts': [], 'metadata': [], 'errors': [], 'restored': False}
     path = args.output / 'results.json'
     try:
-        version = await hestia.client.get('/api/version')
+        version = await backend.client.get('/api/version')
         version.raise_for_status()
         data['ollama_version'] = version.json()
         for model in args.models:
@@ -188,7 +188,7 @@ async def run(args):
             data['restored'] = True
         finally:
             save(path, data)
-            await hestia.client.aclose()
+            await backend.client.aclose()
     data['summaries'] = [{'model': model, 'mode': mode, **summarize(group)}
         for model in args.models for mode in args.modes
         if (group := [r for r in data['conversations'] if r['model'] == model and r['mode'] == mode])]
@@ -211,8 +211,8 @@ def main():
     args = parser.parse_args()
     if args.context < 1024 or args.restore_context < 1024 or any(c < 1024 for c in args.probe_contexts) or args.fill_chars < 0:
         parser.error('contexts must be >=1024 and fill-chars must be nonnegative')
-    hestia.NUM_CTX = args.context
-    hestia.OUTPUT_TOKENS = 768
+    backend.NUM_CTX = args.context
+    backend.OUTPUT_TOKENS = 768
     if not asyncio.run(run(args)):
         raise SystemExit(1)
 

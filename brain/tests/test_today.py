@@ -6,6 +6,7 @@ import datetime as dt
 
 import pytest
 
+import backend  # noqa: E402
 import hestia
 import reminders_store
 
@@ -50,5 +51,5 @@ def test_one_backend_down_blanks_only_its_section(client, monkeypatch):
 def test_today_never_calls_the_model(client, monkeypatch):
     async def forbidden(*_a, **_k):
         raise AssertionError("the Today view must not reach the model")
-    monkeypatch.setattr(hestia, "_ollama_chat", forbidden)
+    monkeypatch.setattr(backend, "ollama_chat", forbidden)
     assert client.get("/today").status_code == 200

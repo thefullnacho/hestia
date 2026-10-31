@@ -4,6 +4,7 @@ import json
 import pytest
 
 import context_budget
+import backend
 import hestia
 from eval_support import fixtures
 
@@ -116,4 +117,4 @@ def test_whelping_question_scopes_tools_and_fits_the_budget():
         assert names(schemas) == {'records', 'reminder'}
         messages = [{'role': 'system', 'content': asyncio.run(hestia._build_system_prompt(query))},
                     {'role': 'user', 'content': query}]
-        context_budget.fit(messages, schemas, hestia.NUM_CTX, hestia.OUTPUT_TOKENS)
+        context_budget.fit(messages, schemas, backend.NUM_CTX, backend.OUTPUT_TOKENS)

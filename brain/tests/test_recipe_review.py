@@ -7,6 +7,7 @@ import socket
 import httpx
 import pytest
 
+import backend
 import hestia
 import recipe_drafts as drafts
 import recipe_import as importing
@@ -175,7 +176,7 @@ def test_chat_draft_keeps_actual_user_source(monkeypatch):
     async def chat(messages,schemas):
         if messages[-1]['role']=='tool': return {'content':'Ready for review.'}
         return {'tool_calls':[{'function':{'name':'recipe','arguments':{'action':'save','name':'Test','content':'## Ingredients\n- 2 cups flour\n\n## Steps\n1. Mix.'}}}]}
-    monkeypatch.setattr(hestia,'_ollama_chat',chat)
+    monkeypatch.setattr(backend,'ollama_chat',chat)
     with fixtures():
         answer=asyncio.run(hestia.run_agent([{'role':'user','content':original}]))
         entry=drafts.read(drafts.pending()[0]['id'])

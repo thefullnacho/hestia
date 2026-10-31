@@ -5,6 +5,7 @@ import pytest
 import briefing
 import briefing_store as store
 import ha_announce
+import backend  # noqa: E402
 import hestia
 from eval_support import fixtures
 
@@ -39,7 +40,7 @@ def test_briefing_context_reaches_production_loop_without_live_calls(monkeypatch
     async def chat(messages, schemas):
         seen.append(messages[0]['content'])
         return {'content': 'The saved briefing mentioned oiling the hinge.'}
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     with fixtures():
         store.create(['Due: oil the hinge.'], 'Please oil the hinge.', 'test', 'model', {})
         asyncio.run(hestia.run_agent([{'role':'user','content':'What maintenance item did you mention this morning?'}]))

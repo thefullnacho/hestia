@@ -7,6 +7,7 @@ import re
 
 import pytest
 
+import backend  # noqa: E402
 import hestia
 import library_store as lib
 from tools import library
@@ -107,7 +108,7 @@ def test_loop_appends_the_source_when_the_model_leaves_it_out(shelf, monkeypatch
 
     async def fake_chat(convo, schemas):
         return replies.pop(0)
-    monkeypatch.setattr(hestia, "_ollama_chat", fake_chat)
+    monkeypatch.setattr(backend, "ollama_chat", fake_chat)
     out = asyncio.run(hestia.run_agent([{"role": "user", "content": "when do I prune blueberries?"}]))
     assert out == "Prune them in late winter.\nSource: Blueberry Pruning Guide, p.1."
 

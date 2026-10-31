@@ -4,6 +4,7 @@ import json
 import httpx
 import pytest
 
+import backend  # noqa: E402
 import hestia
 from eval_support import fixtures
 
@@ -32,7 +33,7 @@ def test_admission_rejects_excess_turn_and_recovers(monkeypatch):
 def test_no_tool_starts_when_final_reserve_is_reached(monkeypatch):
     async def chat(*_):
         return {'tool_calls': [{'function': {'name': 'home', 'arguments': {'action': 'turn_off', 'entity_id': 'light.light_kitchen_lights'}}}]}
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     monkeypatch.setattr(hestia, 'FINAL_RESERVE', 100)
     with fixtures() as state:
         asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'turn off kitchen lights'}]))
@@ -51,12 +52,12 @@ def test_native_final_stream_emits_before_generation_finishes(monkeypatch):
         return httpx.Response(200, stream=Chunks())
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
-            monkeypatch.setattr(hestia, 'client', client)
+            monkeypatch.setattr(backend, 'client', client)
             async def sink(text):
                 received.append(text)
             token = hestia._stream_sink.set(sink)
             try:
-                result = await hestia._ollama_chat([], [])
+                result = await backend.ollama_chat([], [])
                 assert result['content'] == 'Hello world'
             finally:
                 hestia._stream_sink.reset(token)
@@ -103,7 +104,7 @@ def test_independent_reads_overlap(monkeypatch):
     async def chat(*_):
         return replies.pop(0)
     monkeypatch.setattr(hestia, '_run_tool', read)
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     with fixtures():
         asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'How is the garden and will it rain?'}]))
     assert peak == 2
@@ -115,7 +116,7 @@ def test_simple_light_write_needs_only_one_model_round(monkeypatch):
         calls.append(1)
         return {'tool_calls': [{'function': {'name': 'home', 'arguments': {
             'action': 'turn_off', 'entity_id': 'light.light_kitchen_lights'}}}]}
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     with fixtures():
         answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'Turn off the kitchen lights.'}]))
     assert len(calls) == 1
@@ -128,7 +129,7 @@ def test_mixed_read_and_write_preserves_information(monkeypatch):
         {'content': 'Biscuit is a corgi.'}]
     async def chat(*_):
         return replies.pop(0)
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     with fixtures():
         answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content':
             'Turn off the kitchen lights and tell me what breed Biscuit is.'}]))
@@ -154,7 +155,7 @@ def test_empty_action_response_gets_one_recovery_attempt(monkeypatch):
         'action': 'turn_off', 'entity_id': 'light.light_kitchen_lights'}}}]}]
     async def chat(*_):
         return replies.pop(0)
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     with fixtures() as state:
         answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'Turn off the kitchen lights.'}]))
         assert state['light'] == 'off'
@@ -167,7 +168,7 @@ def test_unattempted_explicit_write_cannot_claim_success(monkeypatch):
     async def chat(*_):
         calls.append(1)
         return {'content': 'Recorded successfully.'}
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     with fixtures() as state:
         answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'Log the vaccination.'}]))
         assert state['calls'] == []
@@ -191,7 +192,7 @@ def test_stream_garbage_line_is_a_backend_failure(monkeypatch):
         pass
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
-            monkeypatch.setattr(hestia, 'client', client)
+            monkeypatch.setattr(backend, 'client', client)
             monkeypatch.setattr(hestia, '_request_schemas', lambda _: [])
             async def prompt(_):
                 return ''
@@ -233,12 +234,12 @@ def test_repair_is_skipped_for_a_tool_the_request_did_not_offer(monkeypatch):
         return httpx.Response(200, json={'message': {'content': 'plain answer'}})
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
-            monkeypatch.setattr(hestia, 'client', client)
+            monkeypatch.setattr(backend, 'client', client)
             trace = hestia.TurnTrace(repair_tool='home')
             token = hestia._trace.set(trace)
             try:
                 records_only = [s for s in hestia.tools.SCHEMAS if s['function']['name'] == 'records']
-                msg = await hestia._ollama_chat([], records_only)
+                msg = await backend.ollama_chat([], records_only)
                 assert msg['content'] == 'plain answer'
                 assert trace.repair_tool == ''
             finally:
@@ -302,7 +303,7 @@ def test_a_detected_command_keeps_its_tools_after_a_read(monkeypatch):
     async def chat(convo, schemas):
         seen.append([s['function']['name'] for s in schemas])
         return replies.pop(0)
-    monkeypatch.setattr(hestia, '_ollama_chat', chat)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
     with fixtures() as state:
         asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'shut off the kitchen'}]))
         assert state['light'] == 'off'
