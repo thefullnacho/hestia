@@ -1,6 +1,6 @@
-"""Morning briefing — the house says good morning.
+"""Daily briefing: the house catches you up on the day.
 
-Runs daily via a systemd user timer. Code gathers the morning's facts
+Runs daily via a systemd user timer. Code gathers the day's facts
 deterministically (weather, garden, due records, today's reminders, what the media
 stack pulled overnight), then the resident model is asked only to *phrase* them as a
 short spoken paragraph — judgment and voice, never arithmetic or recall. If the model
@@ -8,7 +8,8 @@ is down, the raw fact lines go out instead: the briefing must arrive either way.
 
 Delivery is a phone push (same HA notify path as reminders/garden-watch) plus an
 announcement on any Assist satellite that's online (the kitchen Voice PE). Unlike
-garden-watch this always sends — an empty morning is itself news.
+garden-watch this always sends: an empty day is itself news. It is worded to read the same
+at 16:00 as at 07:10, so it never feels stale whenever it is seen.
 """
 from __future__ import annotations
 
@@ -42,12 +43,13 @@ TIMEOUT = float(os.environ.get("HESTIA_BRIEFING_TIMEOUT", "60"))
 MEDIA_WINDOW_H = 24
 _HDRS = {"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"}
 
-NARRATE_PROMPT = """You are Hestia, the household's home assistant, giving the morning briefing. Below are today's facts, already verified. Turn them into ONE short spoken paragraph (3-6 plain sentences) that will be read aloud in the kitchen.
+NARRATE_PROMPT = """You are Hestia, the household's home assistant, giving the daily briefing. Below are today's facts, already verified. Turn them into ONE short spoken paragraph (3-6 plain sentences) that will be read aloud in the kitchen.
 
 RULES:
 - Use ONLY the facts given. Never invent, estimate, or add advice beyond them.
 - Plain speech: no markdown, no emoji, no headers, no bullet points.
-- Warm but brief — a person saying good morning, not a report.
+- Warm but brief, a person catching someone up on the day, not a report.
+- No greeting tied to a time of day (no "good morning"): it may be read or heard at any hour.
 - Skip nothing marked as an alert; compress or drop routine filler if it runs long.
 - Numbers: round temperatures to whole degrees; say dates like "Tuesday".
 
@@ -140,7 +142,7 @@ def _media_facts(now: dt.datetime) -> list[str]:
     if not titles:
         return []
     shown = ", ".join(titles[:5]) + (f" and {len(titles) - 5} more" if len(titles) > 5 else "")
-    return [f"New on Plex overnight: {shown}."]
+    return [f"New on Plex in the last day: {shown}."]
 
 
 def _goal_facts(now: dt.datetime) -> list[str]:
@@ -157,7 +159,7 @@ def _goal_facts(now: dt.datetime) -> list[str]:
 
 
 def build_facts(now: dt.datetime | None = None) -> list[str]:
-    """All fact lines for this morning. Each section is independent — one backend being
+    """All fact lines for today. Each section is independent — one backend being
     down costs its section, never the briefing."""
     now = now or dt.datetime.now()
     facts = [f"Date: {now.strftime('%A, %B ')}{now.day}."]
@@ -205,7 +207,7 @@ def fallback_text(facts: list[str]) -> str:
 
 def push(message: str) -> None:
     httpx.post(f"{HA_URL}/api/services/notify/{NOTIFY}", headers=_HDRS,
-               json={"title": "☀️ Morning briefing", "message": message},
+               json={"title": "☀️ Daily briefing", "message": message},
                timeout=15).raise_for_status()
 
 

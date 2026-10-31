@@ -36,12 +36,12 @@ the long version; [MEMORY-DESIGN.md](MEMORY-DESIGN.md) covers the memory plan.)
 
 **What it does day to day** (each of these is a timer or a tool, not a hope):
 
-- 7:10 — the morning briefing lands on the phone and the kitchen speaker: weather, what's due,
+- 7:10 — the daily briefing lands on the phone and the kitchen speaker: weather, what's due,
   and anything the garden pest model flagged overnight (`brain/briefing.py`, `hestia-briefing.timer`;
   a timer fires it, the model only narrates — and there's a fallback if the model is down)
 - "We're out of olive oil" by voice → the shopping list (HA `todo.shopping_list`), deduped
 - "Put the vet on the calendar for Tuesday at 2" → an event in HA's Local Calendar, visible in
-  the HA app on every phone; the tool resolves the date, and the morning briefing reads the
+  the HA app on every phone; the tool resolves the date, and the daily briefing reads the
   day's events back. Trash day is a recurring row in an `.ics` file, not a fact the model is
   asked to remember
 - "Vaccinated the dogs today" / "got a new puppy, Biscuit, she's a corgi" → real entities and a
@@ -97,7 +97,7 @@ Hestia is part of the **Forager / Homesteader Labs** constellation, alongside `f
   conversation agent points at Hestia**, so Assist and voice route through the brain (which can
   control HA back). It also gets smarter over time via the note-taker (see *Memory & learning*).
   Next: vision (Eyes).
-- **Daily rhythm** ✅ — timer-fired, model-narrated: morning briefing (7:10, phone + kitchen
+- **Daily rhythm** ✅ — timer-fired, model-narrated: daily briefing (7:10, phone + kitchen
   speaker), growing-degree-day pest watch, nightly house journal + almanac (23:45). True to the
   design: the schedule belongs to systemd, the model only gets the last word.
 - **Ops** ✅ — nightly on-site snapshots + off-site restic pulls (3-2-1), an external watchdog

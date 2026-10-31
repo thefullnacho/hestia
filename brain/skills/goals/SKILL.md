@@ -13,7 +13,7 @@ metadata:
 A goal is an outcome that takes more than one sitting: the greenhouse winter-ready, the
 garage sorted, the puppy room set up. Your job is the judgment part: turning it into a plan
 two busy people will actually follow. Code does the rest once a person approves the plan:
-reminders on each step's day, overdue in the morning briefing, the tick when it's done.
+reminders on each step's day, overdue in the daily briefing, the tick when it's done.
 
 ## Drafting a plan (`goals` `propose`)
 - When the user describes a goal, call `propose` in this same turn. Do not write the plan out

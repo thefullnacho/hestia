@@ -440,7 +440,7 @@ Approval keeps the model's original draft beside the approved plan and stores wh
 before widening the model's leash. From approval on it is all code in `goals_store.py`: each
 dated step gets a 9am phone reminder in the existing `reminders` table, a ticked step cancels
 its reminder and writes a `goal` records event, the last step closes the goal, overdue is a
-date comparison in the morning briefing and on Today.
+date comparison in the daily briefing and on Today.
 
 The model may tick a step from chat ("finally ordered the heater"): `goals done` matches the
 user's words against open steps, asks when two match equally, and its receipt says it can be

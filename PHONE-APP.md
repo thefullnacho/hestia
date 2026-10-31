@@ -28,6 +28,8 @@ household. Revisit only if the pilots show the box is what stops people.
 - Speech is Apple's on-device recognition and voice, so the phone's memory goes to the model.
 - Notifications carry no content (SECURITY.md, "Phone notifications").
 - Pilot problem reports are one flagged turn, sent by the person as a file (SECURITY.md).
+- The box renders the prompt and parses tool calls; the phone only runs the model on text.
+- The briefing is a daily briefing, worded to read the same whenever it is opened.
 - Pilots borrow a box for 30 days; keeping it is the measure (STATUS.md, 2026-10-30).
 
 ## The connection: the phone dials the box
@@ -51,11 +53,11 @@ prompt (the household's memory and records) and writes every tool call. A device
 at setup and kept in the Keychain, keeps a stray tailnet device from becoming the household's
 model.
 
-## Who renders the prompt: the box (recommended)
+## Who renders the prompt: the box
 
 Two ways to split the model work:
 
-1. **The phone is a plain completion engine** (recommended). The box renders the conversation
+1. **The phone is a plain completion engine** (decided 2026-10-31, as the more stable split). The box renders the conversation
    and tools into the model's own prompt text with its chat template, sends the text, and parses
    the tool calls out of what comes back. The phone runs llama.cpp on a string and streams
    tokens: no template, no tool parsing, nothing that can drift from the box.
@@ -103,7 +105,7 @@ Two paths, so that a reminder's text never has to leave the house:
   upcoming reminders and schedules them with iOS on the phone, with their full text. iOS fires
   them on time with the app closed. No Apple server sees them.
 - **A content-free ping for everything else.** A reminder made from another window while the
-  app is closed, a threshold crossing, the morning briefing: the box sends Apple's push service
+  app is closed, a threshold crossing, the daily briefing: the box sends Apple's push service
   a notification that says only that something is waiting. Opening it syncs and shows the
   content. The box sends it directly, with an APNs key kept in `secrets/`.
 
