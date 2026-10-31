@@ -37,7 +37,10 @@ is public. Those live in the operator's private notes.
   they move first or they never reach the phone.
 - **`hestia.py` split** (`edd221f`, `6c202c6`, `55e205a`): the model calls, the guards and the
   routing are their own modules now, behavior unchanged, deployed 2026-10-30.
-- **Next concrete action:** Alex reviews `PHONE-APP.md`, above all open question 1 (whose tailnet).
+- **Decided 2026-10-31: each pilot household runs its own tailnet,** and shares just the box with
+  the operator's for service; unshared at day 30. Never Funnel. The operator's access is in the
+  pilot disclosure (SECURITY.md).
+- **Next concrete action:** Alex finishes the `PHONE-APP.md` review.
 
 ---
 

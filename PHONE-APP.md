@@ -133,17 +133,24 @@ connection state, used only when the page detects it is inside the app.
   that comes back is wiped.
 - Set up by the operator before it arrives. The household installs nothing but the app.
 
+## Each household runs its own tailnet
+
+Decided 2026-10-31. The brain is unauthenticated and the network is its access control, so a
+pilot household must never be able to reach another household's brain, the operator's included.
+Each household runs its own Tailscale network, under its own login; their phones and box are
+the only machines on it. For service during the pilot, the household shares the box (one
+machine, not the tailnet) with the operator's tailnet. A shared machine is quarantined: it
+answers connections but can't start them into the tailnet it is shared with. Confirm that on
+the first setup. At day 30 the household unshares it. Never Tailscale Funnel: that puts a node
+on the public internet.
+
 ## Open questions
 
-1. **Whose tailnet.** The brain is unauthenticated and the network is its access control, so a
-   pilot household must never be able to reach another household's brain, the operator's
-   included. A tailnet per household, or one tailnet with ACLs that isolate each household?
-   This decides how setup works and must be settled before the first box leaves.
-2. **The smallest phone.** The 17 Pro has room to spare. Bench the oldest iPhone a pilot owns
+1. **The smallest phone. The 17 Pro has room to spare. Bench the oldest iPhone a pilot owns
    before promising it.
-3. **Distribution.** TestFlight needs a paid Apple developer account, and so does the push
+2. **Distribution.** TestFlight needs a paid Apple developer account, and so does the push
    key. That is the operator's account and card.
-4. **Android.** One pilot is on Android with an older phone. Out of scope for the first build;
+3. **Android.** One pilot is on Android with an older phone. Out of scope for the first build;
    that household's box may need to run the model itself.
 
 ## Build order

@@ -72,6 +72,9 @@ the operator. Nothing is sent automatically, and there is no export of history.
   are replaced by code before the person sees it.
 - **How it leaves:** the person sees the whole report, then sends it themselves as a file, by
   whatever channel they choose. Ignoring the offer sends nothing. The brain never sends it.
+- **The operator can reach the box during the pilot,** through a Tailscale share of that one
+  machine from the household's own tailnet. Because the brain has no login, that access can read
+  the household's data. Households are told this; the share ends at day 30.
 - **When it ends:** the reporting code is deleted, not switched off, before Hestia is installed
   anywhere outside the pilot, and from a pilot household's box when its 30 days are up, whether
   the box goes back or stays. A box that goes back is wiped first. Pilot households are told all
