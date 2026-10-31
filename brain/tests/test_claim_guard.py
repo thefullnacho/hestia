@@ -11,6 +11,7 @@ import asyncio
 import pytest
 
 import backend  # noqa: E402
+import guards  # noqa: E402
 import hestia
 
 
@@ -35,7 +36,7 @@ def _run(monkeypatch, user_text, reply):
 ])
 def test_a_claimed_action_with_no_tool_call_is_never_shown(monkeypatch, user_text, reply):
     answer, _ = _run(monkeypatch, user_text, reply)
-    assert answer == hestia._UNDONE_CLAIM
+    assert answer == guards.UNDONE_CLAIM
 
 
 @pytest.mark.parametrize("reply", [
@@ -55,7 +56,7 @@ def test_advice_offers_and_answers_pass_through(monkeypatch, reply):
 ])
 def test_a_bare_link_gets_the_import_instructions_without_the_model(monkeypatch, text):
     answer, calls = _run(monkeypatch, text, "I have imported it into your recipe collection.")
-    assert answer == hestia._LINK_ONLY_REPLY
+    assert answer == guards.LINK_ONLY_REPLY
     assert calls == []
 
 
@@ -66,7 +67,7 @@ def test_a_link_with_a_request_still_reaches_the_model(monkeypatch):
 
 
 def test_an_undone_claim_stays_out_of_the_thread():
-    assert hestia._UNDONE_CLAIM in hestia._NO_LEARN
+    assert guards.UNDONE_CLAIM in hestia._NO_LEARN
 
 
 # The shapes smaller models claim in (2026-10-29: Nanbeige 4.2 3B, Gemma 4 E4B and E2B, each
@@ -83,7 +84,7 @@ def test_an_undone_claim_stays_out_of_the_thread():
     "Okay, I've turned off the porch light.",
 ])
 def test_small_model_claims_are_caught(reply):
-    assert hestia._claims_action(reply)
+    assert guards.claims_action(reply)
 
 
 @pytest.mark.parametrize("reply", [
@@ -95,7 +96,7 @@ def test_small_model_claims_are_caught(reply):
     "You told me the good coffee is the bag with the orange label.",
 ])
 def test_small_model_advice_shapes_still_pass(reply):
-    assert not hestia._claims_action(reply)
+    assert not guards.claims_action(reply)
 
 
 def test_a_claim_with_no_call_gets_one_try_at_the_real_call(monkeypatch):
@@ -123,7 +124,7 @@ def test_a_claim_twice_is_refused(monkeypatch):
     monkeypatch.setattr(hestia.tools, "dispatch", lambda name, args: pytest.fail("nothing may run"))
     answer = asyncio.run(hestia.run_agent([{"role": "user", "content":
         "Remember that the good coffee is the bag with the orange label."}]))
-    assert answer == hestia._UNDONE_CLAIM
+    assert answer == guards.UNDONE_CLAIM
     assert len(calls) == 2
 
 
@@ -150,4 +151,4 @@ def test_a_call_written_as_text_gets_the_schema_checked_repair(monkeypatch):
     "The format is key: value (one per line).",
 ])
 def test_prose_that_mentions_a_tool_is_not_a_text_call(text):
-    assert not hestia._TEXT_CALL.match(text)
+    assert not guards.TEXT_CALL.match(text)

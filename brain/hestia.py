@@ -66,6 +66,7 @@ import feed_store  # noqa: E402
 import tool_phrases  # noqa: E402
 import tools  # noqa: E402
 import backend  # noqa: E402
+import guards  # noqa: E402
 from backend import MODEL, THINK  # noqa: E402
 import briefing_store  # noqa: E402
 import recipe_review  # noqa: E402
@@ -145,77 +146,6 @@ _event_sink: ContextVar[object] = ContextVar("event_sink", default=None)
 _BUSY = "The brain is busy with another request. Please try again shortly."
 _NO_ACTION = "I haven't completed the requested action. Please clarify the target or try again."
 _EMPTY_REPLY = "The model returned no usable answer. Please try again."
-# A reply that claims an action when no tool ran this turn. Shown instead of the claim.
-_UNDONE_CLAIM = ("I didn't actually do that: nothing was saved or set. "
-                 "Please say it again, for example \"remind me to ... on ...\".")
-# A message that is only a link. Chat can't read a page, so code answers without the model.
-_LINK_ONLY_REPLY = ("I can't open a link from chat. If it's a recipe, open Recipes in the app, "
-                    "choose \"Recipe or PDF URL\" under Import a recipe, paste the link and press "
-                    "Prepare a draft. Facebook and Instagram links usually can't be read: choose "
-                    "\"Paste recipe text\" and paste the recipe itself instead.")
-_URL = re.compile(r"https?://\S+", re.I)
-_ASKS = re.compile(r"\b(?:save|import|add|keep|draft|read|summar\w*|open|what|how|why|can|could|would|"
-                   r"please|recipe|tell|look|check)\b|\?", re.I)
-# Completion claims that only a tool receipt may make: an action verb and a store in one
-# sentence ("imported ... into your recipe collection", "Reminder #23 set"). Narrow on purpose,
-# so "I've put together a summary" passes; and it only applies when no tool ran at all.
-_CLAIM_VERB = (r"\b(?:set|added|logged|saved|imported|scheduled|created|recorded|drafted|booked|"
-               r"marked|crossed off|removed)\b")
-_CLAIM_STORE = (r"\b(?:reminders?|alarm|timer|(?:shopping|grocery|to-?do) list|list|calendar|recipes?|"
-                r"collection|drafts?|log|records?|inventory|pantry|goals?|plans?|steps?)\b")
-_CLAIMS = re.compile(rf"\breminder #\d+ set\b|{_CLAIM_VERB}[^.!?\n]{{0,80}}{_CLAIM_STORE}|"
-                     rf"{_CLAIM_STORE}[^.!?\n]{{0,40}}\b(?:is|are|has been|have been|was) "
-                     rf"(?:now )?{_CLAIM_VERB}", re.I)
-# The same claim in the shapes smaller models use (2026-10-29, Nanbeige and Gemma 4 E4B/E2B):
-# "I have saved that ...", "Saved that to memory", "Turning off the kitchen lights", "It's
-# queued and downloading". Held to the first person, a pronoun object, or on/off, so "Turning
-# the compost weekly helps" and "Saved seeds keep for years" stay advice.
-_DID = (r"(?:saved|logged|recorded|added|set|scheduled|created|stored|queued|started|grabbed|"
-        r"downloaded|marked|updated|removed|deleted|turned|switched|booked)")
-_OPENER = r"(?:(?:done|ok(?:ay)?|sure|got it|all set)\W+)?"
-_QUESTION = re.compile(r"\b(?:what|how|why|which|where|should|tell me)\b|\?", re.I)
-# A tool call written out as text ("records:log(did='vaccinated', ...)"): the model knew the call
-# and fumbled the format. Never run from the text; it only earns the schema-checked repair.
-_TEXT_CALL = re.compile(r"^\s*`?[a-z_]+[:.][a-z_]+\((?:[a-z_]+\s*=|\))", re.I)
-_SAID_DONE = re.compile(
-    rf"\bI(?:'ve| have)?\s+(?:just\s+|now\s+|also\s+|already\s+)?{_DID}\b"
-    rf"|^{_OPENER}{_DID}\s+(?:that|it|this|them|those|to)\b"
-    rf"|^{_OPENER}(?:turning|switching)\s+(?:on|off)\b[^.!?]{{0,40}}"
-    rf"\b(?:lights?|lamps?|fans?|switch(?:es)?|everything|all of them)(?:\s+now)?[.!]?$"
-    rf"|^{_OPENER}(?:grabbing|downloading|queu(?:e)?ing)\s+(?!(?:is|was|are|can|takes?|will|may|might)\b)"
-    rf"[^.!?]*\b(?:for you|now|it|that)\b"
-    rf"|\b(?:it's|it is|they're|they are)\s+(?:now\s+)?(?:queued|downloading|saved|logged|recorded|stored)\b",
-    re.I)
-
-
-def _link_only(messages: list[dict]) -> bool:
-    """The newest message is a link with at most a short label and no request in it."""
-    if not messages or messages[-1].get("role") != "user":
-        return False
-    text = messages[-1].get("content")
-    if not isinstance(text, str) or len(_URL.findall(text)) != 1:
-        return False
-    rest = _URL.sub(" ", text)
-    return len(re.findall(r"[A-Za-z']+", rest)) <= 4 and not _ASKS.search(rest)
-
-
-_ON_STORE = re.compile(rf"\b(?:it's|it is|that's|that is|they're|they are)\s+(?:now\s+)?(?:on|in)\s+"
-                       rf"(?:the|your)\s+(?:\w+\s+)?{_CLAIM_STORE}", re.I)
-# Advice and offers mention the same verbs without claiming anything happened.
-_NOT_A_CLAIM = re.compile(r"\b(?:could|should|can|might|may|want to|wish to|need to|like me to|shall|"
-                          r"try|if you|to (?:set|add|log|save|import|schedule|create))\b", re.I)
-
-
-def _claims_action(answer: str) -> bool:
-    """A sentence that says something was done: never a question, never advice or an offer."""
-    for sentence in re.split(r"(?<=[.!?])\s+|\n+", answer or ""):
-        sentence = sentence.strip()
-        if not sentence or sentence.endswith("?"):
-            continue
-        hit = _CLAIMS.search(sentence) or _ON_STORE.search(sentence) or _SAID_DONE.search(sentence)
-        if hit and not _NOT_A_CLAIM.search(sentence[:hit.end()]):
-            return True
-    return False
 
 
 
@@ -512,37 +442,6 @@ def _act(trace: TurnTrace, name: str, result: ToolResult) -> None:
     trace.receipts.append({"tool": name, "status": result.status, "text": result.data})
 
 
-_MED_ASK = re.compile(r"\b(?:dose|doses|dosage|how much|stop(?:ping)? taking|skip(?:ping)?|substitut\w*|"
-                      r"double up|ration\w*|cut (?:my|her|his|the) pills?)\b", re.I)
-_MED_WORD = re.compile(r"\b(?:medic(?:ation|ine)s?|meds|insulin|prescriptions?|pills?|inhalers?)\b", re.I)
-MED_REFERRAL = "For a dose, a substitute, or stopping a medication, check with your pharmacist or doctor."
-_EAT_ASK = re.compile(r"\b(?:edible|safe to eat|can (?:i|we|you) eat|ok to eat|okay to eat|poisonous|toxic)\b", re.I)
-EDIBLE_REFERRAL = ("Never eat a wild plant, berry or mushroom on a written description alone; have the "
-                   "identification confirmed in person by someone who knows the species.")
-
-
-def _library_addendum(answer: str, trace: TurnTrace, question: str) -> str:
-    """Code's lines after a library answer: the source when the reply names none of the
-    passages it was given, and the pharmacist line for any dose or stopping question."""
-    out = []
-    if trace.citations:
-        titles = [re.sub(r", (?:\d{4}, )?p\.\d+$", "", c) for c in trace.citations]
-        named = any(" ".join(t.lower().split()[:3]) in answer.lower() for t in titles)
-        # "The library doesn't cover that" is an answer with no source; citing one would
-        # suggest the opposite of what was said.
-        declined = re.search(r"library (?:does ?n[o']t|doesn't|has no|lacks)|not in the library|"
-                             r"(?:no|any) (?:specific )?information (?:on|about)", answer, re.I)
-        if not named and not declined:
-            out.append("Source: " + trace.citations[0] + ".")
-    if (_MED_WORD.search(question) and _MED_ASK.search(question)
-            and not re.search(r"\b(?:pharmacist|doctor|physician|prescriber|nurse|health ?care provider)\b", answer, re.I)):
-        out.append(MED_REFERRAL)
-    if (trace.citations and _EAT_ASK.search(question)
-            and not re.search(r"\bin person\b|\bexpert\b|positive(?:ly)? identif", answer, re.I)):
-        out.append(EDIBLE_REFERRAL)
-    return "\n".join(out)
-
-
 _TOO_SLOW = "Sorry — that took too long to pull together (a backend was slow). Try again in a moment?"
 _BACKEND_DOWN = "Sorry, my model backend is having trouble right now. Try again in a moment?"
 
@@ -612,8 +511,8 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
     trace.deadline = started + TURN_BUDGET
     admitted = False
     try:
-        if _link_only(messages):
-            return _LINK_ONLY_REPLY
+        if guards.link_only(messages):
+            return guards.LINK_ONLY_REPLY
         if _turn_slots.locked():
             return _BUSY
         await _turn_slots.acquire()
@@ -632,20 +531,20 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
             # Known failures always take precedence over model-authored completion claims.
             question = messages[-1]['content'] if messages else ''
             if (all(a.status == 'succeeded' for a in trace.actions) and not trace.failure
-                    and _QUESTION.search(question)
+                    and guards.QUESTION.search(question)
                     and answer != receipts):
                 return answer + "\nVerified actions: " + receipts
             return receipts
         if trace.emitted and trace.failure:
             return trace.streamed_text + "\n" + trace.failure
-        if answer not in _NO_LEARN and _claims_action(answer):
+        if answer not in _NO_LEARN and guards.claims_action(answer):
             # No tool ran, so nothing was done, whatever the model says. Never show the claim.
             _log("UNDONE CLAIM replaced: the model claimed an action with no tool call")
-            trace.failure = _UNDONE_CLAIM
+            trace.failure = guards.UNDONE_CLAIM
             if trace.emitted:  # already on screen: correct it in place rather than hide it
-                return trace.streamed_text + "\n" + _UNDONE_CLAIM
-            return _UNDONE_CLAIM
-        if answer not in _NO_LEARN and (extra := _library_addendum(answer, trace, messages[-1]['content'])):
+                return trace.streamed_text + "\n" + guards.UNDONE_CLAIM
+            return guards.UNDONE_CLAIM
+        if answer not in _NO_LEARN and (extra := guards.library_addendum(answer, trace.citations, messages[-1]['content'])):
             trace.addendum = extra
             return (trace.streamed_text if trace.emitted else answer) + "\n" + extra
         return answer
@@ -730,7 +629,7 @@ async def _agent_loop(messages: list[dict]) -> str:
             clarification = bool(content) and content.endswith('?')
             # A reply that says it did something no tool did: the model usually knows the call
             # and fumbled the delivery, so ask once for the real call before refusing.
-            claimed = bool(content) and not attempted and (_claims_action(content) or bool(_TEXT_CALL.match(content)))
+            claimed = bool(content) and not attempted and (guards.claims_action(content) or bool(guards.TEXT_CALL.match(content)))
             if (not content or (missing and not clarification) or claimed) and not (trace and trace.emitted):
                 if not recovery_used:
                     recovery_used = True
@@ -741,7 +640,7 @@ async def _agent_loop(messages: list[dict]) -> str:
                     if len(missing) == 1 and trace and missing <= offered:
                         trace.repair_tool = next(iter(missing))
                     elif (claimed and not missing and trace and len(offered) == 1
-                            and not _QUESTION.search(user_text)):
+                            and not guards.QUESTION.search(user_text)):
                         # Never force a write onto a question: a misread answer must not log.
                         trace.repair_tool = next(iter(offered))
                     convo.append({'role': 'system', 'content':
@@ -751,7 +650,7 @@ async def _agent_loop(messages: list[dict]) -> str:
                         'Use a native tool call with JSON object arguments to complete the request, or ask for missing information. '
                         'Do not claim an action completed without a successful tool receipt.'})
                     continue
-                return _NO_ACTION if missing else _UNDONE_CLAIM if claimed else _EMPTY_REPLY
+                return _NO_ACTION if missing else guards.UNDONE_CLAIM if claimed else _EMPTY_REPLY
             _log(f"answered in {step} step(s), {time.monotonic()-t0:.1f}s")
             return content
         convo.append({"role": "assistant", "content": msg.get("content", ""), "tool_calls": calls})
@@ -1118,7 +1017,7 @@ async def health():
 
 
 # Answers that are non-substantive (errors / give-ups) — never worth note-taking on.
-_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _BUSY, _NO_ACTION, _EMPTY_REPLY, _UNDONE_CLAIM,
+_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _BUSY, _NO_ACTION, _EMPTY_REPLY, guards.UNDONE_CLAIM,
              "I wasn't able to finish that in a reasonable number of steps — can you narrow it down?"}
 
 

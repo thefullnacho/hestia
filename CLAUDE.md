@@ -37,6 +37,7 @@ bulk-touched. Control those one at a time, by name.
 |---|---|
 | `brain/hestia.py` | FastAPI app, `POST /v1/chat/completions`, the agent loop, `/v1/threads`, the model-free `/today` |
 | `brain/backend.py` | The model calls: Ollama's native API or any OpenAI-compatible server (`HESTIA_BACKEND`), one contract. A new place to run the model is a new backend here |
+| `brain/guards.py` | Code's checks on the model's words: the claim guard ("done" with no tool run) and the medication and wild-food referrals. These stay code; never hand them to a model |
 | `brain/tools/` | One module per scoped tool: calendar, goals, home, library, media, memory, records, recipe, reminder, search, shopping, status, weather. `skill.py` dispatches skill packs |
 | `brain/skills/` | The brain's own skill packs (almanac, garden_bed, home_control, media, recipe, whelping, wildlife). **Not** Claude Code skills |
 | `clients/` | The app at `/app`: `chat.html` shell, `theme.css` shared with `/recipes`, one script per view (chat, today, status, library, plus feed.js for Library's picks). Plain files, no build step. See `HARNESS.md`, "The app" |

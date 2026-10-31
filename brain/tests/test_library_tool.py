@@ -8,6 +8,7 @@ import re
 import pytest
 
 import backend  # noqa: E402
+import guards  # noqa: E402
 import hestia
 import library_store as lib
 from tools import library
@@ -72,22 +73,22 @@ def test_empty_library_says_so(db):
 
 def test_addendum_adds_the_source_only_when_the_answer_names_none():
     trace = hestia.TurnTrace(citations=["Blueberry Pruning Guide, 2026, p.2", "Growing Garlic, p.1"])
-    assert hestia._library_addendum("Prune in late winter.", trace, "how to prune") == \
+    assert guards.library_addendum("Prune in late winter.", trace.citations, "how to prune") == \
         "Source: Blueberry Pruning Guide, 2026, p.2."
-    assert hestia._library_addendum("The Blueberry Pruning Guide says late winter.", trace, "how") == ""
-    assert hestia._library_addendum("Late winter.", hestia.TurnTrace(), "how to prune") == ""
-    assert hestia._library_addendum("Sorry, the library doesn't contain information on that.",
-                                    trace, "raspberry varieties?") == ""
+    assert guards.library_addendum("The Blueberry Pruning Guide says late winter.", trace.citations, "how") == ""
+    assert guards.library_addendum("Late winter.", hestia.TurnTrace().citations, "how to prune") == ""
+    assert guards.library_addendum("Sorry, the library doesn't contain information on that.",
+                                    trace.citations, "raspberry varieties?") == ""
 
 
 def test_dose_questions_always_get_the_pharmacist_line():
     trace = hestia.TurnTrace(citations=["Disaster Preparedness, 2026, p.2"])
-    out = hestia._library_addendum("Disaster Preparedness says keep a week's supply.", trace,
+    out = guards.library_addendum("Disaster Preparedness says keep a week's supply.", trace.citations,
                                    "How much insulin should she take if we're rationing?")
-    assert out == hestia.MED_REFERRAL
-    assert hestia._library_addendum("Disaster Preparedness covers supply; ask her doctor.", trace,
+    assert out == guards.MED_REFERRAL
+    assert guards.library_addendum("Disaster Preparedness covers supply; ask her doctor.", trace.citations,
                                    "Can she skip a dose of her meds?") == ""
-    assert hestia.MED_REFERRAL not in hestia._library_addendum("Keep it cold.", trace,
+    assert guards.MED_REFERRAL not in guards.library_addendum("Keep it cold.", trace.citations,
                                                                "How do I store her medication?")
 
 
@@ -124,10 +125,10 @@ def test_edibility_questions_get_the_in_person_identification_line(shelf):
     assert library.EDIBLE_NOTE in library.execute("are wild garlic plants edible")
     assert library.EDIBLE_NOTE not in library.execute("when do I plant garlic")
     trace = hestia.TurnTrace(citations=["Forgotten Foods, p.2"])
-    out = hestia._library_addendum("Forgotten Foods says purslane is a common wild green.", trace,
+    out = guards.library_addendum("Forgotten Foods says purslane is a common wild green.", trace.citations,
                                    "Is this purslane safe to eat?")
-    assert out == hestia.EDIBLE_REFERRAL
-    assert hestia._library_addendum("Forgotten Foods says confirm it in person with an expert.", trace,
+    assert out == guards.EDIBLE_REFERRAL
+    assert guards.library_addendum("Forgotten Foods says confirm it in person with an expert.", trace.citations,
                                     "Is it edible?") == ""
 
 

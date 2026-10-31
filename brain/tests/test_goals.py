@@ -153,9 +153,9 @@ def test_receipts_count_only_real_writes():
 
 
 def test_a_plan_claimed_without_a_tool_is_caught():
-    import hestia
-    assert hestia._claims_action("I've drafted a plan with five steps for the greenhouse.")
-    assert hestia._claims_action("Marked the heater step as done.")
+    import guards
+    assert guards.claims_action("I've drafted a plan with five steps for the greenhouse.")
+    assert guards.claims_action("Marked the heater step as done.")
 
 
 def test_finishing_a_step_offers_the_goals_tool(db):
