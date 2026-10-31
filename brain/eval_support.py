@@ -12,6 +12,7 @@ import config
 # Import the brain without loading deployment credentials. Evaluations only need Ollama.
 with patch.object(config, "load_secrets"):
     import backend
+    import routing
     import hestia
     import memory_store
     import records_store
@@ -80,13 +81,13 @@ async def first_message(model: str, prompt: str):
     """Selection probes use production prompt construction and generation settings."""
     trace = hestia.TurnTrace(model=model, think=False)
     token = hestia._trace.set(trace)
-    prepared_token = hestia._prepared.set(None)
+    prepared_token = routing.prepared.set(None)
     try:
         system = await hestia._build_system_prompt(prompt)
-        schemas = hestia._request_schemas(prompt)
+        schemas = routing.request_schemas(prompt)
         msg = await backend.chat([
             {"role": "system", "content": system}, {"role": "user", "content": prompt}], schemas)
         return msg, len(schemas)
     finally:
         hestia._trace.reset(token)
-        hestia._prepared.reset(prepared_token)
+        routing.prepared.reset(prepared_token)

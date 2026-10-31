@@ -4,7 +4,7 @@
 v1's miss: it trained under a short synthetic system prompt, but production sends the real
 8358-char `hestia._system_prompt` + a live light catalog. Catalog-independent agency
 (records.log) transferred; catalog-dependent agency (home actuation) did NOT. v2 fixes the
-fidelity: EVERY example is rendered with the real `_system_prompt` + real `_request_schemas`
+fidelity: EVERY example is rendered with the real `_system_prompt` + real `routing.request_schemas`
 + real entity_ids — i.e. trained on exactly what the brain will see at inference.
 
 This is deliberately house-specific (the owner's lights, beds) — the experiment is whether a 4B
@@ -29,6 +29,8 @@ import config  # noqa: E402
 
 config.load_secrets()
 
+import routing  # noqa: E402
+
 import hestia          # noqa: E402 — the REAL prompt + schema assembly
 import records_store   # noqa: E402
 import tools           # noqa: E402
@@ -45,7 +47,7 @@ EVAL_BLOCKLIST = {  # never emit the exact eval prompts
 
 def sys_tools(user: str) -> tuple[str, list]:
     """The EXACT system prompt + scoped tools production sends for this request."""
-    return hestia._system_prompt(user), hestia._request_schemas(user)
+    return hestia._system_prompt(user), routing.request_schemas(user)
 
 
 def _call(name: str, args: dict) -> dict:

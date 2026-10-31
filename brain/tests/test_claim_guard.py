@@ -12,6 +12,7 @@ import pytest
 
 import backend  # noqa: E402
 import guards  # noqa: E402
+import routing  # noqa: E402
 import hestia
 
 
@@ -137,7 +138,7 @@ def test_a_call_written_as_text_gets_the_schema_checked_repair(monkeypatch):
     async def chat(*_):
         return replies.pop(0)
     monkeypatch.setattr(backend, "ollama_chat", chat)
-    monkeypatch.setattr(hestia, "_request_schemas", lambda _: [
+    monkeypatch.setattr(routing, "request_schemas", lambda _: [
         s for s in hestia.tools.SCHEMAS if s["function"]["name"] == "records"])
     ran = []
     monkeypatch.setattr(hestia.tools, "dispatch", lambda name, args: ran.append((name, args)) or "logged")

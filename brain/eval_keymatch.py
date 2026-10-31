@@ -30,7 +30,7 @@ import httpx
 
 import config  # noqa: E402 — puts brain/ on sys.path
 
-from eval_support import first_message, run, fixtures, hestia
+from eval_support import first_message, run, fixtures, hestia, routing
 
 OLLAMA = "http://127.0.0.1:11434"
 REPEATS = int(os.environ.get("EVAL_REPEATS", "5"))
@@ -88,7 +88,7 @@ def first_tool(model: str, prompt: str) -> tuple[str, int]:
 def loop_tool(prompt: str) -> tuple[str, int]:
     """The whole turn, harness recovery included, against the fixtures: the first tool that ran."""
     with fixtures() as state:
-        offered = len(hestia._request_schemas(prompt))
+        offered = len(routing.request_schemas(prompt))
         run(hestia.run_agent([{"role": "user", "content": prompt}]))
     return (state["calls"][0]["name"] if state["calls"] else "∅:final", offered)
 

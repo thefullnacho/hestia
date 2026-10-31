@@ -4,7 +4,7 @@ sft_gen_v2 withholds the 'outside' room wholesale (HELDOUT_ROOM): no training ex
 ever actuates light.light_outside_lights, but the entity IS present in the live scoped
 prompt at inference. So this measures pure generalization of the tool *shape*, not recall.
 
-It reuses the exact production path (hestia._system_prompt + _request_schemas, i.e. the
+It reuses the exact production path (hestia._system_prompt + routing.request_schemas, i.e. the
 home_control skill scoping) and grades the FIRST tool call at three levels:
   fired   — emitted a `home` tool call at all (vs answering in prose = the agency cliff)
   action  — turn_on/turn_off matches gold

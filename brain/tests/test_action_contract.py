@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 import backend  # noqa: E402
+import routing  # noqa: E402
 import hestia
 import operation_store
 import tools
@@ -36,7 +37,7 @@ def test_unknown_write_stops_changed_argument_retry(monkeypatch, tmp_path):
     async def prompt(_):
         return ''
     monkeypatch.setattr(hestia, '_build_system_prompt', prompt)
-    monkeypatch.setattr(hestia, '_request_schemas', lambda _: tools.SCHEMAS)
+    monkeypatch.setattr(routing, 'request_schemas', lambda _: tools.SCHEMAS)
     calls = []
     def dispatch(name, args):
         calls.append(args)

@@ -10,6 +10,7 @@ import pytest
 
 import context_budget
 import backend  # noqa: E402
+import routing  # noqa: E402
 import hestia
 import threads_store
 import tools
@@ -180,7 +181,7 @@ def _lights_off(monkeypatch):
     async def prompt(_):
         return ""
     monkeypatch.setattr(hestia, "_build_system_prompt", prompt)
-    monkeypatch.setattr(hestia, "_request_schemas", lambda _: tools.SCHEMAS)
+    monkeypatch.setattr(routing, "request_schemas", lambda _: tools.SCHEMAS)
     monkeypatch.setattr(tools, "dispatch", lambda name, args: "Done turned off light.light_kitchen_lights.")
     replies = [
         {"tool_calls": [{"function": {"name": "home", "arguments": {

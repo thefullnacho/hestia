@@ -5,6 +5,7 @@ import httpx
 import pytest
 
 import backend  # noqa: E402
+import routing  # noqa: E402
 import hestia
 from eval_support import fixtures
 
@@ -177,8 +178,8 @@ def test_unattempted_explicit_write_cannot_claim_success(monkeypatch):
 
 
 def test_followup_actuation_is_an_explicit_required_write():
-    assert hestia._required_writes('Turn them back on.') == {'home'}
-    assert hestia._required_writes('How do I turn them on?') == set()
+    assert routing.required_writes('Turn them back on.') == {'home'}
+    assert routing.required_writes('How do I turn them on?') == set()
 
 
 def test_stream_garbage_line_is_a_backend_failure(monkeypatch):
@@ -193,7 +194,7 @@ def test_stream_garbage_line_is_a_backend_failure(monkeypatch):
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle), base_url='http://test') as client:
             monkeypatch.setattr(backend, 'client', client)
-            monkeypatch.setattr(hestia, '_request_schemas', lambda _: [])
+            monkeypatch.setattr(routing, 'request_schemas', lambda _: [])
             async def prompt(_):
                 return ''
             monkeypatch.setattr(hestia, '_build_system_prompt', prompt)
@@ -209,9 +210,9 @@ def test_stream_garbage_line_is_a_backend_failure(monkeypatch):
 
 
 def test_non_light_turn_on_is_not_a_required_write():
-    assert hestia._required_writes('Turn on the news.') == set()
-    assert hestia._required_writes('Turn off the kitchen lights.') == {'home'}
-    assert hestia._required_writes('Turn it off.') == {'home'}
+    assert routing.required_writes('Turn on the news.') == set()
+    assert routing.required_writes('Turn off the kitchen lights.') == {'home'}
+    assert routing.required_writes('Turn it off.') == {'home'}
 
 
 def test_explicit_light_command_always_offers_home():
@@ -219,12 +220,12 @@ def test_explicit_light_command_always_offers_home():
         for text in ['Log that Biscuit was vaccinated, then turn on the porch lights.',
                      'Turn them back on.', 'shut off the outside', 'kill the outside',
                      'put on the outside', 'switch on the lights in the outside']:
-            token = hestia._prepared.set(None)
+            token = routing.prepared.set(None)
             try:
-                offered = {s['function']['name'] for s in hestia._request_schemas(text)}
+                offered = {s['function']['name'] for s in routing.request_schemas(text)}
             finally:
-                hestia._prepared.reset(token)
-            assert hestia._required_writes(text) <= offered, text
+                routing.prepared.reset(token)
+            assert routing.required_writes(text) <= offered, text
 
 
 def test_repair_is_skipped_for_a_tool_the_request_did_not_offer(monkeypatch):
@@ -258,7 +259,7 @@ def test_repair_is_skipped_for_a_tool_the_request_did_not_offer(monkeypatch):
 ])
 def test_bare_area_commands_are_required_light_writes(monkeypatch, text):
     monkeypatch.setitem(hestia.tools.home._cache, "areas", ["kitchen", "living room", "outside"])
-    assert hestia._required_writes(text) == {"home"}
+    assert routing.required_writes(text) == {"home"}
 
 
 @pytest.mark.parametrize("text", [
@@ -269,13 +270,13 @@ def test_bare_area_commands_are_required_light_writes(monkeypatch, text):
 ])
 def test_talk_that_mentions_an_area_is_not_a_light_command(monkeypatch, text):
     monkeypatch.setitem(hestia.tools.home._cache, "areas", ["kitchen", "living room", "outside"])
-    assert "home" not in hestia._required_writes(text)
+    assert "home" not in routing.required_writes(text)
 
 
 def test_with_no_catalog_read_yet_only_light_words_count(monkeypatch):
     monkeypatch.setitem(hestia.tools.home._cache, "areas", [])
-    assert hestia._required_writes("shut off the outside") == set()
-    assert hestia._required_writes("shut off the outside lights") == {"home"}
+    assert routing.required_writes("shut off the outside") == set()
+    assert routing.required_writes("shut off the outside lights") == {"home"}
 
 
 def test_only_names_that_say_lights_become_areas(monkeypatch):

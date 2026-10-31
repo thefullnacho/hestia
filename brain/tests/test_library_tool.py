@@ -9,6 +9,7 @@ import pytest
 
 import backend  # noqa: E402
 import guards  # noqa: E402
+import routing  # noqa: E402
 import hestia
 import library_store as lib
 from tools import library
@@ -93,7 +94,7 @@ def test_dose_questions_always_get_the_pharmacist_line():
 
 
 def test_library_routing_words():
-    pattern = hestia._INTENT_TOOLS["library"]
+    pattern = routing.INTENT_TOOLS["library"]
     assert re.search(pattern, "how do i prune blueberries")
     assert re.search(pattern, "what's eating my zinnias")
     assert not re.search(pattern, "turn off the kitchen lights")
@@ -133,7 +134,7 @@ def test_edibility_questions_get_the_in_person_identification_line(shelf):
 
 
 def test_new_subjects_route_to_the_library():
-    pattern = hestia._INTENT_TOOLS["library"]
+    pattern = routing.INTENT_TOOLS["library"]
     for q in ("how long do I boil water at altitude", "what headspace for jelly jars",
               "how do i shut down the evaporator", "snake bite first aid", "how do I bug in"):
         assert re.search(pattern, q), q

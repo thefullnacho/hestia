@@ -6,6 +6,7 @@ import briefing
 import briefing_store as store
 import ha_announce
 import backend  # noqa: E402
+import routing  # noqa: E402
 import hestia
 from eval_support import fixtures
 
@@ -50,7 +51,7 @@ def test_briefing_context_reaches_production_loop_without_live_calls(monkeypatch
 
 
 def test_briefing_followup_preserves_topic():
-    text = hestia._routing_text([{'role':'user','content':"Today's briefing?"},
+    text = routing.routing_text([{'role':'user','content':"Today's briefing?"},
         {'role':'assistant','content':'A hinge needed oiling.'},
         {'role':'user','content':'What about yesterday?'}])
     assert store.requested(text)

@@ -159,10 +159,11 @@ def test_a_plan_claimed_without_a_tool_is_caught():
 
 
 def test_finishing_a_step_offers_the_goals_tool(db):
+    import routing  # noqa: E402
     import hestia
     approved(db)
-    assert hestia._finishes_open_step("finally ordered the greenhouse heater")
-    assert not hestia._finishes_open_step("turn off the kitchen lights")
+    assert routing.finishes_open_step("finally ordered the greenhouse heater")
+    assert not routing.finishes_open_step("turn off the kitchen lights")
 
 
 # ----- routes ----------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import pytest
 
 import context_budget
 import backend
+import routing  # noqa: E402
 import hestia
 from eval_support import fixtures
 
@@ -16,7 +17,7 @@ def names(schemas):
 def prepare(text):
     async def run():
         await hestia._build_system_prompt(text)
-        return hestia._request_schemas(text)
+        return routing.request_schemas(text)
     return asyncio.run(run())
 
 
@@ -26,7 +27,7 @@ def test_mixed_lights_and_shopping_keep_both_tools():
 
 
 def test_followup_preserves_light_topic_and_adds_reminder():
-    query = hestia._routing_text([
+    query = routing.routing_text([
         {'role': 'user', 'content': 'Turn off kitchen lights'},
         {'role': 'assistant', 'content': 'Done'},
         {'role': 'user', 'content': 'Remind me tomorrow to turn them back on'}])
