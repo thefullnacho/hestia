@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
 from wyoming.asr import Transcribe, Transcript
@@ -206,7 +206,6 @@ def _system_prompt(user_text: str, plan: dict, light_catalog: str = "", soil: st
                   "tool for this, and never name a bed or sensor that is not written here. For a "
                   "broad request, give every supplied reading and mention any truncation.",
                   context_budget.evidence("soil catalog, fetched within 60 seconds", soil)]
-    matched = plan["matched"]
     # The almanac pages are nightly-regenerated files, not static skill knowledge, so the
     # brain injects them live when the almanac skill owns the request (same move as the
     # GARDEN blocks: put the real data in front of the model instead of hoping it fetches).

@@ -46,8 +46,10 @@ EVAL_BLOCKLIST = {  # never emit the exact eval prompts
 
 
 def sys_tools(user: str) -> tuple[str, list]:
-    """The EXACT system prompt + scoped tools production sends for this request."""
-    return hestia._system_prompt(user), routing.request_schemas(user)
+    """The system prompt + scoped tools production sends for this request, without the live
+    light and soil readings (those come from the house at request time)."""
+    plan = routing.context_plan(user)
+    return hestia._system_prompt(user, plan), routing.request_schemas(user)
 
 
 def _call(name: str, args: dict) -> dict:
