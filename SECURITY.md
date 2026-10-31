@@ -59,6 +59,16 @@ cannot be written. It offers only the tools named in its `READ_ONLY` table (defa
 deciding whether the operator gets it. What the operator's chat reads goes wherever that chat
 goes, which is an operator-side choice; the brain itself still calls nothing outside the house.
 
+**A household member can have their own MCP window, and it can do one thing the brain can't.**
+(2026-10-31.) The same server, registered in that person's Claude Desktop and started over SSH on
+the tailnet, with `HESTIA_PERSON` set to their name. Their audit lines carry the name, and a
+reminder they make goes to their own phone (`REMINDER_NOTIFY_<NAME>` in the secrets bundle names
+the Home Assistant notify target; without one it falls back to the default phone and the journal
+says so). It also offers `recipe_review`, which approves a recipe draft once the person has read
+it in their chat and said yes. That tool exists only on this server: the brain's model still
+cannot approve a recipe, and only a person's window or the browser review page can. What their
+Claude reads goes to their Claude's provider, the same choice the operator made for their own.
+
 **Pilot problem reports are one turn at a time, sent by the person, and they end with the pilot.**
 (Decided 2026-10-30, not built.) Pilot households run Hestia in their own homes to test it before
 anyone else does. When a turn goes wrong, Hestia offers to package that one turn as a report for

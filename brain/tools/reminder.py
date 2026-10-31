@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 
+import config
 import reminders_store as store
 
 SCHEMA = {
@@ -254,7 +255,7 @@ def execute(action: str, text: str | None = None, when: str | None = None,
         if not due:
             return (f"I couldn't read the time '{when}'. Try a duration like '10 minutes', a "
                     f"time like '7:00', or a full date and time.")
-        rid = store.add(due.isoformat(timespec="seconds"), label)
+        rid = store.add(due.isoformat(timespec="seconds"), label, person=config.person())
         return f"Reminder #{rid} set — I'll ping your phone {_fmt(due)}: {label}"
     if action == "list":
         rows = store.pending()

@@ -86,7 +86,8 @@ def target(name):
 
 
 def approve(identifier, *, revision, name, content, servings='', aliases='', expected_target_hash=None, replace=False, acknowledged=False):
-    """Browser-only approval. Never exposed as a model tool. Compare-and-swap under a lock."""
+    """A person's approval: the browser review page, or recipe_review on the operator MCP server
+    after the person read the draft in their chat. Never a brain tool. Compare-and-swap under a lock."""
     stem = slug(name)
     if not acknowledged: raise ValueError('Review the source and draft, then acknowledge the quantities and missing details.')
     if not isinstance(content,str) or not content.strip() or len(content.encode())>100000:

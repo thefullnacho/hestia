@@ -6,7 +6,8 @@ offline. `lookup` returns the full recipe text into context, where the model ans
 follow-ups from it (reading comprehension, not recall — a 14B will confidently hallucinate
 a flour quantity otherwise). `save` persists a recipe the model has already cleaned into
 structured form as a DRAFT. The original chat input (when available) accompanies it.
-Only the private review page can approve it into the collection. URL imports preserve
+Only a person can approve it into the collection: the private review page, or
+recipe_review on the operator MCP server once they've read it in their chat. URL imports preserve
 original bytes and prefer structured recipe data; old versions survive replacement.
 
 

@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS reminders (
   text TEXT NOT NULL,             -- what to remind the user about
   created_at TEXT NOT NULL,
   fired_at TEXT,                   -- null until the timer pushes it (then provenance)
-  announce INTEGER NOT NULL DEFAULT 0  -- 1 = also speak it on Assist satellites, not just the phone
+  announce INTEGER NOT NULL DEFAULT 0, -- 1 = also speak it on Assist satellites, not just the phone
+  person TEXT                      -- who it is for; null = the default phone (REMINDER_NOTIFY)
 );
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
 CREATE INDEX IF NOT EXISTS idx_events_kind ON events(kind);
@@ -105,10 +106,11 @@ def _conn() -> sqlite3.Connection:
         # Lightweight migration: reminders.announce was added after the table shipped, so a DB
         # created earlier won't have it. ALTER is idempotent-by-catch — it errors only if the
         # column is already there, which we ignore. Runs once per process+path, same as the DDL.
-        try:
-            c.execute("ALTER TABLE reminders ADD COLUMN announce INTEGER NOT NULL DEFAULT 0")
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        for column in ("announce INTEGER NOT NULL DEFAULT 0", "person TEXT"):
+            try:
+                c.execute(f"ALTER TABLE reminders ADD COLUMN {column}")
+            except sqlite3.OperationalError:
+                pass  # column already exists
         _schema_ready.add(str(DB_PATH))
     # The records DB holds people, pets, and locations — keep it owner-only (audit #9).
     # Enforce on creation and self-heal if a restore/copy ever widened the mode.

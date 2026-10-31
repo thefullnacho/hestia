@@ -130,3 +130,19 @@ def test_next_weekday_means_next_calendar_week():
     # From a Saturday, 'next monday' and 'monday' agree: both are the coming Monday.
     saturday = dt.datetime(2026, 9, 12, 7, 0)
     assert reminder.parse_when("next monday", saturday) == reminder.parse_when("monday", saturday) == dt.datetime(2026, 9, 14, 9, 0)
+
+
+def test_a_reminder_goes_to_its_persons_phone(db, monkeypatch):
+    import reminders_tick
+    monkeypatch.setenv("REMINDER_NOTIFY_DAWN", "dawn_devices")
+    assert reminders_tick.notify_for("dawn") == "dawn_devices"
+    assert reminders_tick.notify_for(None) == reminders_tick.NOTIFY
+    monkeypatch.delenv("REMINDER_NOTIFY_DAWN")
+    assert reminders_tick.notify_for("dawn") == reminders_tick.NOTIFY
+
+
+def test_person_only_takes_a_short_plain_name(monkeypatch):
+    import config
+    for raw, want in (("Dawn", "dawn"), (" dawn ", "dawn"), ("", None), ("../x", None), ("a" * 40, None)):
+        monkeypatch.setenv("HESTIA_PERSON", raw)
+        assert config.person() == want, raw

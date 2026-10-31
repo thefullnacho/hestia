@@ -1,9 +1,10 @@
 """Reminders tick — fire due reminders to the phone. Runs every minute via a systemd timer.
 
 Dumb on purpose: find reminders whose time has come and haven't fired, push each to the
-phone via Home Assistant's notify service, mark it fired. No model, no judgment — the
-firing half of the determinism principle. A push that fails is left unfired so the next
-tick retries (at-least-once). --dry-run prints what it would send without pushing.
+phone via Home Assistant's notify service (the person's own, when the reminder names one),
+mark it fired. No model, no judgment: the firing half of the determinism principle. A
+push that fails is left unfired so the next tick retries (at-least-once). --dry-run prints
+what it would send without pushing.
 """
 from __future__ import annotations
 
@@ -27,8 +28,20 @@ NOTIFY = os.environ.get("REMINDER_NOTIFY", os.environ.get("GARDEN_NOTIFY", "mobi
 _HDRS = {"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"}
 
 
-def push(message: str) -> None:
-    httpx.post(f"{HA_URL}/api/services/notify/{NOTIFY}", headers=_HDRS,
+def notify_for(person: str | None) -> str:
+    """The HA notify service for a reminder's person: REMINDER_NOTIFY_<PERSON> (for example
+    REMINDER_NOTIFY_DAWN=notify_group_name), else the default phone. A person with no target set
+    still gets delivered somewhere, to the default, and the journal says so."""
+    if person:
+        target = os.environ.get(f"REMINDER_NOTIFY_{person.upper()}", "").strip()
+        if target:
+            return target
+        print(f"reminders: no REMINDER_NOTIFY_{person.upper()}; sent to the default", file=sys.stderr)
+    return NOTIFY
+
+
+def push(message: str, person: str | None = None) -> None:
+    httpx.post(f"{HA_URL}/api/services/notify/{notify_for(person)}", headers=_HDRS,
                json={"title": "⏰ Reminder", "message": message}, timeout=15).raise_for_status()
 
 
@@ -45,7 +58,7 @@ def main() -> int:
                   + (" + announce" if speak else "") + f": {r['text']}")
             continue
         try:
-            push(r["text"])
+            push(r["text"], r.get("person"))
             store.mark_fired(r["id"], dt.datetime.now().isoformat(timespec="seconds"))
             print(f"reminders: pushed #{r['id']}: {r['text']}")
         except Exception as e:  # noqa: BLE001 — leave it unfired; next tick retries

@@ -65,7 +65,7 @@ def test_the_read_only_table_names_real_arguments_and_real_actions():
 
 def test_read_only_offers_only_the_tables_tools_with_each_enum_narrowed():
     offered = listed()
-    assert set(offered) == set(mcp_server.READ_ONLY) and "search" not in offered
+    assert set(offered) == set(mcp_server.GATES) and "search" not in offered
     assert offered["records"]["inputSchema"]["properties"]["action"]["enum"] == ["recent", "entity", "due"]
     assert offered["memory"]["inputSchema"]["properties"]["op"]["enum"] == ["recall"]
     assert offered["records"]["description"].startswith("(read-only here)")
@@ -177,3 +177,67 @@ def test_over_a_real_stdio_pipe_only_json_reaches_stdout(tmp_path):
     assert replies[3]["result"]["isError"] is True and "read-only" in replies[3]["result"]["content"][0]["text"]
     assert "hestia-mcp: read-only" in run.stderr
     assert not (tmp_path / "audit.jsonl").exists()
+
+
+def test_the_audit_names_who_the_window_acts_for(db, monkeypatch, tmp_path):
+    monkeypatch.setenv("HESTIA_MCP_WRITES", "1")
+    monkeypatch.setenv("HESTIA_PERSON", "dawn")
+    call("reminder", action="create", text="call the vet", when="in 2 hours")
+    line = json.loads((tmp_path / "audit.jsonl").read_text().splitlines()[-1])
+    assert line["who"] == "dawn" and line["tool"] == "reminder"
+    monkeypatch.delenv("HESTIA_PERSON")
+    call("reminder", action="create", text="oil the hinge", when="in 2 hours")
+    assert json.loads((tmp_path / "audit.jsonl").read_text().splitlines()[-1])["who"] == "operator"
+
+
+def test_a_reminder_made_in_a_persons_window_is_theirs(db, monkeypatch):
+    monkeypatch.setenv("HESTIA_MCP_WRITES", "1")
+    monkeypatch.setenv("HESTIA_PERSON", "Dawn")
+    call("reminder", action="create", text="call the vet", when="in 2 hours")
+    assert [r["person"] for r in reminders_store.pending()] == ["dawn"]
+
+
+def _draft(tmp_path, monkeypatch, name="Nasturtium Pesto", content="## Ingredients\n- 1 cup leaves\n\n## Steps\n1. Blend."):
+    import config
+    import recipe_drafts
+    monkeypatch.setattr(config, "RECIPES_DIR", tmp_path / "recipes")
+    monkeypatch.setattr(recipe_drafts, "root", lambda: tmp_path / "recipes")
+    tools.dispatch("recipe", {"action": "save", "name": name, "content": content})
+    return recipe_drafts.pending()[0]["id"]
+
+
+def test_recipe_review_is_offered_here_but_never_to_the_brain():
+    assert "recipe_review" not in {s["function"]["name"] for s in tools.SCHEMAS}
+    assert listed()["recipe_review"]["inputSchema"]["properties"]["action"]["enum"] == ["pending", "show"]
+
+
+def test_a_draft_is_shown_then_approved_in_chat_and_audited(db, monkeypatch, tmp_path):
+    draft = _draft(tmp_path, monkeypatch)
+    text, err = call("recipe_review", action="show", draft_id=draft)
+    assert not err and "Nasturtium Pesto" in text and "1 cup leaves" in text
+    text, err = call("recipe_review", action="approve", draft_id=draft)
+    assert err and "read-only" in text
+    monkeypatch.setenv("HESTIA_MCP_WRITES", "1")
+    text, err = call("recipe_review", action="approve", draft_id=draft)
+    assert not err and "Approved" in text
+    saved = (tmp_path / "recipes" / "nasturtium-pesto.md").read_text()
+    assert "1 cup leaves" in saved and f"recipe_draft: {draft}" in saved
+    audit = json.loads((tmp_path / "audit.jsonl").read_text().splitlines()[-1])
+    assert audit["tool"] == "recipe_review" and audit["args"]["action"] == "approve"
+
+
+def test_approving_over_a_saved_recipe_needs_replace(db, monkeypatch, tmp_path):
+    monkeypatch.setenv("HESTIA_MCP_WRITES", "1")
+    first = _draft(tmp_path, monkeypatch)
+    assert not call("recipe_review", action="approve", draft_id=first)[1]
+    second = _draft(tmp_path, monkeypatch, content="## Ingredients\n- 2 cups leaves\n\n## Steps\n1. Blend.")
+    assert "replace=true" in call("recipe_review", action="show", draft_id=second)[0]
+    text, err = call("recipe_review", action="approve", draft_id=second)
+    assert err and "exists" in text
+    assert not call("recipe_review", action="approve", draft_id=second, replace=True)[1]
+    assert "2 cups leaves" in (tmp_path / "recipes" / "nasturtium-pesto.md").read_text()
+
+
+def test_recipe_review_rejects_a_malformed_id():
+    text, err = call("recipe_review", action="show", draft_id="../../secrets")
+    assert err and "32-character" in text

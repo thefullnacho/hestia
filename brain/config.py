@@ -87,3 +87,11 @@ def load_secrets() -> None:
     from dotenv import load_dotenv
     for name in _SECRET_FILES:
         load_dotenv(SECRETS_DIR / name)
+
+
+def person() -> str | None:
+    """Who this process acts for, from HESTIA_PERSON (a short lowercase name), or None for the
+    household default. Set per window, e.g. on one person's MCP registration, so a reminder made
+    there reaches that person's phone and the audit log names them. Anything else reads as None."""
+    name = os.environ.get("HESTIA_PERSON", "").strip().lower()
+    return name if name.isascii() and name.replace("_", "").isalnum() and len(name) <= 32 else None
