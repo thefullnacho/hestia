@@ -149,3 +149,30 @@ household words (Moonshine's streaming models take keyterms), and speaking sente
   router's 3,400 examples (38 minutes, cached after) and ran at 71 to 75°C under load.
 - Next: real speech (the household's recordings and the utterance log), and actuation against
   Home Assistant, which needs a decision on how the Pi reaches HA.
+
+## A grammar on the caller (2026-11-03)
+
+Suggested in a reply to the Pi 4 post: constrain the caller with a grammar (or JSON schema) and a
+tight max_tokens to cut sampled tokens. `grammar_probe.py` builds a GBNF grammar from each
+domain's own tool declarations (one call to one of its tools, arguments typed from the
+declaration, in declared order) and runs the 16 action sentences through the cached-slot caller
+three ways, three times each. Each call starts from the bare cached tool prompt, so every mode
+reads the person's words itself. Caller only, no speech.
+
+| Pi 5, caller | median / worst | reading the words | tokens written | per token | same call |
+|---|---|---|---|---|---|
+| As deployed | 0.57 / 0.69 s | 63 ms | 20 | 25 ms | 48/48 |
+| Grammar | 0.58 / 0.69 s | 63 ms | 20 | 25 ms | 48/48 |
+| Grammar + n_predict 48 | 0.58 / 0.69 s | 63 ms | 20 | 25 ms | 48/48 |
+
+No change. The caller already stops at the end of its call, so a tight max_tokens cuts nothing:
+the 20 tokens are the call. A grammar narrows which token can come next, but each token still
+costs one pass through the model, so it doesn't shorten the call either. Where the answer is
+fully determined (the tool name, the escapes) the tokens would have to be appended without a
+model pass to save time, which llama.cpp's grammar doesn't do. The Pi 4 run is next, for the A72
+number the post was about.
+
+Two traps on the way: a first grammar dropped each tool's last argument and let a tool with no
+arguments swallow the next one's, which forced wrong calls (fixed: a brace-matching parser); and
+running the modes back to back let later modes reuse the earlier mode's cached words (fixed: reset
+the slot before each timed call).
