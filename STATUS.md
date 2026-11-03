@@ -7,6 +7,33 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-10-31 to 11-03 - a household member's own Claude window, the daily briefing, and a grammar that trims nothing
+
+- **A household member's Claude window** (`54a066a`, SECURITY.md): the MCP server runs in her
+  Claude Desktop over SSH with writes on and `HESTIA_PERSON` naming her. Her reminders go to her
+  own phone (`REMINDER_NOTIFY_<NAME>`), the audit log records who wrote, and `recipe_review`
+  approves a recipe draft in chat once she has read it. That tool exists only on the MCP server;
+  the brain's model still can't approve. Her HA user and phone are set up, the config is in, and
+  her Claude connected; a fresh-chat test is still to confirm the tools reach it.
+- **The Daily Briefing** (`b19f72b`): no time-of-day greeting, so it reads the same at 16:00.
+- **Phone app spec decisions** (`PHONE-APP.md`): each pilot household runs its own tailnet and
+  shares only the box for service; the box renders prompts and parses tool calls, the phone only
+  runs the model on text.
+- **A grammar on the Lite caller saves nothing** (`exp/small-router` `979df70`, `3e18d28`), asked
+  on X: 0.57 s vs 0.58 s on the Pi 5, 1.82 s either way on the Pi 4, 48/48 identical calls. The
+  cache hits (17 new tokens read); 85% of the caller is writing its 20 tokens at 77 ms each. Next
+  lever: code writes the fixed parts of the call. Backlog: an acknowledgment tone at end of speech.
+- **Search on pilot boxes:** proposed off by default (scraping terms); waits on the pilots' answer.
+- **Next concrete action:** box-only step 1 of `PHONE-APP.md`: route the journal, feed, briefing,
+  note-taker and recipe organizer through `backend.chat()`.
+
+[non-production] Confirm the household member's Claude reaches Hestia in a fresh chat (queued).
+[non-production] Reply to @TermuxSolutions with the decode split (queued).
+[non-production] Friday: pilot homework and the web search question (queued).
+[non-production] Buy the Apple developer account once the deposit lands (queued).
+
+---
+
 ## 2026-10-30 - the phone runs the small brain at 56 tokens a second
 
 - **LFM3 QAD-Q4_0 on the iPhone 17 Pro** (`benchmarks/RESULTS.md`): 1514 t/s reading a prompt,
