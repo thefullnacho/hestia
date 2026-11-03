@@ -169,8 +169,18 @@ No change. The caller already stops at the end of its call, so a tight max_token
 the 20 tokens are the call. A grammar narrows which token can come next, but each token still
 costs one pass through the model, so it doesn't shorten the call either. Where the answer is
 fully determined (the tool name, the escapes) the tokens would have to be appended without a
-model pass to save time, which llama.cpp's grammar doesn't do. The Pi 4 run is next, for the A72
-number the post was about.
+model pass to save time, which llama.cpp's grammar doesn't do.
+
+The Pi 4 (Cortex-A72, the board the post was about), same card, same probe, its own build:
+
+| Pi 4, caller | median / worst | reading the words | tokens written | per token | same call |
+|---|---|---|---|---|---|
+| As deployed | 1.82 / 2.19 s | 258 ms | 20 | 77 ms | 48/48 |
+| Grammar | 1.82 / 2.18 s | 258 ms | 20 | 77 ms | 48/48 |
+| Grammar + n_predict 48 | 1.82 / 2.18 s | 258 ms | 20 | 77 ms | 48/48 |
+
+The same answer on the A72: the grammar costs nothing and saves nothing. It ended at 68 C,
+not throttled.
 
 Two traps on the way: a first grammar dropped each tool's last argument and let a tool with no
 arguments swallow the next one's, which forced wrong calls (fixed: a brace-matching parser); and

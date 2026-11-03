@@ -1,0 +1,6 @@
+16 action sentences x 3 reps, caller only
+
+mode            median s  worst s  read ms  tokens  ms/token  same call
+deployed            1.82     2.19      258      20        77    48/48
+grammar             1.82     2.18      258      20        77    48/48
+grammar+tight       1.82     2.18      258      20        77    48/48
