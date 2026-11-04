@@ -22,6 +22,9 @@ Recorded historical model comparisons do not establish a baseline for this harne
 The dispatcher validates advertised types, enums and action-specific required fields.
 The loop also enforces its selected tool set. Shopping-list clear requires the exact
 user confirmation `confirm clear the shopping list`; the model cannot supply that flag.
+A light switch is held to the person's words (`guards.said_words`): said only "on" or only
+"off", the action must match; named one of the house's light areas, the light must be there.
+A call that contradicts them is not run and goes back to the model, which can call again.
 Tool results carry succeeded/failed/unknown status. Writes return backend receipts,
 including partial or unknown outcomes, instead of trusting a model's success claim.
 When no tool ran at all, a reply that still claims an action ("Reminder #23 set", "imported
@@ -417,8 +420,9 @@ source, and warnings for missing details and suspicious quantities. These checks
 are heuristics, not a guarantee that an extraction is faithful. The human checks
 quantities and steps, edits as needed, and explicitly approves in the browser.
 Only approved Markdown files enter recipe lookup and listing. Chat `save` and
-`import_url` create drafts; the model has no approval tool. Conversational approval
-does not bypass browser review.
+`import_url` create drafts; the brain's model has no approval tool. A household member's own
+Claude window (the MCP server's `recipe_review`) can approve a draft once the person has read it
+there and said yes; nothing in the brain's chat can.
 
 Replacing an existing recipe requires a separate replacement checkbox and an
 unchanged content hash. Previous bytes are retained in `.review/versions`; writes

@@ -2,8 +2,9 @@
 
 The claim guard catches a reply that says something was done when no tool ran ("Reminder #23
 set", "I've saved that"); the loop shows UNDONE_CLAIM instead. The safety referrals add fixed
-lines after library answers on medication doses and on eating wild plants. A bare link gets a
-fixed reply without the model. These stay code
+lines after library answers on medication doses and on eating wild plants. A light switch that
+contradicts the person's own words ("on" turned off, the kitchen when they said outside) is sent
+back. A bare link gets a fixed reply without the model. These stay code
 because they are the check on the model: a model cannot be trusted to grade its own claims.
 """
 from __future__ import annotations
@@ -112,3 +113,32 @@ def library_addendum(answer: str, citations: list, question: str) -> str:
             and not re.search(r"\bin person\b|\bexpert\b|positive(?:ly)? identif", answer, re.I)):
         out.append(EDIBLE_REFERRAL)
     return "\n".join(out)
+
+
+# The words a light command is held to. "Out" is the off of "turn the lights out"; "outside"
+# doesn't match it.
+_SAID_ON = re.compile(r"\bon\b", re.I)
+_SAID_OFF = re.compile(r"\b(?:off|out|kill|cut)\b", re.I)
+
+
+def said_words(name: str, args: dict, user_text: str, areas: list[str]) -> str | None:
+    """A light switch that disagrees with the person's own words is refused, and the refusal
+    tells the model what was said so it can call again. Two checks, each only when the words are
+    unambiguous: someone who said only "on" (or only "off") gets that action, and someone who
+    named one of the house's light areas gets a light in that area. On the phone's path a small
+    model once answered "put on the outside" by turning the kitchen lights off (4 of 315 tries,
+    benchmarks/phone-render/RESULTS.md)."""
+    if name != "home" or args.get("action") not in ("turn_on", "turn_off"):
+        return None
+    on, off = bool(_SAID_ON.search(user_text)), bool(_SAID_OFF.search(user_text))
+    if on != off:
+        said = "turn_on" if on else "turn_off"
+        if args["action"] != said:
+            return (f"Not run: the person said {'on' if on else 'off'}, and this call was "
+                    f"{args['action']}. Call home again with action {said}.")
+    named = [a for a in areas if re.search(rf"\b{re.escape(a)}\b", user_text, re.I)]
+    entity = re.sub(r"[._]", " ", str(args.get("entity_id") or ""))
+    if named and entity and not any(re.search(rf"\b{re.escape(a)}\b", entity, re.I) for a in named):
+        return (f"Not run: the person named {' and '.join(named)}, and {args.get('entity_id')} is "
+                f"not there. Call home again with the {named[0]} light.")
+    return None

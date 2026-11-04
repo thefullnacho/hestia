@@ -556,6 +556,8 @@ async def _agent_loop(messages: list[dict]) -> str:
             if not error and mutation(name, args) and (trace := _trace.get()):
                 if any(a.status == 'unknown' for a in trace.actions):
                     error = 'A previous write has an unknown outcome; further writes were stopped. Check operation status.'
+            if not error:
+                error = guards.said_words(name, args, user_text, tools.home.light_areas())
             if not error and name == 'shopping' and args.get('action') == 'clear':
                 if not re.fullmatch(r"(?:please )?confirm clear (?:the |my )?shopping list[.!]?", user_text.strip(), re.I):
                     error = 'To empty the list, say: confirm clear the shopping list.'
