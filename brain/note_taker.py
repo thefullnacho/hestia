@@ -222,9 +222,15 @@ def _extract(transcript: str) -> str:
     on qwen3:14b that biases the model to emit a single object and drop the other facts in
     the turn, whereas free-form returns the full array. parse_proposals tolerates the prose
     or fences that occasionally come with free-form output."""
-    return backend.complete([{"role": "user", "content": EXTRACT_PROMPT + transcript}], model=MODEL,
-                            temperature=0.1, num_ctx=8192, max_tokens=512, timeout=TIMEOUT,
-                            ollama=OLLAMA)["content"]
+    request = extract_request(transcript)
+    return backend.complete(request["messages"], **request["options"])["content"]
+
+
+def extract_request(transcript: str) -> dict:
+    """The model step as data, so it can run now or wait in model_jobs for a phone."""
+    return {"messages": [{"role": "user", "content": EXTRACT_PROMPT + transcript}],
+            "options": {"model": MODEL, "temperature": 0.1, "num_ctx": 8192, "max_tokens": 512,
+                        "timeout": TIMEOUT, "ollama": OLLAMA}}
 
 
 def run(messages: list[dict], answer: str, extract_fn=None) -> list[str]:
@@ -239,13 +245,22 @@ def run(messages: list[dict], answer: str, extract_fn=None) -> list[str]:
                           if m.get("role") == "user" and m.get("content")), "")
         if len(user_text.strip()) < _MIN_USER_CHARS:
             return []
-        proposals = parse_proposals(extract_fn(_transcript(messages, answer)))
-        written: list[str] = []
-        for p in proposals:
-            if not is_novel(p["content"]):
-                continue
-            written.append(_write_proposal(p))
-        return written
+        transcript = _transcript(messages, answer)
+        if extract_fn is _extract and backend.deferred():
+            import model_jobs
+            model_jobs.enqueue("note", extract_request(transcript), {}, ttl_hours=24 * 7)
+            return []
+        return _record(extract_fn(transcript))
     except Exception as e:  # noqa: BLE001 — background best-effort; log and move on
         print(f"[note-taker] failed: {e}", flush=True)
         return []
+
+
+def _record(raw: str) -> list[str]:
+    """Novel proposals from the model's output, written to the review inbox. Never to memory."""
+    return [_write_proposal(p) for p in parse_proposals(raw) if is_novel(p["content"])]
+
+
+def finish(raw: str, context: dict) -> None:
+    """model_jobs finisher: a phone has read a queued exchange; propose what it found."""
+    _record(raw)

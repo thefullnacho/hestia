@@ -182,10 +182,17 @@ def build_facts(now: dt.datetime | None = None) -> list[str]:
 
 # ---------- narration (the model phrases; it never computes) ----------
 
+def narrate_request(facts: list[str]) -> dict:
+    """The model step as data, so it can run now or wait in model_jobs for a phone."""
+    return {"messages": [{"role": "user", "content": NARRATE_PROMPT + "\n".join(f"- {f}" for f in facts)}],
+            "options": {"model": MODEL, "temperature": 0.3,
+                        "num_ctx": int(os.environ.get("HESTIA_NUM_CTX", "32768")),
+                        "max_tokens": 768, "timeout": TIMEOUT}}
+
+
 def narrate(facts: list[str]) -> str:
-    out = backend.complete([{"role": "user", "content": NARRATE_PROMPT + "\n".join(f"- {f}" for f in facts)}],
-                           model=MODEL, temperature=0.3, num_ctx=int(os.environ.get("HESTIA_NUM_CTX", "32768")),
-                           max_tokens=768, timeout=TIMEOUT)
+    request = narrate_request(facts)
+    out = backend.complete(request["messages"], **request["options"])
     text = out["content"].strip()
     if not text:
         raise ValueError("empty narration")
@@ -196,6 +203,14 @@ def narrate(facts: list[str]) -> str:
 
 def fallback_text(facts: list[str]) -> str:
     return "\n".join(f"• {f}" for f in facts)
+
+
+def finish(text: str, context: dict) -> None:
+    """model_jobs finisher: a phone has worded a queued briefing; store it for the app."""
+    text = text.strip()
+    if not text:
+        raise ValueError("empty narration")
+    briefing_store.update_narration(context["identifier"], text, MODEL)
 
 
 # ---------- delivery ----------
@@ -215,6 +230,8 @@ def main() -> int:
     collected_at = dt.datetime.now().astimezone().isoformat()
     facts = build_facts()
     narration = "raw" if raw else "model"
+    if not raw and not dry_run and backend.deferred():
+        return queue_for_phone(facts, collected_at)
     if raw:
         text = fallback_text(facts)
     else:
@@ -267,6 +284,20 @@ def main() -> int:
     print(f"briefing: generated id={identifier or 'unsaved'} delivery={delivery}")
     return 1 if archive_failed or delivery["push"]["status"] == "unknown" else 0
 
+
+
+def queue_for_phone(facts: list[str], collected_at: str) -> int:
+    """The model is on a phone: keep today's facts with their plain wording now, and queue the
+    narration. The app shows the plain version until a phone has worded it. The push that says
+    a briefing is waiting comes with the app's notifications (PHONE-APP.md)."""
+    import model_jobs
+    delivery = {"push": {"status": "waiting for the app"}, "voice": {"status": "disabled"}}
+    identifier = briefing_store.create(facts, fallback_text(facts), None, "queued", delivery,
+                                       collected_at=collected_at)
+    job = model_jobs.enqueue("briefing", narrate_request(facts), {"identifier": identifier},
+                             key="briefing", ttl_hours=24)
+    print(f"briefing: id={identifier} saved with plain wording; narration queued as job #{job}")
+    return 0
 
 
 if __name__ == "__main__":

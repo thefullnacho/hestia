@@ -76,8 +76,8 @@ note-taker and recipe organizer used to post to Ollama directly; since 2026-11-0
 through `backend.complete()` (no tools), so every model call in the brain passes one door.
 
 One catch for the phone: the timed jobs run as their own processes, but the phone's socket is
-held by the brain's process. A job can't reach the phone itself. In phone mode its model step
-goes through the brain, which queues it until a phone connects (next section).
+held by the brain's process. A job can't reach the phone itself. In phone mode it writes its
+model step to a queue in `hestia.db`, which the brain drains when a phone connects (next section).
 
 ## Work that waits for a phone
 
@@ -92,9 +92,17 @@ you ask. Model work that a timer starts has to wait:
 | Journal | 23:45 timer | Off for pilots at first; it is a homestead diary |
 | Recipe organizer | On import, in the app | Runs immediately; the phone is connected |
 
-A small table on the box holds the queued model work (kind, payload, created). When a phone
-connects, the box drains it oldest first, with chat turns always ahead of queued jobs. Nothing
-deterministic moves: reminders, thresholds, watchers and backups run as they do now.
+Built 2026-11-04 (`brain/model_jobs.py`). With `HESTIA_BACKEND=phone` a job does everything
+code can do on time, then writes its model request to the `model_jobs` table in `hestia.db`
+with what it needs to finish. The jobs and the brain share that database, so no extra hop is
+needed. When a model is reachable the brain drains the queue oldest first: it runs each request
+and hands the answer to that kind's finisher, which does exactly what the job would have done
+with it (word the stored briefing, save the feed picks, propose the note-taker's facts). A newer
+briefing or feed ranking replaces a waiting one; note-taker work waits up to a week; anything
+past its expiry is dropped, not delivered stale. A failed run waits for the next drain, three
+tries in all. In phone mode a direct model call fails loudly instead of reaching for a server
+that isn't there; the journal then writes its plain-facts entry, as it does when the model is
+down.
 
 A box with no phone connected answers a model request the way the brain answers a down Ollama
 today: a clear message, not a hang. A CPU model on the box as a fallback is possible but
@@ -161,8 +169,8 @@ on the public internet.
 ## Build order
 
 1. **Box only, no phone:** route every model call through `backend.py` (done 2026-11-04: `chat()`
-   for turns, `complete()` for everything else); the queued-work table, which the jobs reach
-   through the brain; the prompt renderer and LFM3 tool-call parser, tested for exact parity against
+   for turns, `complete()` for everything else); the queued-work table (done 2026-11-04:
+   `model_jobs.py`, drained by the brain once step 2 gives it a phone); the prompt renderer and LFM3 tool-call parser, tested for exact parity against
    llama-server.
 2. **The phone engine:** app with llama.cpp, the socket, the device token, the web view. Gate:
    the held-out suite run through the phone backend lands on 91.1%, within run-to-run noise.

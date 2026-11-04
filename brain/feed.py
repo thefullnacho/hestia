@@ -245,9 +245,16 @@ def build_prompt(person: dict, cands: list[dict], liked: list[dict], disliked: l
                               candidates="\n\n".join(blocks))
 
 
+def rank_request(prompt: str) -> dict:
+    """The model step as data, so it can run now or wait in model_jobs for a phone."""
+    return {"messages": [{"role": "user", "content": prompt}],
+            "options": {"model": MODEL, "temperature": 0.2, "num_ctx": NUM_CTX,
+                        "json_format": "json", "timeout": TIMEOUT}}
+
+
 def ask_model(prompt: str) -> str:
-    return backend.complete([{"role": "user", "content": prompt}], model=MODEL, temperature=0.2,
-                            num_ctx=NUM_CTX, json_format="json", timeout=TIMEOUT)["content"]
+    request = rank_request(prompt)
+    return backend.complete(request["messages"], **request["options"])["content"]
 
 
 def parse_picks(raw: str, cands: list[dict]) -> list[dict]:
@@ -314,21 +321,39 @@ def run_person(person: dict, day: dt.date, client: httpx.Client, *, dry: bool = 
         return 0
     prompt = build_prompt(person, cands, feed_store.reactions(person["id"], "heart"),
                           feed_store.reactions(person["id"], "nope"))
+    if not dry and backend.deferred():
+        import model_jobs
+        job = model_jobs.enqueue("feed", rank_request(prompt),
+                                 {"person": person["id"], "day": day.isoformat(), "cands": cands},
+                                 key=person["id"], ttl_hours=24)
+        print(f"feed: {person['id']}: {len(cands)} candidates; ranking queued as job #{job}")
+        return 0
     picks = parse_picks(ask_model(prompt), cands)
     if dry:
         print(f"feed (dry-run) {person['id']}: {len(cands)} candidates, {len(picks)} picks")
         for p in picks:
             print(f"  - {p['title']} ({p['source']})\n    {p['why']}")
         return len(picks)
+    return save_picks(person["id"], day.isoformat(), picks, len(cands), client)
+
+
+def save_picks(person_id: str, day: str, picks: list[dict], n_cands: int, client: httpx.Client) -> int:
     if not picks:
-        print(f"feed: {person['id']}: model picked nothing; keeping the last set")
+        print(f"feed: {person_id}: model picked nothing; keeping the last set")
         return 0
     img_dir = config.FEED_DIR / "img"
     for p in picks:
         p["image"] = cache_image(client, p.get("image_url", ""), img_dir)
-    n = feed_store.save_day(person["id"], day.isoformat(), picks)
-    print(f"feed: {person['id']}: {n} picks from {len(cands)} candidates")
+    n = feed_store.save_day(person_id, day, picks)
+    print(f"feed: {person_id}: {n} picks from {n_cands} candidates")
     return n
+
+
+def finish(raw: str, context: dict) -> None:
+    """model_jobs finisher: a phone has ranked a queued night's candidates; keep the picks."""
+    picks = parse_picks(raw, context["cands"])
+    with httpx.Client(headers={"User-Agent": search._UA}, timeout=10) as client:
+        save_picks(context["person"], context["day"], picks, len(context["cands"]), client)
 
 
 def main() -> int:

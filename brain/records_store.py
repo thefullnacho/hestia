@@ -81,6 +81,20 @@ CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
 CREATE INDEX IF NOT EXISTS idx_events_kind ON events(kind);
 CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name);
 CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(due_at);
+CREATE TABLE IF NOT EXISTS model_jobs (
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL,              -- which finisher takes the answer (model_jobs.FINISHERS)
+  key TEXT,                        -- a newer job with the same kind+key replaces a waiting one
+  request TEXT NOT NULL,           -- JSON: messages and completion options
+  context TEXT NOT NULL,           -- JSON: what the finisher needs besides the answer
+  status TEXT NOT NULL,            -- pending, done, failed, superseded, expired
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  finished_at TEXT,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_model_jobs_status ON model_jobs(status, created_at);
 """
 
 

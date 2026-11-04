@@ -165,6 +165,8 @@ async def openai_chat(messages: list[dict], schemas: list | None = None) -> dict
 
 async def chat(messages: list[dict], schemas: list | None = None) -> dict:
     """Backend dispatch: Ollama native or OpenAI-compatible. Same contract."""
+    if deferred():
+        raise RuntimeError("the phone backend is not built yet (PHONE-APP.md, step 2)")
     if BACKEND == "openai":
         return await openai_chat(messages, schemas)
     return await ollama_chat(messages, schemas)
@@ -241,6 +243,12 @@ async def ollama_chat(messages: list[dict], schemas: list | None = None) -> dict
     return payload["message"]
 
 
+def deferred() -> bool:
+    """True when the model lives on a phone that may not be connected (HESTIA_BACKEND=phone).
+    Jobs then queue their model step in model_jobs instead of calling complete()."""
+    return BACKEND == "phone"
+
+
 # --- completions outside a chat turn ------------------------------------------------------------
 # The timed jobs (briefing, journal, feed), the note-taker and the recipe organizer ask the model
 # for text with no tools. They used to post to Ollama themselves; they come through here now, so a
@@ -251,6 +259,8 @@ def _completion_request(messages: list[dict], *, model: str | None, temperature:
     """The path and body for one no-tools completion on the configured backend. `json_format` is
     None, "json", or a JSON schema. In OpenAI mode the server's own model answers (OPENAI_MODEL);
     context size and thinking are Ollama settings and are left out."""
+    if deferred():
+        raise RuntimeError("the model is on a phone: queue this request in model_jobs")
     if BACKEND == "openai":
         body = {"model": OPENAI_MODEL, "messages": messages, "stream": False, "temperature": temperature}
         if max_tokens:

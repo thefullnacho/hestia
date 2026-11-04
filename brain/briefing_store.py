@@ -46,6 +46,18 @@ def update_delivery(identifier, delivery):
         conn.execute('UPDATE briefings SET payload=? WHERE id=?', (json.dumps(entry), identifier))
 
 
+def update_narration(identifier, text, model):
+    """A queued briefing gets its model wording once a phone has written it."""
+    with closing(_connect()) as conn, conn:
+        row = conn.execute('SELECT payload FROM briefings WHERE id=?', (identifier,)).fetchone()
+        if row is None:
+            raise ValueError('Unknown briefing id')
+        entry = json.loads(row[0])
+        entry.update(text=text, model=model, narration='model',
+                     narrated_at=dt.datetime.now().astimezone().isoformat())
+        conn.execute('UPDATE briefings SET payload=? WHERE id=?', (json.dumps(entry), identifier))
+
+
 def recent(limit=30, day=None):
     if not _path().exists():
         return []
