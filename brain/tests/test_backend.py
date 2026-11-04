@@ -85,3 +85,48 @@ def test_nothing_else_in_the_brain_posts_to_a_model_server():
         text = path.read_text()
         # The endpoint as a string literal ends in a quote; prose naming it in a docstring doesn't.
         assert not re.search(r"/api/(?:chat|generate)['\"]", text), path.name
+
+
+TEMPLATE = ("{{ bos_token }}{% for m in messages %}<{{ m.role }}>{{ m.content }}{% if m.tool_calls %}"
+            "{% for c in m.tool_calls %}[{{ c.function.name }}]{% endfor %}{% endif %}</>{% endfor %}"
+            "{% if tools %}{{ tools | length }} tools{% endif %}<assistant>")
+
+
+@pytest.fixture
+def text_mode(monkeypatch, tmp_path):
+    path = tmp_path / "template.jinja"
+    path.write_text(TEMPLATE)
+    monkeypatch.setattr(backend, "BACKEND", "completion")
+    monkeypatch.setattr(backend, "CHAT_TEMPLATE", str(path))
+    monkeypatch.setattr(backend, "BOS_TOKEN", "<s>")
+    backend._template_text.clear()
+
+
+def test_the_completion_backend_renders_sends_text_and_reads_the_call(text_mode, monkeypatch):
+    sent = []
+
+    class Client:
+        async def post(self, path, json):
+            sent.append((path, json))
+            return _Response({"content": "<tool_call>\n<function=home>\n<parameter=action>\nturn_off\n"
+                                         "</parameter>\n</function>\n</tool_call>", "tokens_predicted": 9})
+
+    monkeypatch.setattr(backend, "completion_client", Client())
+    schemas = [{"type": "function", "function": {"name": "home", "parameters": {"properties": {"action": {"type": "string"}}}}}]
+    msg = asyncio.run(backend.chat([{"role": "user", "content": "lights off"}], schemas))
+    path, body = sent[0]
+    assert path == "/completion" and body["prompt"] == "<s><user>lights off</>1 tools<assistant>"
+    assert body["stop"] == [backend.EOS_TOKEN]
+    assert msg["tool_calls"] == [{"function": {"name": "home", "arguments": {"action": "turn_off"}}}]
+
+
+def test_completion_mode_jobs_render_without_tools_and_report_the_cap(text_mode, sent):
+    def post(url, **kwargs):
+        sent.append((url, kwargs["json"]))
+        return _Response({"content": "{}", "stop_type": "limit"})
+    backend.httpx.post = post
+    out = backend.complete([{"role": "user", "content": "rank"}], json_format="json", max_tokens=32)
+    url, body = sent[0]
+    assert url.endswith("/completion") and body["prompt"] == "<s><user>rank</><assistant>"
+    assert body["json_schema"] == {"type": "object"} and body["n_predict"] == 32
+    assert out == {"content": "{}", "truncated": True}

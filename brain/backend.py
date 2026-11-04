@@ -35,6 +35,14 @@ NUM_CTX = int(os.environ.get("HESTIA_NUM_CTX", "32768"))
 # qwen3 thinking mode: off by default (fast, no eval gain). HESTIA_THINK=1 to enable.
 THINK = os.environ.get("HESTIA_THINK", "0") not in ("0", "", "false", "False")
 OUTPUT_TOKENS = int(os.environ.get("HESTIA_OUTPUT_TOKENS", "768"))
+# "completion": the box renders the prompt with the model's chat template and sends plain text
+# to a llama.cpp-style /completion endpoint, then reads the tool calls back out (chat_format.py).
+# The phone backend does the same over its socket; this runs it against a llama-server on the
+# box so the phone's exact path can be measured before the phone exists.
+COMPLETION_BASE = os.environ.get("HESTIA_COMPLETION_BASE", "http://127.0.0.1:8080").rstrip("/")
+CHAT_TEMPLATE = os.environ.get("HESTIA_CHAT_TEMPLATE", "")   # path to the model's chat template
+BOS_TOKEN = os.environ.get("HESTIA_BOS_TOKEN", "")
+EOS_TOKEN = os.environ.get("HESTIA_EOS_TOKEN", "<|im_end|>")
 
 # The turn in progress (hestia.TurnTrace) and, for a streaming client, where text goes. Set by
 # the agent loop; read here for the model name, the repair tool, streaming and token counts.
@@ -42,6 +50,7 @@ turn_trace: ContextVar[object] = ContextVar("turn_trace", default=None)
 stream_sink: ContextVar[object] = ContextVar("stream_sink", default=None)
 
 client = httpx.AsyncClient(base_url=OLLAMA, timeout=httpx.Timeout(300.0, connect=10.0))
+completion_client = httpx.AsyncClient(base_url=COMPLETION_BASE, timeout=httpx.Timeout(300.0, connect=10.0))
 oai_client = httpx.AsyncClient(
     base_url=OPENAI_BASE,
     headers={"Authorization": f"Bearer {OPENAI_KEY}"},
@@ -167,6 +176,8 @@ async def chat(messages: list[dict], schemas: list | None = None) -> dict:
     """Backend dispatch: Ollama native or OpenAI-compatible. Same contract."""
     if deferred():
         raise RuntimeError("the phone backend is not built yet (PHONE-APP.md, step 2)")
+    if BACKEND == "completion":
+        return await text_chat(messages, schemas)
     if BACKEND == "openai":
         return await openai_chat(messages, schemas)
     return await ollama_chat(messages, schemas)
@@ -249,6 +260,60 @@ def deferred() -> bool:
     return BACKEND == "phone"
 
 
+
+_template_text: dict[str, str] = {}
+
+
+def chat_template() -> str:
+    """The model's chat template, read once from HESTIA_CHAT_TEMPLATE."""
+    if not CHAT_TEMPLATE:
+        raise RuntimeError("HESTIA_CHAT_TEMPLATE is not set: the completion backend needs the model's template")
+    if CHAT_TEMPLATE not in _template_text:
+        with open(CHAT_TEMPLATE, encoding="utf-8") as f:
+            _template_text[CHAT_TEMPLATE] = f.read()
+    return _template_text[CHAT_TEMPLATE]
+
+
+async def text_chat(messages: list[dict], schemas: list | None = None) -> dict:
+    """The phone's path, run against a llama.cpp /completion endpoint: render, generate, parse.
+    Same contract as ollama_chat. A repair asks for the argument object under a JSON schema."""
+    import chat_format
+    trace = turn_trace.get()
+    offered = tools.SCHEMAS if schemas is None else schemas
+    repair = trace.repair_tool if trace else ''
+    if trace:
+        trace.repair_tool = ''
+    schema = next((s['function']['parameters'] for s in offered
+                   if s['function']['name'] == repair), None) if repair else None
+    body = {"n_predict": OUTPUT_TOKENS, "temperature": 0.3, "stop": [EOS_TOKEN], "cache_prompt": True}
+    if schema is not None:
+        convo = [*messages, {'role': 'system', 'content':
+            f'Return only the JSON argument object for the {repair} tool, matching the supplied schema. '
+            'The harness will validate it before execution. Do not claim completion. '
+            'Omit optional fields the user did not specify, especially location and timestamps. '
+            'For events today or now, omit ts so the datastore supplies its own clock. '
+            'Choose the event kind from its meaning (health, chore, sighting, or note). '
+            'Argument schema: ' + json.dumps(schema)}]
+        body.update(prompt=chat_format.render(convo, [], chat_template(), bos_token=BOS_TOKEN, eos_token=EOS_TOKEN),
+                    temperature=0, json_schema=schema)
+    else:
+        body["prompt"] = chat_format.render(messages, offered, chat_template(), bos_token=BOS_TOKEN,
+                                            eos_token=EOS_TOKEN)
+    r = await completion_client.post("/completion", json=body)
+    r.raise_for_status()
+    payload = r.json()
+    if trace:
+        trace.model_calls += 1
+        trace.prompt_tokens += payload.get("tokens_evaluated", 0)
+        trace.completion_tokens += payload.get("tokens_predicted", 0)
+    text = payload.get("content") or ""
+    if schema is not None:
+        try:
+            return {'content': '', 'tool_calls': [{'function': {'name': repair, 'arguments': json.loads(text)}}]}
+        except (ValueError, TypeError):
+            return {'content': ''}
+    return chat_format.parse(text, offered)
+
 # --- completions outside a chat turn ------------------------------------------------------------
 # The timed jobs (briefing, journal, feed), the note-taker and the recipe organizer ask the model
 # for text with no tools. They used to post to Ollama themselves; they come through here now, so a
@@ -261,6 +326,13 @@ def _completion_request(messages: list[dict], *, model: str | None, temperature:
     context size and thinking are Ollama settings and are left out."""
     if deferred():
         raise RuntimeError("the model is on a phone: queue this request in model_jobs")
+    if BACKEND == "completion":
+        import chat_format
+        body = {"prompt": chat_format.render(messages, [], chat_template(), bos_token=BOS_TOKEN, eos_token=EOS_TOKEN),
+                "temperature": temperature, "stop": [EOS_TOKEN], "n_predict": max_tokens or OUTPUT_TOKENS}
+        if json_format:
+            body["json_schema"] = {"type": "object"} if json_format == "json" else json_format
+        return "/completion", body
     if BACKEND == "openai":
         body = {"model": OPENAI_MODEL, "messages": messages, "stream": False, "temperature": temperature}
         if max_tokens:
@@ -282,7 +354,9 @@ def _completion_request(messages: list[dict], *, model: str | None, temperature:
 
 
 def _completion_result(payload: dict) -> dict:
-    """{"content", "truncated"} from either wire format. Truncated means the output cap cut it off."""
+    """{"content", "truncated"} from any wire format. Truncated means the output cap cut it off."""
+    if BACKEND == "completion":
+        return {"content": payload.get("content") or "", "truncated": payload.get("stop_type") == "limit"}
     if BACKEND == "openai":
         choice = (payload.get("choices") or [{}])[0]
         return {"content": (choice.get("message") or {}).get("content") or "",
@@ -298,7 +372,9 @@ def complete(messages: list[dict], *, model: str | None = None, temperature: flo
     `ollama` overrides the Ollama address for one caller (the note-taker can run elsewhere)."""
     path, body = _completion_request(messages, model=model, temperature=temperature, num_ctx=num_ctx,
                                      max_tokens=max_tokens, json_format=json_format)
-    if BACKEND == "openai":
+    if BACKEND == "completion":
+        r = httpx.post(COMPLETION_BASE + path, json=body, timeout=timeout)
+    elif BACKEND == "openai":
         r = httpx.post(OPENAI_BASE + path, json=body, headers={"Authorization": f"Bearer {OPENAI_KEY}"},
                        timeout=timeout)
     else:
@@ -312,6 +388,6 @@ async def acomplete(messages: list[dict], *, model: str | None = None, temperatu
     """complete() for callers already on the brain's event loop (the recipe organizer)."""
     path, body = _completion_request(messages, model=model, temperature=temperature, num_ctx=num_ctx,
                                      max_tokens=max_tokens, json_format=json_format)
-    r = await (oai_client if BACKEND == "openai" else client).post(path, json=body)
+    r = await {"openai": oai_client, "completion": completion_client}.get(BACKEND, client).post(path, json=body)
     r.raise_for_status()
     return _completion_result(r.json())
