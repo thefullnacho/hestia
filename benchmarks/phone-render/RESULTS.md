@@ -55,3 +55,20 @@ commands is the fix to try.
 
 A first check pass with thinking on (no `--reasoning off`) scored 85.7%, every miss a turn with no
 light call: the thinking used up the output cap before the call was written, as on 2026-10-29.
+
+## Holding light switches to the person's words (same day)
+
+`guards.said_words` sends back a switch whose action contradicts an unambiguous "on" or "off", or
+whose light isn't in the area the person named; the model can call again. Same suite, K=5:
+
+| | exact | the misses |
+|---|---|---|
+| Phone path, before | 292/315 = 92.7% | 11 no call, 8 unresolved light, 4 wrong action |
+| **Phone path, with the check** | 290/315 = 92.1% | **25 no call** |
+| Gemma 4 12B (Ollama), with the check | 291/315 = 92.4% | 24 no call |
+
+The score holds within run-to-run noise, and the misses change kind: none switched a wrong light
+or the wrong way (the kitchen was switched 0 times; before, 4 tries turned it off for "put on
+the outside"). A refused call the model doesn't fix on its retry ends the turn with "I haven't
+completed the requested action", so a miss now does nothing instead of the wrong thing. Gemma
+lands where it was (92.1% recorded), so the check costs the resident nothing.
