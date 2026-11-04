@@ -17,18 +17,18 @@ import datetime as dt
 import os
 import sys
 
-import httpx
 
 import config
 
 config.load_secrets()
+
+import backend  # noqa: E402  (after secrets: it loads the tools)
 import pest_watch                      # noqa: E402 — season GDD for the daily stamp
 import records_store                   # noqa: E402
 import garden_watch                    # noqa: E402
 import daily_facts                     # noqa: E402 — shared scheduled-workflow collectors
 from tools import weather              # noqa: E402
 
-OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
 MODEL = os.environ.get("HESTIA_JOURNAL_MODEL") or os.environ.get("HESTIA_MODEL", "gemma4:12b")
 TIMEOUT = float(os.environ.get("HESTIA_JOURNAL_TIMEOUT", "60"))
 JOURNAL_DIR = config.DATA_DIR / "journal"
@@ -104,14 +104,9 @@ def build_facts(now: dt.datetime | None = None) -> list[str]:
 
 
 def narrate(facts: list[str]) -> str:
-    body = {"model": MODEL,
-            "messages": [{"role": "user",
-                          "content": NARRATE_PROMPT + "\n".join(f"- {f}" for f in facts)}],
-            "stream": False, "think": False,
-            "options": {"temperature": 0.4}}
-    r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=TIMEOUT)
-    r.raise_for_status()
-    text = (r.json().get("message", {}).get("content", "") or "").strip()
+    out = backend.complete([{"role": "user", "content": NARRATE_PROMPT + "\n".join(f"- {f}" for f in facts)}],
+                           model=MODEL, temperature=0.4, timeout=TIMEOUT)
+    text = out["content"].strip()
     if not text:
         raise ValueError("empty narration")
     return text

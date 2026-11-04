@@ -30,10 +30,11 @@ import httpx
 import config
 
 config.load_secrets()
+
+import backend  # noqa: E402  (after secrets: it loads the tools)
 import feed_store                      # noqa: E402
 from tools import search               # noqa: E402 — SearXNG address + the public-only guard
 
-OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
 MODEL = os.environ.get("HESTIA_FEED_MODEL") or os.environ.get("HESTIA_MODEL", "gemma4:12b")
 TIMEOUT = float(os.environ.get("HESTIA_FEED_TIMEOUT", "180"))
 # Twenty-odd candidates run to roughly 8k tokens, past Ollama's small default window, and
@@ -245,12 +246,8 @@ def build_prompt(person: dict, cands: list[dict], liked: list[dict], disliked: l
 
 
 def ask_model(prompt: str) -> str:
-    body = {"model": MODEL, "messages": [{"role": "user", "content": prompt}],
-            "stream": False, "think": False, "format": "json",
-            "options": {"temperature": 0.2, "num_ctx": NUM_CTX}}
-    r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=TIMEOUT)
-    r.raise_for_status()
-    return r.json().get("message", {}).get("content", "") or ""
+    return backend.complete([{"role": "user", "content": prompt}], model=MODEL, temperature=0.2,
+                            num_ctx=NUM_CTX, json_format="json", timeout=TIMEOUT)["content"]
 
 
 def parse_picks(raw: str, cands: list[dict]) -> list[dict]:

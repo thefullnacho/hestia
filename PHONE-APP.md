@@ -71,10 +71,13 @@ turns with llama-server on the GPU box and compare the prompt text and parsed ca
 ## backend.py gets a third backend
 
 `backend.chat()` already picks Ollama or an OpenAI-compatible server. The phone becomes
-`HESTIA_BACKEND=phone`: render, send down the socket, parse. Prerequisite, found while writing
-this: **the timed jobs don't go through backend.py.** `journal.py`, `feed.py`, `briefing.py`,
-`note_taker.py` and the recipe organizer each post to Ollama directly. They move onto
-`backend.chat()` first, or they never reach the phone.
+`HESTIA_BACKEND=phone`: render, send down the socket, parse. The journal, feed, briefing,
+note-taker and recipe organizer used to post to Ollama directly; since 2026-11-04 they come
+through `backend.complete()` (no tools), so every model call in the brain passes one door.
+
+One catch for the phone: the timed jobs run as their own processes, but the phone's socket is
+held by the brain's process. A job can't reach the phone itself. In phone mode its model step
+goes through the brain, which queues it until a phone connects (next section).
 
 ## Work that waits for a phone
 
@@ -157,8 +160,9 @@ on the public internet.
 
 ## Build order
 
-1. **Box only, no phone:** route every model call through `backend.chat()`; the queued-work
-   table; the prompt renderer and LFM3 tool-call parser, tested for exact parity against
+1. **Box only, no phone:** route every model call through `backend.py` (done 2026-11-04: `chat()`
+   for turns, `complete()` for everything else); the queued-work table, which the jobs reach
+   through the brain; the prompt renderer and LFM3 tool-call parser, tested for exact parity against
    llama-server.
 2. **The phone engine:** app with llama.cpp, the socket, the device token, the web view. Gate:
    the held-out suite run through the phone backend lands on 91.1%, within run-to-run noise.

@@ -36,7 +36,7 @@ bulk-touched. Control those one at a time, by name.
 | Path | What |
 |---|---|
 | `brain/hestia.py` | FastAPI app, `POST /v1/chat/completions`, the agent loop, `/v1/threads`, the model-free `/today` |
-| `brain/backend.py` | The model calls: Ollama's native API or any OpenAI-compatible server (`HESTIA_BACKEND`), one contract. A new place to run the model is a new backend here |
+| `brain/backend.py` | The only door to a model server: `chat()` for turns with tools, `complete()`/`acomplete()` for text without (the timed jobs, note-taker, recipe organizer). Ollama's native API or any OpenAI-compatible server (`HESTIA_BACKEND`). A new place to run the model is a new backend here; a test fails if another module posts to a model server |
 | `brain/guards.py` | Code's checks on the model's words: the claim guard ("done" with no tool run) and the medication and wild-food referrals. These stay code; never hand them to a model |
 | `brain/routing.py` | Which tools and context a turn gets: skills, garden focus, intent words, explicit commands. English keywords, no model, no network. A learned router would replace this module |
 | `brain/tools/` | One module per scoped tool: calendar, goals, home, library, media, memory, records, recipe, reminder, search, shopping, status, weather. `skill.py` dispatches skill packs |

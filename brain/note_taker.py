@@ -20,8 +20,8 @@ import json
 import os
 import re
 
-import httpx
 
+import backend
 import config
 import memory_store
 
@@ -222,13 +222,9 @@ def _extract(transcript: str) -> str:
     on qwen3:14b that biases the model to emit a single object and drop the other facts in
     the turn, whereas free-form returns the full array. parse_proposals tolerates the prose
     or fences that occasionally come with free-form output."""
-    body = {"model": MODEL,
-            "messages": [{"role": "user", "content": EXTRACT_PROMPT + transcript}],
-            "stream": False, "think": False,
-            "options": {"temperature": 0.1, "num_ctx": 8192, "num_predict": 512}}
-    r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=TIMEOUT)
-    r.raise_for_status()
-    return r.json().get("message", {}).get("content", "") or ""
+    return backend.complete([{"role": "user", "content": EXTRACT_PROMPT + transcript}], model=MODEL,
+                            temperature=0.1, num_ctx=8192, max_tokens=512, timeout=TIMEOUT,
+                            ollama=OLLAMA)["content"]
 
 
 def run(messages: list[dict], answer: str, extract_fn=None) -> list[str]:

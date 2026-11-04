@@ -22,6 +22,8 @@ import httpx
 import config  # puts brain/ on sys.path + owns paths
 
 config.load_secrets()
+
+import backend  # noqa: E402  (after secrets: it loads the tools)
 import garden_watch                    # noqa: E402 — reuse soil_beds + build_alerts
 import ha_announce                     # noqa: E402 — one Assist-satellite delivery path
 import records_store                   # noqa: E402
@@ -36,7 +38,6 @@ HA_URL = os.environ.get("HA_URL", "http://hl-relay:8124").rstrip("/")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
 NOTIFY = os.environ.get("BRIEFING_NOTIFY",
                         os.environ.get("GARDEN_NOTIFY", "mobile_app_alexs_iphone"))
-OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434")
 MODEL = os.environ.get("HESTIA_MODEL") or os.environ.get("HESTIA_BRIEFING_MODEL", "gemma4:12b")
 ANNOUNCE = os.environ.get("HESTIA_BRIEFING_ANNOUNCE", "1") not in ("0", "", "false", "False")
 TIMEOUT = float(os.environ.get("HESTIA_BRIEFING_TIMEOUT", "60"))
@@ -182,19 +183,13 @@ def build_facts(now: dt.datetime | None = None) -> list[str]:
 # ---------- narration (the model phrases; it never computes) ----------
 
 def narrate(facts: list[str]) -> str:
-    body = {"model": MODEL,
-            "messages": [{"role": "user",
-                          "content": NARRATE_PROMPT + "\n".join(f"- {f}" for f in facts)}],
-            "stream": False, "think": False,
-            "options": {"temperature": 0.3,
-                        "num_ctx": int(os.environ.get("HESTIA_NUM_CTX", "32768")),
-                        "num_predict": 768}}
-    r = httpx.post(f"{OLLAMA}/api/chat", json=body, timeout=TIMEOUT)
-    r.raise_for_status()
-    text = (r.json().get("message", {}).get("content", "") or "").strip()
+    out = backend.complete([{"role": "user", "content": NARRATE_PROMPT + "\n".join(f"- {f}" for f in facts)}],
+                           model=MODEL, temperature=0.3, num_ctx=int(os.environ.get("HESTIA_NUM_CTX", "32768")),
+                           max_tokens=768, timeout=TIMEOUT)
+    text = out["content"].strip()
     if not text:
         raise ValueError("empty narration")
-    if r.json().get("done_reason") == "length":
+    if out["truncated"]:
         raise ValueError("truncated narration")
     return text
 

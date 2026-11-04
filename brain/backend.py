@@ -1,9 +1,11 @@
-"""The brain's model calls: one contract, two wire formats.
+"""The brain's model calls: one door, two wire formats.
 
 chat() sends a conversation and the offered tool schemas to the configured backend and returns
 {"role", "content", "tool_calls"} with arguments as dicts. Ollama's native /api/chat is the
 default; HESTIA_BACKEND=openai speaks OpenAI-compatible /v1/chat/completions instead (llama-server,
-mlx_lm.server). The agent loop in hestia.py owns everything else: prompts, tools, guards.
+mlx_lm.server). complete() and acomplete() are the same door for text with no tools: the timed
+jobs, the note-taker and the recipe organizer. Nothing else in the brain talks to a model server.
+The agent loop in hestia.py owns everything else: prompts, tools, guards.
 """
 from __future__ import annotations
 
@@ -237,3 +239,69 @@ async def ollama_chat(messages: list[dict], schemas: list | None = None) -> dict
             return {'content': ''}
         return {'content': '', 'tool_calls': [{'function': {'name': repair, 'arguments': args}}]}
     return payload["message"]
+
+
+# --- completions outside a chat turn ------------------------------------------------------------
+# The timed jobs (briefing, journal, feed), the note-taker and the recipe organizer ask the model
+# for text with no tools. They used to post to Ollama themselves; they come through here now, so a
+# new place to run the model (the phone) is a change to this module alone.
+
+def _completion_request(messages: list[dict], *, model: str | None, temperature: float,
+                        num_ctx: int | None, max_tokens: int | None, json_format) -> tuple[str, dict]:
+    """The path and body for one no-tools completion on the configured backend. `json_format` is
+    None, "json", or a JSON schema. In OpenAI mode the server's own model answers (OPENAI_MODEL);
+    context size and thinking are Ollama settings and are left out."""
+    if BACKEND == "openai":
+        body = {"model": OPENAI_MODEL, "messages": messages, "stream": False, "temperature": temperature}
+        if max_tokens:
+            body["max_tokens"] = max_tokens
+        if json_format == "json":
+            body["response_format"] = {"type": "json_object"}
+        elif json_format:
+            body["response_format"] = {"type": "json_schema", "json_schema": {"name": "answer", "schema": json_format}}
+        return "/v1/chat/completions", body
+    options = {"temperature": temperature}
+    if num_ctx:
+        options["num_ctx"] = num_ctx
+    if max_tokens:
+        options["num_predict"] = max_tokens
+    body = {"model": model or MODEL, "messages": messages, "stream": False, "think": False, "options": options}
+    if json_format:
+        body["format"] = json_format
+    return "/api/chat", body
+
+
+def _completion_result(payload: dict) -> dict:
+    """{"content", "truncated"} from either wire format. Truncated means the output cap cut it off."""
+    if BACKEND == "openai":
+        choice = (payload.get("choices") or [{}])[0]
+        return {"content": (choice.get("message") or {}).get("content") or "",
+                "truncated": choice.get("finish_reason") == "length"}
+    return {"content": (payload.get("message") or {}).get("content") or "",
+            "truncated": payload.get("done_reason") == "length"}
+
+
+def complete(messages: list[dict], *, model: str | None = None, temperature: float = 0.3,
+             num_ctx: int | None = None, max_tokens: int | None = None, json_format=None,
+             timeout: float = 60.0, ollama: str | None = None) -> dict:
+    """One no-tools completion, blocking: for the timed jobs and the note-taker's worker thread.
+    `ollama` overrides the Ollama address for one caller (the note-taker can run elsewhere)."""
+    path, body = _completion_request(messages, model=model, temperature=temperature, num_ctx=num_ctx,
+                                     max_tokens=max_tokens, json_format=json_format)
+    if BACKEND == "openai":
+        r = httpx.post(OPENAI_BASE + path, json=body, headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+                       timeout=timeout)
+    else:
+        r = httpx.post((ollama or OLLAMA).rstrip("/") + path, json=body, timeout=timeout)
+    r.raise_for_status()
+    return _completion_result(r.json())
+
+
+async def acomplete(messages: list[dict], *, model: str | None = None, temperature: float = 0.3,
+                    num_ctx: int | None = None, max_tokens: int | None = None, json_format=None) -> dict:
+    """complete() for callers already on the brain's event loop (the recipe organizer)."""
+    path, body = _completion_request(messages, model=model, temperature=temperature, num_ctx=num_ctx,
+                                     max_tokens=max_tokens, json_format=json_format)
+    r = await (oai_client if BACKEND == "openai" else client).post(path, json=body)
+    r.raise_for_status()
+    return _completion_result(r.json())
