@@ -174,6 +174,9 @@ on the public internet.
    llama-server.
 2. **The phone engine:** app with llama.cpp, the socket, the device token, the web view. Gate:
    the held-out suite run through the phone backend lands on 91.1%, within run-to-run noise.
+   The box half is done (2026-11-04): `chat_format.py` renders byte for byte with llama-server,
+   and the phone's exact path run on the box (`HESTIA_BACKEND=completion`) scores 92.7% against
+   93.3% through llama-server's chat endpoint (`benchmarks/phone-render/`).
 3. **Speech and notifications:** on-device speech, local notification sync, the content-free
    ping.
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.

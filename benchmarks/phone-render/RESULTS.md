@@ -28,3 +28,30 @@ llama.cpp reads it as a number.
 **What this changes:** the phone generates freely, like `/completion`, but the 91.1% whole-turn
 held-out score was measured through llama-server's chat endpoint, which steers tool calls. The
 score has to be measured again through the phone's own path before it stands for the phone.
+
+## The held-out suite on the phone's path (same day)
+
+`heldout_turn.py` rebuilds the whole-turn held-out scorer behind the 91.1% (the script was never
+committed; the method is in `benchmarks/RESULTS.md`): 63 commands against the withheld 'outside'
+room, `run_agent` against the fixtures, exact when the first on/off that ran has the gold action
+and an id that resolves to the gold light. Same llama-server, same model and template, thinking
+off (`--reasoning off`), K=5.
+
+| Path | exact |
+|---|---|
+| llama-server's chat endpoint (how 91.1% was measured) | 294/315 = **93.3%** |
+| **The phone's path:** the box renders, plain `/completion`, the box parses | 292/315 = **92.7%** |
+
+The phone's path holds: two tries apart in 315, and only five cases score differently, all in the
+bare-area family ("flip on the outside"), in both directions. The chat endpoint now scores above
+the recorded 91.1%, likely the harness fixes merged since 2026-10-29.
+
+The misses differ in kind. The chat endpoint's 21 are 17 turns with no switch call and 4 with a
+light that doesn't resolve. The phone path's 23 are 11 with no call, 8 unresolved, and **4 that
+turned the kitchen lights off when asked to put or flip the outside on**: wrong light and wrong
+action. Steering kept the chat endpoint from that; free generation didn't. The person never said
+"kitchen", which is what Hestia Lite's said-words gate catches; a check like it on light
+commands is the fix to try.
+
+A first check pass with thinking on (no `--reasoning off`) scored 85.7%, every miss a turn with no
+light call: the thinking used up the output cap before the call was written, as on 2026-10-29.
