@@ -1,0 +1,960 @@
+[
+ {
+  "case": "Turn off the kitchen lights.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nturn_off\n</parameter>\n<parameter=entity_id>\nlight.light_kitchen_lights\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_off",
+      "entity_id": "light.light_kitchen_lights"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_off",
+      "entity_id": "light.light_kitchen_lights"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Turn off the kitchen lights.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Kitchen lights are now off.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Shut off the outside lights.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nturn_off\n</parameter>\n<parameter=entity_id>\nlight.outside_lights\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_off",
+      "entity_id": "light.outside_lights"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_off",
+      "entity_id": "light.outside_lights"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Shut off the outside lights.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Done — the outside lights are now off.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Dim the living room to 30 percent.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nturn_on\n</parameter>\n<parameter=entity_id>\nlight.light_living_room_lights\n</parameter>\n<parameter=brightness_pct>\n30\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_on",
+      "entity_id": "light.light_living_room_lights",
+      "brightness_pct": 30
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_on",
+      "entity_id": "light.light_living_room_lights",
+      "brightness_pct": 30
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Dim the living room to 30 percent.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Living room lights dimmed to 30 percent.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Remind me to call the vet tomorrow at nine.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=reminder>\n<parameter=action>\ncreate\n</parameter>\n<parameter=text>\nCall the vet\n</parameter>\n<parameter=when>\ntomorrow at 9\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "create",
+      "text": "Call the vet",
+      "when": "tomorrow at 9"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "create",
+      "text": "Call the vet",
+      "when": "tomorrow at 9"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Remind me to call the vet tomorrow at nine.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Done — I've set a reminder to call the vet tomorrow at 9.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Set a timer for ten minutes.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=reminder>\n<parameter=action>\ncreate\n</parameter>\n<parameter=text>\nTimer\n</parameter>\n<parameter=when>\n10 minutes\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "create",
+      "text": "Timer",
+      "when": "10 minutes"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "create",
+      "text": "Timer",
+      "when": "10 minutes"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Set a timer for ten minutes.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Done — a 10-minute timer is set and will ping your phone.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "What reminders do I have?",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=reminder>\n<parameter=action>\nlist\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "list"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "list"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "What reminders do I have?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "You currently have no pending reminders. Let me know if you'd like to set one up!",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Add milk and eggs to the shopping list.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=shopping>\n<parameter=action>\nadd\n</parameter>\n<parameter=items>\nmilk, eggs\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "shopping",
+     "arguments": {
+      "action": "add",
+      "items": "milk, eggs"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "shopping",
+     "arguments": {
+      "action": "add",
+      "items": "milk, eggs"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Add milk and eggs to the shopping list.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Added milk and eggs to the shopping list.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "What's on the shopping list?",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=shopping>\n<parameter=action>\nshow\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "shopping",
+     "arguments": {
+      "action": "show"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "shopping",
+     "arguments": {
+      "action": "show"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "What's on the shopping list?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "The shopping list is currently empty. Let me know if you'd like to add anything.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "We're out of coffee.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=shopping>\n<parameter=action>\nadd\n</parameter>\n<parameter=items>\ncoffee\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "shopping",
+     "arguments": {
+      "action": "add",
+      "items": "coffee"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "shopping",
+     "arguments": {
+      "action": "add",
+      "items": "coffee"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "We're out of coffee.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Added coffee to the shopping list.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Log that I harvested six peppers from the tomato bed.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=records>\n<parameter=action>\nharvest\n</parameter>\n<parameter=bed>\nTomatoes\n</parameter>\n<parameter=crop>\npeppers\n</parameter>\n<parameter=qty>\n6\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "records",
+     "arguments": {
+      "action": "harvest",
+      "bed": "Tomatoes",
+      "crop": "peppers",
+      "qty": 6
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "records",
+     "arguments": {
+      "action": "harvest",
+      "bed": "Tomatoes",
+      "crop": "peppers",
+      "qty": 6
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Log that I harvested six peppers from the tomato bed.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Logged: harvested six peppers from the Tomatoes bed.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Remember that the good coffee is the bag with the orange label.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=memory>\n<parameter=op>\nwrite\n</parameter>\n<parameter=content>\nGood coffee: the bag with the orange label.\n</parameter>\n<parameter=type>\npreference\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "memory",
+     "arguments": {
+      "op": "write",
+      "content": "Good coffee: the bag with the orange label.",
+      "type": "preference"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "memory",
+     "arguments": {
+      "op": "write",
+      "content": "Good coffee: the bag with the orange label.",
+      "type": "preference"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Remember that the good coffee is the bag with the orange label.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Got it — I've saved that the good coffee is the bag with the orange label.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Which coffee did I say was the good one?",
+  "render": true,
+  "calls": false,
+  "raw": "<tool_call>\n<function=memory>\n<parameter=op>\nrecall\n</parameter>\n<parameter=content>\nRelevant things you remember (from your memory store):\n- [id=README, source=unknown, last_seen=unknown] # Hestia's memory store\n\nThis directory is the brain's long-term memory — one markdown file per fact, written\nand read at runtime by the `memory` tool (`brain/tools/memory_tool.py` → \n`brain/memory_store.py`). Design: [`../MEMORY-DESIGN.md`](../MEMORY-DESIGN.md).\n\nEach record is frontmatter (type, confidence, source, last_seen, links, pinned) plus\nfree text. `INDEX.md` is auto-generated, one line per record.\nThe records themselves are **gitignored** here — they're runtime data, not code, and\nshouldn't pollute the code repo's history. If you want them versioned (the design's\n\"every learned fact is an auditable diff\"), point `HESTIA_MEMORY_DIR` at a dedicated\\ngit repo. The store path is configurable via that env var (default: this dir).\n\nv1 recall is keyword overlap; vector recall is",
+  "ours": [],
+  "server": [
+   {
+    "function": {
+     "name": "memory",
+     "arguments": {
+      "op": "recall",
+      "content": "Relevant things you remember (from your memory store):\n- [id=README, source=unknown, last_seen=unknown] # Hestia's memory store\n\nThis directory is the brain's long-term memory — one markdown file per fact, written\nand read at runtime by the `memory` tool (`brain/memory_store.py`. Design: [`../MEMORY-DESIGN.md](../MEMORY-DESIGN.md).\n..."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Which coffee did I say was the good one?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "I don't have that in my memory. Could you remind me which coffee you said was the good one? I can save it for next time.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "What's on the calendar this week?",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=calendar>\n<parameter=action>\nshow\n</parameter>\n<parameter=when>\nthis week\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "calendar",
+     "arguments": {
+      "action": "show",
+      "when": "this week"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "calendar",
+     "arguments": {
+      "action": "show",
+      "when": "this week"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "What's on the calendar this week?  [after the tool result]",
+  "render": true,
+  "calls": false,
+  "raw": "I don't have the details of what's scheduled for this week yet. Let me check the household calendar for you.<tool_call>\n<function=calendar>\n<parameter=action>\nshow\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "calendar",
+     "arguments": {
+      "action": "show"
+     }
+    }
+   }
+  ],
+  "server": []
+ },
+ {
+  "case": "Will it frost tonight?",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=weather>\n<parameter=action>\nfrost\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "weather",
+     "arguments": {
+      "action": "frost"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "weather",
+     "arguments": {
+      "action": "frost"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Will it frost tonight?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "I checked the forecast for freeze/frost alerts. The tool returned \"Done\" but didn't show a specific frost watch or outlook in this response. Let me give you what I found: I don't have a detailed frost watch result from the weather tool right now — it confirmed the check ran, but no specific alert details came back. For tonight's freeze/frost risk, would you like me to run a briefing instead?",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "How do I overwinter dahlias?",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=library>\n<parameter=query>\noverwinter dahlias\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "library",
+     "arguments": {
+      "query": "overwinter dahlias"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "library",
+     "arguments": {
+      "query": "overwinter dahlias"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "How do I overwinter dahlias?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=library>\n<parameter=query>\ndahlias overwintering\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "library",
+     "arguments": {
+      "query": "dahlias overwintering"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "library",
+     "arguments": {
+      "query": "dahlias overwintering"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Is purslane safe to eat?",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=library>\n<parameter=query>\npurslane edible safety\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "library",
+     "arguments": {
+      "query": "purslane edible safety"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "library",
+     "arguments": {
+      "query": "purslane edible safety"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Is purslane safe to eat?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Yes, purslane (also called periwinkle or purslane leaf) is generally safe and edible. It's a leafy green vegetable commonly eaten raw in salads, soups, and as a side dish. Just like most greens, it should be washed thoroughly before eating. If you're unsure about any specific preparation method, I can look up more details from the extension publications.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "What's the moisture in the garden beds?",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nget_state\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "What's the moisture in the garden beds?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nget_state\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Should I water the carrots?",
+  "render": true,
+  "calls": false,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nget_state\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state",
+      "entity_id": "Carrots"
+     }
+    }
+   },
+   {
+    "function": {
+     "name": "weather",
+     "arguments": {
+      "action": "briefing"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Should I water the carrots?  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nget_state\n</parameter>\n<parameter=entity_id>\nsensor.unknown_device_soilmoisture2\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state",
+      "entity_id": "sensor.unknown_device_soilmoisture2"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "get_state",
+      "entity_id": "sensor.unknown_device_soilmoisture2"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Play some music in the kitchen.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=media>\n<parameter=action>\nadd\n</parameter>\n<parameter=kind>\nmusic\n</parameter>\n<parameter=query>\nsome music\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "media",
+     "arguments": {
+      "action": "add",
+      "kind": "music",
+      "query": "some music"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "media",
+     "arguments": {
+      "action": "add",
+      "kind": "music",
+      "query": "some music"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Play some music in the kitchen.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Music is queued for download in the background — it'll start playing in the kitchen once it's ready. Let me know what you'd like to hear or if you want to check what's currently downloading.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Find the new Dune movie.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=media>\n<parameter=action>\nsearch\n</parameter>\n<parameter=kind>\nmovie\n</parameter>\n<parameter=query>\nDune\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "media",
+     "arguments": {
+      "action": "search",
+      "kind": "movie",
+      "query": "Dune"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "media",
+     "arguments": {
+      "action": "search",
+      "kind": "movie",
+      "query": "Dune"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Find the new Dune movie.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=media>\n<parameter=action>\nadd\n</parameter>\n<parameter=kind>\nmovie\n</parameter>\n<parameter=query>\nDune\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "media",
+     "arguments": {
+      "action": "add",
+      "kind": "movie",
+      "query": "Dune"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "media",
+     "arguments": {
+      "action": "add",
+      "kind": "movie",
+      "query": "Dune"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Make a plan to winterize the greenhouse.",
+  "render": true,
+  "calls": false,
+  "raw": "<tool_call>\n<function=goals>\n<parameter=action>\npropose\n</parameter>\n<parameter=title>\nWinterize the greenhouse\n</parameter>\n<parameter=why>\nGet the greenhouse ready for winter so plants can survive cold and we don't lose work or seedlings.\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "goals",
+     "arguments": {
+      "action": "propose",
+      "title": "Winterize the greenhouse",
+      "why": "Get the greenhouse ready for winter so plants can survive cold and we don't lose work or seedlings."
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "goals",
+     "arguments": {
+      "action": "propose",
+      "title": "Winterize the greenhouse",
+      "why": "Get the greenhouse ready for winter so plants survive cold and we don't lose progress."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Make a plan to winterize the greenhouse.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "The draft plan is waiting on the Goals page for your review and approval. I'll show you the steps below — just say \"approve\" or tell me what to change, and then it becomes active.\n\n**Winterize the greenhouse**\n\n1. Order/prepare greenhouse heater (e.g., heat lamps or space heater) — due: this week\n2. Cover plants with frost cloths or move them indoors if temps are expected to drop below freezing — due: this week\n3. Check and secure doors, vents, and windows against wind/ice damage — due: this weekend\n4. Drain excess water from the greenhouse and clean out any debris — due: this weekend\n5. Set up a thermostat or heat source to maintain 50–55°F overnight — due: next week\n\nLet me know if you'd like any changes before I approve it.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "I vaccinated the dogs today.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=records>\n<parameter=action>\nlog\n</parameter>\n<parameter=subject>\ndogs\n</parameter>\n<parameter=did>\nvaccinated\n</parameter>\n<parameter=detail>\nUser said they vaccinated the dogs today.\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "records",
+     "arguments": {
+      "action": "log",
+      "subject": "dogs",
+      "did": "vaccinated",
+      "detail": "User said they vaccinated the dogs today."
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "records",
+     "arguments": {
+      "action": "log",
+      "subject": "dogs",
+      "did": "vaccinated",
+      "detail": "User said they vaccinated the dogs today."
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "I vaccinated the dogs today.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Logged: you vaccinated the dogs today. If you'd like, I can also record which dog(s) were vaccinated or their details (name, weight, etc.) — just let me know.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Tell me a joke.",
+  "render": true,
+  "calls": true,
+  "raw": "Why don't scientists trust atoms? Because they make up everything! 😄",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Thanks, that's all.",
+  "render": true,
+  "calls": true,
+  "raw": "You're welcome! Let me know if there's anything else you'd like help with — lights, media, garden, shopping, reminders, or anything else on the Hestia side.",
+  "ours": [],
+  "server": []
+ },
+ {
+  "case": "Turn on the porch light and remind me to turn it off at ten.",
+  "render": true,
+  "calls": true,
+  "raw": "<tool_call>\n<function=home>\n<parameter=action>\nturn_on\n</parameter>\n<parameter=entity_id>\nlight.porch_lights\n</parameter>\n</function>\n</tool_call>\n\n<tool_call>\n<function=reminder>\n<parameter=action>\ncreate\n</parameter>\n<parameter=text>\nTurn off the porch light\n</parameter>\n<parameter=when>\n10\n</parameter>\n</function>\n</tool_call>",
+  "ours": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_on",
+      "entity_id": "light.porch_lights"
+     }
+    }
+   },
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "create",
+      "text": "Turn off the porch light",
+      "when": "10"
+     }
+    }
+   }
+  ],
+  "server": [
+   {
+    "function": {
+     "name": "home",
+     "arguments": {
+      "action": "turn_on",
+      "entity_id": "light.porch_lights"
+     }
+    }
+   },
+   {
+    "function": {
+     "name": "reminder",
+     "arguments": {
+      "action": "create",
+      "text": "Turn off the porch light",
+      "when": "10"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "case": "Turn on the porch light and remind me to turn it off at ten.  [after the tool result]",
+  "render": true,
+  "calls": true,
+  "raw": "Done — the porch light is on, and I've set a reminder to turn it off at 10.",
+  "ours": [],
+  "server": []
+ }
+]

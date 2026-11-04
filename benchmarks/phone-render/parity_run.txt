@@ -1,0 +1,50 @@
+ok  render=True  calls=True  Turn off the kitchen lights.
+ok  render=True  calls=True  Turn off the kitchen lights.  [after the tool result]
+ok  render=True  calls=True  Shut off the outside lights.
+ok  render=True  calls=True  Shut off the outside lights.  [after the tool result]
+ok  render=True  calls=True  Dim the living room to 30 percent.
+ok  render=True  calls=True  Dim the living room to 30 percent.  [after the tool result]
+ok  render=True  calls=True  Remind me to call the vet tomorrow at nine.
+ok  render=True  calls=True  Remind me to call the vet tomorrow at nine.  [after the tool result]
+ok  render=True  calls=True  Set a timer for ten minutes.
+ok  render=True  calls=True  Set a timer for ten minutes.  [after the tool result]
+ok  render=True  calls=True  What reminders do I have?
+ok  render=True  calls=True  What reminders do I have?  [after the tool result]
+ok  render=True  calls=True  Add milk and eggs to the shopping list.
+ok  render=True  calls=True  Add milk and eggs to the shopping list.  [after the tool result]
+ok  render=True  calls=True  What's on the shopping list?
+ok  render=True  calls=True  What's on the shopping list?  [after the tool result]
+ok  render=True  calls=True  We're out of coffee.
+ok  render=True  calls=True  We're out of coffee.  [after the tool result]
+ok  render=True  calls=True  Log that I harvested six peppers from the tomato bed.
+ok  render=True  calls=True  Log that I harvested six peppers from the tomato bed.  [after the tool result]
+ok  render=True  calls=True  Remember that the good coffee is the bag with the orange label.
+ok  render=True  calls=True  Remember that the good coffee is the bag with the orange label.  [after the tool result]
+DIFF render=True  calls=False Which coffee did I say was the good one?
+ok  render=True  calls=True  Which coffee did I say was the good one?  [after the tool result]
+ok  render=True  calls=True  What's on the calendar this week?
+DIFF render=True  calls=False What's on the calendar this week?  [after the tool result]
+ok  render=True  calls=True  Will it frost tonight?
+ok  render=True  calls=True  Will it frost tonight?  [after the tool result]
+ok  render=True  calls=True  How do I overwinter dahlias?
+ok  render=True  calls=True  How do I overwinter dahlias?  [after the tool result]
+ok  render=True  calls=True  Is purslane safe to eat?
+ok  render=True  calls=True  Is purslane safe to eat?  [after the tool result]
+ok  render=True  calls=True  What's the moisture in the garden beds?
+ok  render=True  calls=True  What's the moisture in the garden beds?  [after the tool result]
+DIFF render=True  calls=False Should I water the carrots?
+ok  render=True  calls=True  Should I water the carrots?  [after the tool result]
+ok  render=True  calls=True  Play some music in the kitchen.
+ok  render=True  calls=True  Play some music in the kitchen.  [after the tool result]
+ok  render=True  calls=True  Find the new Dune movie.
+ok  render=True  calls=True  Find the new Dune movie.  [after the tool result]
+DIFF render=True  calls=False Make a plan to winterize the greenhouse.
+ok  render=True  calls=True  Make a plan to winterize the greenhouse.  [after the tool result]
+ok  render=True  calls=True  I vaccinated the dogs today.
+ok  render=True  calls=True  I vaccinated the dogs today.  [after the tool result]
+ok  render=True  calls=True  Tell me a joke.
+ok  render=True  calls=True  Thanks, that's all.
+ok  render=True  calls=True  Turn on the porch light and remind me to turn it off at ten.
+ok  render=True  calls=True  Turn on the porch light and remind me to turn it off at ten.  [after the tool result]
+
+render identical 48/48, tool calls identical 44/48
