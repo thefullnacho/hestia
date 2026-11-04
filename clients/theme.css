@@ -1,84 +1,86 @@
 /* Hestia's shared look: colour tokens, the top bar, focus rings and buttons. Every page the
    brain serves links this file, so the chat app and the recipe pages read as one app.
    Dark is the default; a light set takes over when the phone is in light mode (a sunny
-   kitchen or the garden), keyed off prefers-color-scheme with no toggle to forget. */
+   kitchen or the garden), keyed off prefers-color-scheme with no toggle to forget.
+   Palette: Hearth Ember (2026-11-04), burnt sienna on parchment, bright ember on warm black. */
 :root {
   color-scheme: dark;
-  --bg: #0c0d12;
-  --panel: #14161f;
-  --panel-trans: rgba(20, 22, 31, 0.85);
-  --raised: #161822;
-  --sunk: #0f1017;
-  --line: #2a2d3b;
-  --line-subtle: rgba(255, 255, 255, 0.08);
-  --hover: rgba(255, 255, 255, 0.06);
-  --press: rgba(255, 255, 255, 0.1);
-  --text: #eaebee;
-  --text-bright: #ffffff;
-  --muted: #a0a6b6;
-  --accent: #e5985c;
-  --accent-strong: #efa66d;
-  --accent-ink: #18110b;
-  --accent-glow: rgba(229, 152, 92, 0.15);
-  --accent-line: rgba(229, 152, 92, 0.35);
-  --em: #f2c89b;
-  --code: #f5d0a9;
-  --ok: #3ecf8e;
-  --ok-text: #bfe9d4;
-  --ok-line: rgba(62, 207, 142, 0.25);
+  --bg: #141210;
+  --panel: #1e1b18;
+  --panel-trans: rgba(30, 27, 24, 0.85);
+  --raised: #2a2521;
+  --sunk: #181512;
+  --line: #2e2825;
+  --line-subtle: rgba(255, 240, 225, 0.08);
+  --hover: rgba(255, 240, 225, 0.06);
+  --press: rgba(255, 240, 225, 0.1);
+  --text: #f5f3ef;
+  --text-bright: #fffbf5;
+  --muted: #a8a29e;
+  --accent: #e86a3a;
+  --accent-strong: #f07c4e;
+  --accent-ink: #1a0e08;
+  --accent-glow: rgba(232, 106, 58, 0.16);
+  --accent-line: rgba(232, 106, 58, 0.4);
+  --em: #f3a27a;
+  --code: #f7b998;
+  --ok: #4ca686;
+  --ok-text: #bfe6d6;
+  --ok-line: rgba(76, 166, 134, 0.25);
   --warn: #e0a23c;
   --warn-text: #f0be87;
-  --warn-bg: #2b1f11;
-  --warn-line: #5c4320;
+  --warn-bg: #2a1f12;
+  --warn-line: #5a4220;
   --bad: #f0556a;
   --bad-text: #f0a9b4;
   --bad-bg: #251417;
   --bad-line: #4a2228;
-  --me-bg: linear-gradient(135deg, #c77438, #a85a26);
-  --me-text: #ffffff;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --me-bg: #e86a3a;
+  --me-text: #1a0e08;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.6);
-  --ember: rgba(229, 152, 92, 0.07);
+  --ember: rgba(232, 106, 58, 0.07);
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --bg: #f6f3ee;
-    --panel: #ffffff;
-    --panel-trans: rgba(255, 255, 255, 0.88);
-    --raised: #ffffff;
-    --sunk: #f0ece5;
-    --line: #d9d3c9;
-    --line-subtle: rgba(40, 30, 20, 0.12);
-    --hover: rgba(40, 30, 20, 0.05);
-    --press: rgba(40, 30, 20, 0.09);
-    --text: #1f1d1a;
-    --text-bright: #000000;
-    --muted: #5c5850;
-    --accent: #a8541c;
-    --accent-strong: #8f4513;
+    --bg: #f3ede3;
+    --panel: #fdfbf6;
+    --panel-trans: rgba(253, 251, 246, 0.88);
+    --raised: #e9e0cf;
+    --sunk: #ece5d8;
+    --line: #ddd5c3;
+    --line-subtle: rgba(60, 40, 20, 0.12);
+    --hover: rgba(60, 40, 20, 0.05);
+    --press: rgba(60, 40, 20, 0.09);
+    --text: #1c1917;
+    --text-bright: #0c0a09;
+    --muted: #57534e;
+    --accent: #c2410c;
+    --accent-strong: #9a3412;
     --accent-ink: #ffffff;
-    --accent-glow: rgba(168, 84, 28, 0.1);
-    --accent-line: rgba(168, 84, 28, 0.4);
-    --em: #8a4a17;
-    --code: #7a3d10;
-    --ok: #1d8a5a;
-    --ok-text: #155c3d;
-    --ok-line: rgba(29, 138, 90, 0.35);
-    --warn: #b7791f;
-    --warn-text: #7a4f0e;
-    --warn-bg: #fdf3e1;
-    --warn-line: #e9cf9f;
-    --bad: #c8283f;
-    --bad-text: #8f1c2d;
-    --bad-bg: #fdecee;
-    --bad-line: #f1bcc4;
-    --me-bg: linear-gradient(135deg, #b8632a, #9a4d1c);
-    --shadow: 0 1px 4px rgba(40, 30, 20, 0.1);
+    --accent-glow: rgba(194, 65, 12, 0.1);
+    --accent-line: rgba(194, 65, 12, 0.4);
+    --em: #9a3412;
+    --code: #7c2d12;
+    --ok: #35785f;
+    --ok-text: #24533f;
+    --ok-line: rgba(53, 120, 95, 0.35);
+    --warn: #b45309;
+    --warn-text: #78350f;
+    --warn-bg: #fbefd9;
+    --warn-line: #e8cc9a;
+    --bad: #b42318;
+    --bad-text: #7a1a12;
+    --bad-bg: #fceae8;
+    --bad-line: #f0bdb7;
+    --me-bg: #1c1917;
+    --me-text: #f3ede3;
+    --shadow: 0 1px 4px rgba(60, 40, 20, 0.1);
     --shadow-pop: 0 14px 34px rgba(40, 30, 20, 0.18);
-    --ember: rgba(229, 152, 92, 0.1);
+    --ember: rgba(194, 65, 12, 0.06);
   }
 }
 
