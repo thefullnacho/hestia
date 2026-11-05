@@ -1,0 +1,4 @@
+// Settings for the Hestia app. Personal ones (your signing team) go in Local.xcconfig, which git
+// ignores; copy Local.xcconfig.example.
+PRODUCT_BUNDLE_IDENTIFIER = com.homesteaderlabs.hestia
+#include? "Local.xcconfig"

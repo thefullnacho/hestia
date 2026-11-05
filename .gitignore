@@ -46,3 +46,8 @@ REMEDIATION-PLAN.md
 # secrets.yaml.example); .esphome/ is the regenerable build tree
 deploy/esphome/secrets.yaml
 deploy/esphome/.esphome/
+# iPhone app: the llama.cpp xcframework (870 MB, built from llama.cpp), personal signing, Xcode state
+phone/Frameworks/
+phone/Local.xcconfig
+phone/build/
+xcuserdata/

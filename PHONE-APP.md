@@ -201,6 +201,10 @@ on the public internet.
    The box half is done (2026-11-04): `chat_format.py` renders byte for byte with llama-server,
    and the phone's exact path run on the box (`HESTIA_BACKEND=completion`) scores 92.7% against
    93.3% through llama-server's chat endpoint (`benchmarks/phone-render/`).
+   The phone half has a first build (2026-11-04, `phone/`): llama.cpp, the socket, the device
+   token and the model download, run end to end in the simulator against `phone.py`. Not yet:
+   the web view, a held-out run through a real phone, a schema-exact `json_schema`, and prompt
+   reuse for LFM3 (`phone/README.md`).
 3. **Speech and notifications:** on-device speech, local notification sync, the content-free
    ping.
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.

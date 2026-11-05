@@ -1,0 +1,59 @@
+# The iPhone app
+
+The phone's half of PHONE-APP.md, build order step 2. This first build is the model engine
+only: it dials the box's `/v1/model/socket` with a device token, runs each prompt through
+llama.cpp, and streams the answer back. No web view, speech or notifications yet.
+`benchmarks/phone-render/fake_phone.py` is the same behavior in Python.
+
+| File | What |
+|---|---|
+| `Hestia/Link.swift` | The socket: hello with the model's sha256, download the box's model when they differ, answer each `complete` in order |
+| `Hestia/Engine.swift` | llama.cpp on a string, run the way llama-server's `/completion` runs it |
+| `Hestia/ModelFile.swift` | The GGUF in Application Support: sha256, and fetching it from `/v1/model/file` |
+| `Hestia/Keychain.swift` | The device token, this device only |
+| `Hestia/HestiaApp.swift` | Connects in the foreground, hangs up in the background; one settings screen |
+
+## Build
+
+The llama.cpp framework is 870 MB and git ignores it. Build it in a llama.cpp checkout, ideally
+at the commit the box's llama-server runs, then copy it in:
+
+```bash
+cd ~/src/llama.cpp && ./build-xcframework.sh
+```
+
+```bash
+LLAMA_CPP=~/src/llama.cpp phone/fetch-llama.sh
+```
+
+Copy `Local.xcconfig.example` to `Local.xcconfig` and set your signing team, then open
+`Hestia.xcodeproj`. Sources sit in a synchronized folder: a new `.swift` file in `Hestia/` is
+part of the target without touching the project file.
+
+The shared scheme turns off Metal API validation and frame capture, which halved the speed in
+the iPhone bench (`benchmarks/RESULTS.md`). For speed numbers, still launch from the home screen.
+
+## Use
+
+On the box, start a brain in phone mode (`benchmarks/phone-render/test_box.sh` makes one beside
+the real brain and prints a device token). In the app, enter `http://<box tailnet address>:8734`
+and the token, then Save and connect. The first connect downloads the model (about 1 GB, keep
+the app open); after that the status reads "connected, ready" and the log shows each request.
+
+## How it matches llama-server
+
+The box scored the phone's path through llama-server's `/completion` (92.7% held out), so the
+engine copies what that endpoint does: tokenize with special tokens added and parsed, the
+default sampler chain (top-k 40, top-p 0.95, min-p 0.05, temperature, then a random draw;
+greedy at temperature 0), special tokens not printed, stop words cut and never streamed, and
+`stop_type` reported as `eos`, `limit` or `word`.
+
+Known differences, for the step 2 gate:
+
+- **`json_schema`** is honored as "any JSON object", not the schema itself. The schema to
+  grammar converter is C++ outside the framework; the box validates every call's arguments.
+  The box only sends a schema to repair one tool call.
+- **No prompt reuse with LFM3.** It is a hybrid model, so llama.cpp cannot trim its cache to a
+  shared prefix and every request reads its whole prompt (about 2 s for 3,000 tokens on a
+  17 Pro). llama-server keeps checkpoints for this; the app does not yet.
+- **The model downloads only in the foreground.** Leaving the app mid-download starts it over.

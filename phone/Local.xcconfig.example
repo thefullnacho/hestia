@@ -1,0 +1,4 @@
+// Copy to Local.xcconfig (ignored by git) and set your Apple developer team.
+DEVELOPMENT_TEAM = YOURTEAMID
+// A bundle id of your own, if com.homesteaderlabs.hestia is taken on your account:
+// PRODUCT_BUNDLE_IDENTIFIER = com.example.hestia
