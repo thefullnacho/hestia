@@ -37,6 +37,7 @@ bulk-touched. Control those one at a time, by name.
 |---|---|
 | `brain/hestia.py` | FastAPI app, `POST /v1/chat/completions`, the agent loop, `/v1/threads`, the model-free `/today` |
 | `brain/backend.py` | The only door to a model server: `chat()` for turns with tools, `complete()`/`acomplete()` for text without (the timed jobs, note-taker, recipe organizer). Ollama's native API or any OpenAI-compatible server (`HESTIA_BACKEND`). A new place to run the model is a new backend here; a test fails if another module posts to a model server |
+| `brain/phone.py` | The box's end of the phone: the `/v1/model/socket` WebSocket the app dials (device token required), the model file it downloads, and draining queued model work when a phone connects. `HESTIA_BACKEND=phone`. Wire format in `PHONE-APP.md` |
 | `brain/chat_format.py` | For a model run as plain text completion (the phone): renders the prompt with the model's own chat template and reads its tool calls back out. Matches llama-server byte for byte (`benchmarks/phone-render/`) |
 | `brain/model_jobs.py` | Model work that waits for a phone: with `HESTIA_BACKEND=phone` the timed jobs and note-taker queue their model step here, and a registered finisher completes the job when the answer comes. Facts, reminders and thresholds never wait |
 | `brain/guards.py` | Code's checks on the model's words: the claim guard ("done" with no tool run) and the medication and wild-food referrals. These stay code; never hand them to a model |

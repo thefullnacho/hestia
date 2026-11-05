@@ -45,13 +45,37 @@ app  --{id, delta}...{id, done, usage}------------->  box
 ```
 
 - The phone never listens, so it works wherever the phone is, as long as it is on the tailnet.
-- Several phones can be connected. The box prefers the phone that sent the turn, then any.
+- Several phones can be connected. The box uses the one that connected most recently.
 - When the app goes to the background, iOS closes the socket. That is expected, not an error.
 
 **The socket needs a token,** unlike the rest of the brain. Whatever hosts the model sees every
 prompt (the household's memory and records) and writes every tool call. A device token, issued
 at setup and kept in the Keychain, keeps a stray tailnet device from becoming the household's
 model.
+
+**Built 2026-11-04 (`brain/phone.py`).** What the app implements, one JSON object per WebSocket
+message, `Authorization: Bearer <device token>` on the connect:
+
+```
+phone -> box  {"type": "hello", "device": "...", "model_sha256": "<sha256 of the GGUF it runs>"}
+box -> phone  {"type": "ready", "model_sha256": "<the box's>", "model_ok": true|false}
+box -> phone  {"type": "complete", "id": "7", "prompt": "<rendered text>", "n_predict": 768,
+               "temperature": 0.3, "stop": ["<|im_end|>"], "json_schema": {...}}   (schema rarely)
+phone -> box  {"type": "delta", "id": "7", "text": "..."}                         (zero or more)
+phone -> box  {"type": "done", "id": "7", "stop_type": "eos"|"limit"|"word",
+               "tokens_evaluated": 412, "tokens_predicted": 20}
+phone -> box  {"type": "error", "id": "7", "message": "..."}
+```
+
+The phone runs one request at a time, in the order they come. `model_ok: false` means the phone
+runs a different model than the box serves: it downloads the box's (`GET /v1/model/info` for name,
+size and sha256, `GET /v1/model/file` for the file, both with the device token) and reconnects.
+Only a phone whose model matches is used. On connect the box also finishes any model work that
+waited (`model_jobs`). With no phone connected, a turn from another window gets a plain "open the
+app" reply. Setup on the box: `python brain/phone.py add-device <name>` prints the token once;
+`HESTIA_BACKEND=phone`, `HESTIA_PHONE_MODEL` (the GGUF), `HESTIA_CHAT_TEMPLATE` and
+`HESTIA_BOS_TOKEN` select and describe the model. `benchmarks/phone-render/fake_phone.py` plays the
+phone's part against a llama-server, for testing the box without the app.
 
 ## Who renders the prompt: the box
 

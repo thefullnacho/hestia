@@ -97,6 +97,13 @@ fetches the content from the brain over the tailnet. Home Assistant's iOS app is
 this: its Local Push skips Apple only on Wi-Fi networks you name, and away from them it goes
 through Nabu Casa's relay and then Apple. Whatever carries the ping, the ping is empty.
 
+**The phone's socket is the one part of the brain that takes a token.** (Built 2026-11-04,
+`brain/phone.py`.) Whatever answers on `/v1/model/socket` sees every prompt, so the household's
+memory and records, and writes every tool call. A device token, printed once at setup and stored
+on the box only as a SHA-256 hash, is required to connect, and to fetch the model file. A
+connection with an unknown token is closed before anything is sent. The network boundary still
+applies: the socket is on the brain's private address like everything else.
+
 ## Tokens & secrets
 
 - All secrets live in `secrets/` (HA token, `*arr`/media creds, ingest token, service hosts).

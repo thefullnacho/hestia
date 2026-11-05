@@ -174,9 +174,7 @@ async def openai_chat(messages: list[dict], schemas: list | None = None) -> dict
 
 async def chat(messages: list[dict], schemas: list | None = None) -> dict:
     """Backend dispatch: Ollama native or OpenAI-compatible. Same contract."""
-    if deferred():
-        raise RuntimeError("the phone backend is not built yet (PHONE-APP.md, step 2)")
-    if BACKEND == "completion":
+    if BACKEND in ("completion", "phone"):
         return await text_chat(messages, schemas)
     if BACKEND == "openai":
         return await openai_chat(messages, schemas)
@@ -256,7 +254,8 @@ async def ollama_chat(messages: list[dict], schemas: list | None = None) -> dict
 
 def deferred() -> bool:
     """True when the model lives on a phone that may not be connected (HESTIA_BACKEND=phone).
-    Jobs then queue their model step in model_jobs instead of calling complete()."""
+    Jobs then queue their model step in model_jobs instead of calling complete(); chat turns and
+    the recipe organizer reach the phone directly, since someone is in the app for those."""
     return BACKEND == "phone"
 
 
@@ -299,9 +298,14 @@ async def text_chat(messages: list[dict], schemas: list | None = None) -> dict:
     else:
         body["prompt"] = chat_format.render(messages, offered, chat_template(), bos_token=BOS_TOKEN,
                                             eos_token=EOS_TOKEN)
-    r = await completion_client.post("/completion", json=body)
-    r.raise_for_status()
-    payload = r.json()
+    sink = stream_sink.get()
+    # Only a final synthesis with tools disabled can emit user-visible text safely.
+    if not (sink and schema is None and not offered and not (trace and trace.actions)):
+        sink = None
+    payload = await _send_text(body, sink)
+    if sink and trace:
+        trace.emitted = True
+        trace.streamed_text += payload.get("content") or ""
     if trace:
         trace.model_calls += 1
         trace.prompt_tokens += payload.get("tokens_evaluated", 0)
@@ -314,6 +318,16 @@ async def text_chat(messages: list[dict], schemas: list | None = None) -> dict:
             return {'content': ''}
     return chat_format.parse(text, offered)
 
+
+async def _send_text(body: dict, sink=None) -> dict:
+    """One /completion-shaped request, to the phone over its socket or to a llama.cpp server."""
+    if BACKEND == "phone":
+        import phone
+        return await phone.hub.complete(body, sink)
+    r = await completion_client.post("/completion", json=body)
+    r.raise_for_status()
+    return r.json()
+
 # --- completions outside a chat turn ------------------------------------------------------------
 # The timed jobs (briefing, journal, feed), the note-taker and the recipe organizer ask the model
 # for text with no tools. They used to post to Ollama themselves; they come through here now, so a
@@ -324,15 +338,8 @@ def _completion_request(messages: list[dict], *, model: str | None, temperature:
     """The path and body for one no-tools completion on the configured backend. `json_format` is
     None, "json", or a JSON schema. In OpenAI mode the server's own model answers (OPENAI_MODEL);
     context size and thinking are Ollama settings and are left out."""
-    if deferred():
-        raise RuntimeError("the model is on a phone: queue this request in model_jobs")
-    if BACKEND == "completion":
-        import chat_format
-        body = {"prompt": chat_format.render(messages, [], chat_template(), bos_token=BOS_TOKEN, eos_token=EOS_TOKEN),
-                "temperature": temperature, "stop": [EOS_TOKEN], "n_predict": max_tokens or OUTPUT_TOKENS}
-        if json_format:
-            body["json_schema"] = {"type": "object"} if json_format == "json" else json_format
-        return "/completion", body
+    if BACKEND in ("completion", "phone"):
+        return text_request(messages, temperature=temperature, max_tokens=max_tokens, json_format=json_format)
     if BACKEND == "openai":
         body = {"model": OPENAI_MODEL, "messages": messages, "stream": False, "temperature": temperature}
         if max_tokens:
@@ -353,9 +360,21 @@ def _completion_request(messages: list[dict], *, model: str | None, temperature:
     return "/api/chat", body
 
 
+def text_request(messages: list[dict], *, temperature: float = 0.3, max_tokens: int | None = None,
+                 json_format=None, **_other) -> tuple[str, dict]:
+    """A no-tools /completion request rendered with the model's template: what the phone (or a
+    llama.cpp server) runs. Ollama-only options (model, num_ctx, timeout, ollama) don't apply."""
+    import chat_format
+    body = {"prompt": chat_format.render(messages, [], chat_template(), bos_token=BOS_TOKEN, eos_token=EOS_TOKEN),
+            "temperature": temperature, "stop": [EOS_TOKEN], "n_predict": max_tokens or OUTPUT_TOKENS}
+    if json_format:
+        body["json_schema"] = {"type": "object"} if json_format == "json" else json_format
+    return "/completion", body
+
+
 def _completion_result(payload: dict) -> dict:
     """{"content", "truncated"} from any wire format. Truncated means the output cap cut it off."""
-    if BACKEND == "completion":
+    if BACKEND in ("completion", "phone"):
         return {"content": payload.get("content") or "", "truncated": payload.get("stop_type") == "limit"}
     if BACKEND == "openai":
         choice = (payload.get("choices") or [{}])[0]
@@ -369,7 +388,10 @@ def complete(messages: list[dict], *, model: str | None = None, temperature: flo
              num_ctx: int | None = None, max_tokens: int | None = None, json_format=None,
              timeout: float = 60.0, ollama: str | None = None) -> dict:
     """One no-tools completion, blocking: for the timed jobs and the note-taker's worker thread.
-    `ollama` overrides the Ollama address for one caller (the note-taker can run elsewhere)."""
+    `ollama` overrides the Ollama address for one caller (the note-taker can run elsewhere).
+    With the model on a phone this refuses: those callers queue in model_jobs instead."""
+    if deferred():
+        raise RuntimeError("the model is on a phone: queue this request in model_jobs")
     path, body = _completion_request(messages, model=model, temperature=temperature, num_ctx=num_ctx,
                                      max_tokens=max_tokens, json_format=json_format)
     if BACKEND == "completion":
@@ -388,6 +410,8 @@ async def acomplete(messages: list[dict], *, model: str | None = None, temperatu
     """complete() for callers already on the brain's event loop (the recipe organizer)."""
     path, body = _completion_request(messages, model=model, temperature=temperature, num_ctx=num_ctx,
                                      max_tokens=max_tokens, json_format=json_format)
+    if BACKEND == "phone":
+        return _completion_result(await _send_text(body))
     r = await {"openai": oai_client, "completion": completion_client}.get(BACKEND, client).post(path, json=body)
     r.raise_for_status()
     return _completion_result(r.json())

@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, Request, WebSocket
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
 from wyoming.asr import Transcribe, Transcript
@@ -68,6 +68,7 @@ import tools  # noqa: E402
 import backend  # noqa: E402
 import guards  # noqa: E402
 import routing  # noqa: E402
+import phone  # noqa: E402
 from backend import MODEL, THINK  # noqa: E402
 import briefing_store  # noqa: E402
 import recipe_review  # noqa: E402
@@ -304,6 +305,8 @@ def _act(trace: TurnTrace, name: str, result: ToolResult) -> None:
 
 _TOO_SLOW = "Sorry — that took too long to pull together (a backend was slow). Try again in a moment?"
 _BACKEND_DOWN = "Sorry, my model backend is having trouble right now. Try again in a moment?"
+# The model runs on a phone (HESTIA_BACKEND=phone) and none has the app open.
+_NO_PHONE = "My model runs on the phone, and no phone has the Hestia app open right now. Open the app and ask again."
 
 
 async def _run_tool(name: str, args: dict, budget: float) -> tuple[str, str]:
@@ -466,6 +469,9 @@ async def _agent_loop(messages: list[dict]) -> str:
         except asyncio.TimeoutError:
             _log(f"model call exceeded remaining {remaining:.1f}s at step {step}")
             return _TOO_SLOW
+        except phone.NoPhone as e:
+            _log(f"no phone for step {step}: {e}")
+            return _NO_PHONE
         except Exception as e:  # noqa: BLE001 — an Ollama restart must not 500 the client
             _log(f"model call failed at step {step}: {type(e).__name__}")
             return _BACKEND_DOWN
@@ -879,7 +885,7 @@ async def health():
 
 
 # Answers that are non-substantive (errors / give-ups) — never worth note-taking on.
-_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _BUSY, _NO_ACTION, _EMPTY_REPLY, guards.UNDONE_CLAIM,
+_NO_LEARN = {_TOO_SLOW, _BACKEND_DOWN, _NO_PHONE, _BUSY, _NO_ACTION, _EMPTY_REPLY, guards.UNDONE_CLAIM,
              "I wasn't able to finish that in a reasonable number of steps — can you narrow it down?"}
 
 
@@ -911,6 +917,39 @@ def _note_task(messages: list[dict], content: str) -> BackgroundTask | None:
     if not note_taker.ENABLED or not content or content in _NO_LEARN:
         return None
     return BackgroundTask(_run_note, messages, content)
+
+
+# --- The phone as the model (phone.py, PHONE-APP.md) -----------------------------------------
+# The socket and the model file take a device token: whatever answers here sees every prompt.
+
+@app.websocket("/v1/model/socket")
+async def model_socket(ws: WebSocket):
+    await phone.serve(ws)
+
+
+def _phone_device(request: Request) -> str | None:
+    return phone.device_for(phone.bearer(request.headers.get("authorization")))
+
+
+@app.get("/v1/model/info")
+async def model_info(request: Request):
+    """The model phones run: name, size and sha256, so the app knows whether to download."""
+    if not _phone_device(request):
+        return JSONResponse({"error": "device token required"}, status_code=401)
+    info = await asyncio.to_thread(phone.model_info)
+    return info or JSONResponse({"error": "no phone model configured"}, status_code=404)
+
+
+@app.get("/v1/model/file")
+async def model_file(request: Request):
+    """The model itself, for the app's first launch (about 1 GB over the tailnet)."""
+    if not _phone_device(request):
+        return JSONResponse({"error": "device token required"}, status_code=401)
+    info = await asyncio.to_thread(phone.model_info)
+    if not info:
+        return JSONResponse({"error": "no phone model configured"}, status_code=404)
+    return FileResponse(phone.MODEL_FILE, filename=info["name"], media_type="application/octet-stream",
+                        headers={"X-Model-SHA256": info["sha256"]})
 
 
 @app.get("/v1/operations/{request_id}")
