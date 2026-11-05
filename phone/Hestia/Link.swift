@@ -17,23 +17,69 @@ enum LinkError: LocalizedError {
 /// benchmarks/phone-render/fake_phone.py is the same behavior in Python.
 @MainActor
 final class Link: ObservableObject {
-    @Published var status = "not connected"
+    @Published var status = "not connected" { didSet { updateConnection() } }
     @Published var modelName = ModelFile.current()?.lastPathComponent ?? "none"
-    @Published var download: Double?
+    @Published var download: Double? { didSet { updateConnection() } }
     @Published var lastAnswer = ""
     @Published var log: [String] = []
     @Published var boxAddress = UserDefaults.standard.string(forKey: "box") ?? ""
     @Published var token = Keychain.token ?? ""
+    /// What the app connects with: the fields above as last saved, not as being typed.
+    @Published private(set) var savedBox: URL? = Link.parse(UserDefaults.standard.string(forKey: "box") ?? "")
+    private(set) var deviceToken = Keychain.token ?? ""
+    /// The phone's model socket as the page's tag shows it (bridge "connection").
+    @Published private(set) var connection = Connection(state: "disconnected", progress: nil, detail: "not connected")
+
+    struct Connection: Equatable {
+        var state: String                        // connected | disconnected | downloading
+        var progress: Double?
+        var detail: String?
+        var message: [String: Any] {
+            var m: [String: Any] = ["type": "connection", "state": state]
+            if let progress { m["progress"] = progress }
+            if let detail { m["detail"] = detail }
+            return m
+        }
+    }
 
     private var runner: Task<Void, Never>?
     private var socket: URLSessionWebSocketTask?
     private var engine: Engine?
+    private var sentPushToken: String?
+    private var watchingToken: NSObjectProtocol?
 
-    var configured: Bool { boxURL != nil && !token.isEmpty }
+    init() {
+        // iOS can hand over or rotate the push token after a hello went out: say hello again
+        watchingToken = NotificationCenter.default.addObserver(forName: AppDelegate.tokenChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.runner != nil,
+                      self.sentPushToken != UserDefaults.standard.string(forKey: AppDelegate.tokenKey) else { return }
+                self.note("push token changed; reconnecting to send it")
+                self.stop()
+                self.start()
+            }
+        }
+    }
 
-    /// http(s) base of the box; the user may type "100.x.y.z:8734", http:// or ws://.
-    var boxURL: URL? {
-        var s = boxAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+    var configured: Bool { savedBox != nil && !deviceToken.isEmpty }
+
+    private func updateConnection() {
+        let next: Connection
+        if let download {
+            next = Connection(state: "downloading", progress: (download * 100).rounded() / 100, detail: nil)
+        } else if status.hasPrefix("connected") || status.hasPrefix("answering") {
+            next = Connection(state: "connected", progress: nil, detail: nil)
+        } else {
+            next = Connection(state: "disconnected", progress: nil, detail: status)
+        }
+        if next != connection { connection = next }
+    }
+
+    /// http(s) base of the box as typed; the user may type "100.x.y.z:8734", http:// or ws://.
+    var boxURL: URL? { Link.parse(boxAddress) }
+
+    static func parse(_ address: String) -> URL? {
+        var s = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !s.isEmpty else { return nil }
         if s.hasPrefix("ws://") { s = "http://" + s.dropFirst(5) }
         if s.hasPrefix("wss://") { s = "https://" + s.dropFirst(6) }
@@ -45,6 +91,8 @@ final class Link: ObservableObject {
     func save() {
         UserDefaults.standard.set(boxAddress, forKey: "box")
         Keychain.token = token.isEmpty ? nil : token
+        savedBox = boxURL
+        deviceToken = token
         stop()
         start()
     }
@@ -83,7 +131,7 @@ final class Link: ObservableObject {
     }
 
     private func session() async throws {
-        guard let box = boxURL else { throw LinkError.notConfigured }
+        guard let box = savedBox else { throw LinkError.notConfigured }
         var model = ModelFile.current()
         var digest = ""
         if let model {
@@ -94,7 +142,7 @@ final class Link: ObservableObject {
         var comps = URLComponents(url: box.appending(path: "v1/model/socket"), resolvingAgainstBaseURL: false)!
         comps.scheme = comps.scheme == "https" ? "wss" : "ws"
         var request = URLRequest(url: comps.url!)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(deviceToken)", forHTTPHeaderField: "Authorization")
         let ws = URLSession.shared.webSocketTask(with: request)
         ws.maximumMessageSize = 16 << 20                   // prompts are text, but long
         socket = ws
@@ -102,7 +150,11 @@ final class Link: ObservableObject {
         defer { ws.cancel(with: .normalClosure, reason: nil) }
 
         status = "connecting"
-        try await send(ws, ["type": "hello", "device": UIDevice.current.name, "model_sha256": digest])
+        var hello: [String: Any] = ["type": "hello", "device": UIDevice.current.name, "model_sha256": digest]
+        let push = UserDefaults.standard.string(forKey: AppDelegate.tokenKey)
+        if let push { hello["push_token"] = push }          // every connect, so a rotated one stays current
+        try await send(ws, hello)
+        sentPushToken = push
         let ready: [String: Any]
         do {
             ready = try await receive(ws)
@@ -119,7 +171,7 @@ final class Link: ObservableObject {
             engine = nil
             download = 0
             defer { download = nil }
-            model = try await ModelFile.download(box: box, token: token) { p in
+            model = try await ModelFile.download(box: box, token: deviceToken) { p in
                 Task { @MainActor in self.download = p }
             }
             modelName = model?.lastPathComponent ?? "none"
@@ -213,7 +265,7 @@ final class Link: ObservableObject {
         return obj
     }
 
-    private func note(_ line: String) {
+    func note(_ line: String) {
         let stamp = Date().formatted(date: .omitted, time: .standard)
         log.insert("\(stamp) \(line)", at: 0)
         if log.count > 100 { log.removeLast(log.count - 100) }

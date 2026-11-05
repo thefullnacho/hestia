@@ -1,17 +1,21 @@
 # The iPhone app
 
-The phone's half of PHONE-APP.md, build order step 2. This first build is the model engine
-only: it dials the box's `/v1/model/socket` with a device token, runs each prompt through
-llama.cpp, and streams the answer back. No web view, speech or notifications yet.
-`benchmarks/phone-render/fake_phone.py` is the same behavior in Python.
+The phone's half of PHONE-APP.md, build order steps 2 and 3. It runs the household's model:
+it dials the box's `/v1/model/socket` with a device token, runs each prompt through llama.cpp,
+and streams the answer back (`benchmarks/phone-render/fake_phone.py` is that part in Python).
+Around that it shows the box's `/app` in a web view, with a native bridge for on-device speech,
+reminders as local notifications, and the push token for the box's content-free ping.
 
 | File | What |
 |---|---|
-| `Hestia/Link.swift` | The socket: hello with the model's sha256, download the box's model when they differ, answer each `complete` in order |
-| `Hestia/Engine.swift` | llama.cpp on a string, run the way llama-server's `/completion` runs it |
+| `Hestia/Link.swift` | The socket: hello with the model's sha256 and the push token, download the box's model when they differ, answer each `complete` in order |
+| `Hestia/Engine.swift` | llama.cpp on a string, run the way llama-server's `/completion` runs it, with context checkpoints for reuse |
 | `Hestia/ModelFile.swift` | The GGUF in Application Support: sha256, and fetching it from `/v1/model/file` |
+| `Hestia/WebView.swift` | `/app` in a WKWebView and the bridge, version 1 (PHONE-APP.md, "The web view") |
+| `Hestia/Speech.swift` | Listening (`requiresOnDeviceRecognition`) and speaking (AVSpeechSynthesizer) for the bridge |
+| `Hestia/Notifier.swift` | The reminder sync to local notifications, and the push token from iOS |
 | `Hestia/Keychain.swift` | The device token, this device only |
-| `Hestia/HestiaApp.swift` | Connects in the foreground, hangs up in the background; one settings screen |
+| `Hestia/HestiaApp.swift` | Connects and syncs in the foreground, hangs up in the background; the settings screen |
 
 ## Build
 
@@ -94,3 +98,47 @@ Known differences, for the step 2 gate:
   every first call. Up to 16 checkpoints are kept and the least recently used goes first, so
   that one stays however many calls a chat makes. Nothing here depends on the layout.
 - **The model downloads only in the foreground.** Leaving the app mid-download starts it over.
+
+## The web view and the bridge
+
+The app shows `/app` from the saved box address once it has an address and a token; until then
+it shows its settings. Inside the page, a **two-finger long press** opens the settings again,
+and a page that will not load offers Retry and Settings. Links to the box's own pages stay in
+the app; anything else opens in Safari.
+
+The bridge follows PHONE-APP.md, "The web view", version 1. The app sends nothing until the
+page says `hello`, answers with `hello` and the current `connection`, and sends `connection`
+again on every change of the model socket. A page message on another version gets the app's
+`hello`, so the page turns its bridge off. The settings log lists each message type that
+crosses the bridge (never what was said or spoken), for debugging on the phone.
+
+- **Listening:** on-device only (`requiresOnDeviceRecognition`). The microphone and speech
+  permissions are asked the first time the mic is tapped. Every `listen` ends with exactly one
+  final `transcript` or one `listen_error`; after `listen_stop` a final arrives within 2 s even
+  if recognition never says it is done. The audio engine starts and stops off the main thread.
+  iOS's own permission prompt says speech "will be sent to Apple"; that is Apple's fixed wording,
+  and with on-device recognition required nothing is.
+- **Speaking:** the system voice for the phone's language. A new `speak` replaces the one
+  playing, and every `speak` ends with one `speak_finished`, including when stopped or replaced.
+- **Zoom:** iOS zooms into a text field under 16 px and leaves the page zoomed, so the app holds
+  the page's scale at 1. The lasting fix is a 16 px input font in `clients/app.css`, which also
+  stops it in Safari.
+
+## Reminders and the ping
+
+On every open, and when the page sends `sync_notifications`, the app fetches
+`GET /v1/phone/reminders?days=14` with `If-None-Match`. On `304` nothing changes; when `sync`
+differs it removes every pending notification and schedules the list, each at its absolute
+`due_at`, with the reminder's `id` as the identifier. Notifications show while the app is open
+too. The settings show the last result.
+
+The app asks for notification permission on first open and registers for remote notifications.
+iOS's token goes in every socket hello as `push_token`, and a token that arrives or rotates
+after a hello makes the app reconnect to send it. Development builds carry
+`aps-environment: development`, so the box needs `HESTIA_APNS_SANDBOX=1` for them. Tapping the
+ping only opens the app.
+
+Checked in the simulator against the real brain in phone mode: the page's handshake, the tag
+reading "model ready", the sync (`200`, then `304`), a scheduled reminder delivered on time,
+and the push token stored under the device. Hearing the voice and the microphone need the
+phone: in the simulator CoreAudio stalled bringing up the input.

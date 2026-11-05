@@ -327,4 +327,7 @@ on the public internet.
    resuming an interrupted model download, and a schema-exact `json_schema` (`phone/README.md`).
 3. **Speech and notifications:** on-device speech, local notification sync, the content-free
    ping. The box half of the sync is built (2026-11-04, `GET /v1/phone/reminders`, above).
+   The app half is built (2026-11-04, `phone/`): the web view with bridge version 1, on-device
+   listening and speaking, the reminder sync to local notifications, and the push token in the
+   hello. Not yet: the APNs key on the box, and the microphone and voice checked on a phone.
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.
