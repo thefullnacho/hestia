@@ -55,6 +55,7 @@ READ_ONLY: dict[str, tuple[str, tuple[str, ...]] | None] = {
     "calendar": ("action", ("show",)),
     "goals": ("action", ("list", "show")),
     "home": ("action", ("get_state",)),
+    "inventory": ("action", ("find", "list")),
     "library": None,
     "media": ("action", ("status",)),
     "memory": ("op", ("recall",)),

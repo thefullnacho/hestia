@@ -17,7 +17,7 @@ from __future__ import annotations
 import inspect
 from tool_contract import validate
 
-from . import calendar, goals, home, library, media, memory_tool, records, recipe, reminder, search, shopping, skill, status, weather
+from . import calendar, goals, home, inventory, library, media, memory_tool, records, recipe, reminder, search, shopping, skill, status, weather
 
 # skill is NOT a model-facing tool — it's the deterministic router used by the brain to
 # inject the matching skill's knowledge into a request's system prompt before the loop.
@@ -25,6 +25,7 @@ _TOOLS = {
     "calendar": calendar,
     "goals": goals,
     "home": home,
+    "inventory": inventory,
     "library": library,
     "media": media,
     "memory": memory_tool,

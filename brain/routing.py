@@ -75,6 +75,13 @@ INTENT_TOOLS = {
     'search': r"\b(?:search|look up|news|web)\b",
     'status': r"\b(?:disk|system status|service status|uptime)\b",
     # How-to, timing and diagnosis words from the library's subjects (LIBRARY-DESIGN.md).
+    # The house's own supplies: bought, used up, counted, put somewhere, asked after.
+    'inventory': (r"\b(?:inventory|in stock|on hand|do we (?:still )?have|have we got|how (?:much|many) .*\b(?:left|have)|"
+                  r"bought|picked up|used (?:up|the last|the rest|half|some|all|a bit|a little|a couple|a few|\d)|"
+                  r"ran out|running low|left over|found .{0,40}\b(?:in|under|behind) (?:a|the|my|our) "
+                  r"(?:drawer|shed|garage|pantry|closet|cupboard|basement|cabinet|box|bin|attic)|"
+                  r"where(?:'s| is| are| did (?:i|we) put) (?:the|my|our)|put (?:the|it|them) in|is in the|are in the|"
+                  r"old stock|expired|stocked)\b"),
     'library': (r"\b(?:how (?:do|to|should|can|often|long)|when (?:do|should|to)|what(?:'s| is) (?:eating|wrong)|"
                 r"prun\w*|propagat\w*|fertili[sz]\w*|compost\w*|mulch\w*|overwinter\w*|pests?|aphids?|"
                 r"mites?|borers?|sawfl\w*|leafhoppers?|fung\w*|mildew|mold|mould|blight|diseases?|invasive|"

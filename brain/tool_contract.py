@@ -11,6 +11,7 @@ MUTATIONS = {
     'memory': {'write'}, 'recipe': {'save', 'import_url'}, 'media': {'add'},
     'reminder': {'create', 'cancel'}, 'shopping': {'add', 'remove', 'clear'},
     'calendar': {'add'}, 'goals': {'propose', 'done'},
+    'inventory': {'add', 'use', 'count', 'move'},
 }
 REQUIRED = {
     ('home', 'turn_on'): ('entity_id',), ('home', 'turn_off'): ('entity_id',),
@@ -25,6 +26,9 @@ REQUIRED = {
     ('calendar', 'add'): ('title', 'when'),
     ('goals', 'propose'): ('title', 'steps'), ('goals', 'done'): ('step',), ('goals', 'show'): ('goal',),
     ('search', 'search'): ('query',), ('search', 'fetch'): ('url',),
+    ('inventory', 'add'): ('item',), ('inventory', 'use'): ('item',),
+    ('inventory', 'count'): ('item', 'amount'), ('inventory', 'move'): ('item', 'location'),
+    ('inventory', 'find'): ('item',),
 }
 
 
@@ -130,6 +134,7 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
         'calendar': ('Added to the calendar:',),
         'goals': ('Drafted goal ', 'Marked done: ', 'Already done: '),
         'home': ('Done ', 'Sent '), 'media': ('Added ', 'Queued ', 'Already '),
+        'inventory': ('Logged ', 'Noted: '),
     }
     if (text.startswith(success.get(name, ())) or
             (name == 'media' and 'is already in the library' in text and 'search' in text)):
