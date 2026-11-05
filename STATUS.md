@@ -7,6 +7,29 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-04 (evening) - the phone matches the box, and the tool list stays put
+
+All on branch `feat/phone-socket`, pushed, not deployed. Main and the live brain are unchanged.
+
+- **The phone keeps its context between calls** (`d7b4e92`, `bf20094`, `3e2e1a3`, from the Mac
+  session): the app checkpoints where a prompt stops matching the last one, keeps the one at the end
+  of the system prompt, and reads only what changed.
+- **Held-out suite on the 17 Pro, all five passes, screen awake: 292/315 = 92.7%** (`1b81653`), the
+  same score as the phone path on the box. Median turn 1.8 s (was 19 s), median one model call, no
+  slowdown across 315 turns. All 23 misses made no call; none switched the wrong light.
+- **Moving the tool list out of the system message costs five points** (`6ed9512`): 87.9% as text in
+  the latest message, 86.7% as the template's own `additional_tools`. Routing changes the tool list
+  turn to turn and the template puts it ahead of the history, so a chat thread rereads its history
+  each turn. Head layout stays; the app needs no change for it.
+- **`/health` and the turn log name the phone's model** (`f1f442c`): the GGUF, and whether a phone is
+  connected, in place of "ollama/gemma4". `hestiactl status` shows `phone=`.
+- **Next concrete action:** none queued on the phone path. The test box still runs pre-`f1f442c`
+  code until it is restarted.
+
+[non-production] Off-peak queue unchanged: reply to @TermuxSolutions, text Dad about the drone provider, Dawn's fresh-chat test, a nudge to your sister, NVMe HAT and SSD for the Pi 5.
+
+---
+
 ## 2026-11-04 - Hestia answers from the iPhone
 
 - **Every model call goes through `backend.py`** (`2c87364`, deployed) and **model work can wait for
