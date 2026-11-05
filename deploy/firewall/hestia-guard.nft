@@ -1,0 +1,20 @@
+#!/usr/sbin/nft -f
+# Hestia's network guard (deploy/firewall/README.md). The brain and the services beside it bind to
+# this box's Tailscale address and have no login, so the tailnet is their access control. Linux
+# answers for that address on any interface, though: a device on the LAN that routes 100.64.0.0/10
+# through this box could reach them without Tailscale. This drops traffic for the tailnet addresses
+# unless it came in through Tailscale or from this machine itself (tailscale serve proxies over lo).
+#
+# Its own table, replaced whole on every load: it never touches Tailscale's rules, Docker's, or
+# anyone else's, and loading it twice is the same as once.
+table inet hestia_guard
+delete table inet hestia_guard
+
+table inet hestia_guard {
+	chain input {
+		type filter hook input priority filter; policy accept;
+		iifname { "lo", "tailscale0" } accept
+		ip daddr 100.64.0.0/10 counter drop
+		ip6 daddr fd7a:115c:a1e0::/48 counter drop
+	}
+}

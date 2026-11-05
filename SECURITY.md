@@ -17,6 +17,10 @@ So:
 - Bind it to a private address (a tailnet/LAN IP or `127.0.0.1`), **never `0.0.0.0`** on a host
   with a public interface.
 - Treat the network boundary as the auth boundary. If your tailnet is compromised, so is your house.
+- Binding to the tailnet address is not the whole boundary: Linux answers for an address on any
+  interface, so a LAN device that routes 100.64.0.0/10 through the box could reach it. The network
+  guard (`deploy/firewall/`, an nftables table of its own) drops traffic for the tailnet addresses
+  unless it came through Tailscale or from the box itself. Pilot boxes install it in setup.
 
 ## What's deliberately NOT here
 

@@ -1,0 +1,18 @@
+[Unit]
+Description=Hestia network guard: the tailnet address answers only through Tailscale
+Documentation=file:///home/%u/hestia/deploy/firewall/README.md
+# After Debian's own nftables.service, whose "flush ruleset" would otherwise remove this table;
+# before the network comes up, so nothing is reachable the wrong way even briefly.
+After=nftables.service
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/usr/sbin/nft -c -f /etc/hestia/hestia-guard.nft
+ExecStart=/usr/sbin/nft -f /etc/hestia/hestia-guard.nft
+ExecStop=/usr/sbin/nft delete table inet hestia_guard
+
+[Install]
+WantedBy=multi-user.target

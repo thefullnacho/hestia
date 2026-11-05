@@ -94,10 +94,9 @@ decision for a household (the feed needs search, which is off for pilots until t
 The backup's result shows on the status page and in Hestia's status answer; a failed or missing
 night reads as a problem there.
 
-The brain binds to the tailnet address only. A device on the household's LAN could still reach
-that address by adding a route through the Pi (Linux answers on any interface); the operator's own
-box has the same exposure. A firewall rule that only lets port 8730 in on `tailscale0` would close
-it; not added yet.
+The brain binds to the tailnet address only, and the network guard (`deploy/firewall/`) drops
+any traffic for that address that did not come through Tailscale, so a LAN device cannot reach
+it by routing through the Pi. Setup installs it.
 
 ## Reminders on a pilot box
 

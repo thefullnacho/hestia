@@ -104,7 +104,7 @@ fi
 # --- 2. packages ---------------------------------------------------------------------------------
 step "2. Packages"
 need=()
-for pkg in git curl sqlite3 poppler-utils rsync zstd; do
+for pkg in git curl sqlite3 poppler-utils rsync zstd nftables; do
   dpkg -s "$pkg" >/dev/null 2>&1 || need+=("$pkg")
 done
 if [ ${#need[@]} -gt 0 ]; then
@@ -225,6 +225,20 @@ if [ "$DRY" = 0 ]; then
   echo "$health" | grep -q '"backend":"phone"' || die "the brain is up but not in phone mode: $health"
 fi
 ok "brain up in phone mode on $TS_IP:$PORT (tailnet only)"
+
+# --- 6b. the network guard ----------------------------------------------------------------------------
+step "6b. Network guard (the tailnet address answers only through Tailscale: deploy/firewall/README.md)"
+if ! cmp -s "$REPO/deploy/firewall/hestia-guard.nft" /etc/hestia/hestia-guard.nft 2>/dev/null \
+   || ! cmp -s "$REPO/deploy/firewall/hestia-guard.service" /etc/systemd/system/hestia-guard.service 2>/dev/null; then
+  run sudo nft -c -f "$REPO/deploy/firewall/hestia-guard.nft"
+  run sudo install -D -m 644 "$REPO/deploy/firewall/hestia-guard.nft" /etc/hestia/hestia-guard.nft
+  run sudo install -m 644 "$REPO/deploy/firewall/hestia-guard.service" /etc/systemd/system/hestia-guard.service
+  run sudo systemctl daemon-reload
+  run sudo systemctl enable hestia-guard
+  run sudo systemctl restart hestia-guard
+fi
+run sudo systemctl enable --now hestia-guard
+ok "guard on: LAN traffic for $TS_IP is dropped"
 
 # --- 7. HTTPS for the app ------------------------------------------------------------------------------
 step "7. HTTPS for the app (iOS needs TLS; tailnet only, never Funnel)"
