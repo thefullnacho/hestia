@@ -18,8 +18,10 @@
 <title>Hestia</title>
 <!-- One page, four flat views picked by the #hash: #chat (default), #today, #status, #library.
      The scripts are plain files served from clients/ so the service worker can cache them:
-     core.js (icons, markdown, routing, menu), then one file per view. -->
+     core.js (icons, markdown, routing, menu), bridge.js (the iPhone app's native bridge, inert
+     in a browser), then one file per view. -->
 <script defer src="/app/core.js"></script>
+<script defer src="/app/bridge.js"></script>
 <script defer src="/app/chat.js"></script>
 <script defer src="/app/today.js"></script>
 <script defer src="/app/goals.js"></script>
@@ -51,6 +53,7 @@
       <button id="clearThreadBtn" class="menu-wide"><span data-icon="trash"></span><span>Clear this conversation</span></button>
     </nav>
     <span class="dot" id="dot" role="img" aria-label="Brain status unknown"></span>
+    <span id="phoneTag" class="phone-tag" hidden></span>
     <a class="brand" href="#chat"><b>H</b>estia</a>
     <span id="viewTitle" class="view-title"></span>
     <span id="threadTag" class="thread-tag" hidden></span>
