@@ -176,9 +176,9 @@ actor Engine {
     /// The recurrent half of the cache at a point in an earlier prompt. A hybrid model like
     /// LFM3 cannot cut its recurrent state back to an earlier position, so reuse restores one
     /// of these and trims the attention half to match (llama-server's context checkpoints).
-    private struct Checkpoint { let nTokens: Int; let made: Int; let data: [UInt8] }
+    private struct Checkpoint { let nTokens: Int; var used: Int; let data: [UInt8] }
     private var checkpoints: [Checkpoint] = []
-    private var made = 0
+    private var clock = 0                                  // for least recently used
     private static let maxCheckpoints = 16
     private static let partial = llama_state_seq_flags(LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY)
 
@@ -197,13 +197,15 @@ actor Engine {
             cached.removeLast(cached.count - target)               // attention-only, or a short rollback
             return (target, shared)
         }
-        for cp in checkpoints.reversed() where cp.nTokens > 0 {
+        for (i, cp) in checkpoints.enumerated().reversed() where cp.nTokens > 0 {
             let restored = cp.data.withUnsafeBufferPointer {
                 llama_state_seq_set_data_ext(ctx, $0.baseAddress, $0.count, 0, Self.partial)
             }
             // the recurrent state now ends at nTokens - 1; drop the attention cells after it
             if restored == cp.data.count && llama_memory_seq_rm(mem, 0, Int32(cp.nTokens), -1) {
                 cached.removeLast(cached.count - cp.nTokens)
+                clock += 1
+                checkpoints[i].used = clock                        // the front one stays: every first call restores it
                 return (cp.nTokens, shared)
             }
         }
@@ -224,12 +226,12 @@ actor Engine {
             llama_state_seq_get_data_ext(ctx, $0.baseAddress, size, 0, Self.partial)
         }
         guard got == size else { return }
-        made += 1
-        checkpoints.append(Checkpoint(nTokens: n, made: made, data: data))
+        clock += 1
+        checkpoints.append(Checkpoint(nTokens: n, used: clock, data: data))
         checkpoints.sort { $0.nTokens < $1.nTokens }
-        if checkpoints.count > Self.maxCheckpoints,              // the oldest goes, as in llama-server
-           let oldest = checkpoints.indices.min(by: { checkpoints[$0].made < checkpoints[$1].made }) {
-            checkpoints.remove(at: oldest)
+        if checkpoints.count > Self.maxCheckpoints,              // the least recently used goes
+           let stale = checkpoints.indices.min(by: { checkpoints[$0].used < checkpoints[$1].used }) {
+            checkpoints.remove(at: stale)
         }
     }
 

@@ -88,6 +88,9 @@ Known differences, for the step 2 gate:
   prompt first differs from the one before it; the next turn restores there and reads only its
   new message and tail. The first turn that differs still reads in full, since that point is
   not known before it. In the simulator, three one-call turns with a 5,600-token prompt and a
-  700-token changing tail took 158 s, 156 s and then 19 s. Up to 16 checkpoints are kept, the
-  oldest dropped first.
+  700-token changing tail took 158 s, 156 s and then 19 s. With today's template that point
+  is usually the end of the fixed system prompt (about 1,980 tokens): routing changes the tool
+  list, which the template places right after it, so that checkpoint is restored on nearly
+  every first call. Up to 16 checkpoints are kept and the least recently used goes first, so
+  that one stays however many calls a chat makes. Nothing here depends on the layout.
 - **The model downloads only in the foreground.** Leaving the app mid-download starts it over.
