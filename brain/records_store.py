@@ -95,6 +95,14 @@ CREATE TABLE IF NOT EXISTS model_jobs (
   error TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_model_jobs_status ON model_jobs(status, created_at);
+CREATE TABLE IF NOT EXISTS phone_push (
+  device TEXT PRIMARY KEY,         -- a name from phone.py's devices
+  token TEXT,                      -- its APNs device token (hex), NULL once Apple says it is gone
+  registered_at TEXT,
+  last_push_at TEXT,               -- the last content-free ping (push.py), for the debounce
+  last_seen_at TEXT,               -- the app's last socket hello or goodbye
+  connected_pid INTEGER            -- the brain process holding its socket open, NULL when closed
+);
 """
 
 

@@ -10,7 +10,8 @@ what the job would have done with it.
 Nothing deterministic waits here. Facts are gathered, reminders fire and thresholds alert on
 time; only the wording, ranking and extraction wait. A newer job with the same key replaces a
 waiting one (today's briefing replaces yesterday's), and anything older than its expiry is
-dropped rather than delivered stale.
+dropped rather than delivered stale. Queuing work while no phone is connected sends the
+content-free ping (push.py), so opening it brings the app up to drain the queue.
 
     python model_jobs.py --list     # what is waiting
     python model_jobs.py --drain    # run the queue through backend.complete() now
@@ -53,7 +54,19 @@ def enqueue(kind: str, request: dict, context: dict, *, key: str | None = None,
                         "VALUES(?,?,?,?,'pending',?,?)",
                         (kind, key, json.dumps(request), json.dumps(context), now.isoformat(),
                          (now + dt.timedelta(hours=ttl_hours)).isoformat()))
-        return cur.lastrowid
+        job_id = cur.lastrowid
+    _wake_a_phone(kind)
+    return job_id
+
+
+def _wake_a_phone(kind: str) -> None:
+    """Work now waits for a phone: if none is connected, send the content-free ping (push.py,
+    debounced per device) so opening it brings the app up to drain the queue."""
+    try:
+        import push
+        push.notify("briefing" if kind == "briefing" else "waiting")
+    except Exception as e:  # noqa: BLE001 - the job is queued; a missed ping must not undo that
+        print(f"[model_jobs] push failed: {type(e).__name__}", flush=True)
 
 
 def pending() -> list[dict]:

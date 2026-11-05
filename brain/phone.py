@@ -13,7 +13,8 @@ of the brain it takes a device token, issued here and kept in the phone's Keycha
     python phone.py list                  # devices, who each is tied to, and the model file
 
 Wire, one JSON object per WebSocket message:
-    phone -> box  {"type": "hello", "device": "...", "model_sha256": "..."}
+    phone -> box  {"type": "hello", "device": "...", "model_sha256": "...",
+                   "push_token": "<APNs device token, hex>"?}   (push.py: the content-free ping)
     box -> phone  {"type": "ready", "model_sha256": "...", "model_ok": true|false}
     box -> phone  {"type": "complete", "id": "...", "prompt": "...", "n_predict": N,
                    "temperature": T, "stop": [...], "json_schema": {...}?}
@@ -297,6 +298,7 @@ async def serve(ws) -> None:
     except Exception:  # noqa: BLE001 - no hello, no phone
         await ws.close(code=4400)
         return
+    await asyncio.to_thread(_hello_seen, name, hello)
     info = await asyncio.to_thread(model_info)   # hashing a 1 GB file stays off the event loop
     model_ok = bool(info) and hello.get("model_sha256") == info["sha256"]
     await ws.send_json({"type": "ready", "model_sha256": info["sha256"] if info else None, "model_ok": model_ok})
@@ -311,6 +313,32 @@ async def serve(ws) -> None:
         pass
     finally:
         hub.detach(phone)
+        await asyncio.to_thread(_gone, name)
+
+
+_open: dict[str, int] = {}   # device -> sockets open in this process
+
+
+def _hello_seen(name: str, hello: dict) -> None:
+    """Mark the app as up (push.py won't ping it) and keep its APNs token, if it sent one."""
+    import push
+    _open[name] = _open.get(name, 0) + 1
+    try:
+        push.seen(name, True)
+        if hello.get("push_token") is not None and not push.register(name, hello["push_token"]):
+            print(f"[phone] {name} sent a push token that is not an APNs token; ignored", flush=True)
+    except Exception as e:  # noqa: BLE001 - bookkeeping must not stop the socket
+        print(f"[phone] push bookkeeping failed: {type(e).__name__}", flush=True)
+
+
+def _gone(name: str) -> None:
+    import push
+    _open[name] = max(0, _open.get(name, 0) - 1)
+    if not _open[name]:
+        try:
+            push.seen(name, False)
+        except Exception as e:  # noqa: BLE001
+            print(f"[phone] push bookkeeping failed: {type(e).__name__}", flush=True)
 
 
 async def _drain_logged() -> None:
