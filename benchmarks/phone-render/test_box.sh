@@ -17,7 +17,15 @@ PORT="${PORT:-8734}"
 MODELS="${MODELS:-$HOME/models/lfm3}"
 
 if [ "${1:-}" = stop ]; then
-  [ -f "$DIR/brain.pid" ] && kill "$(cat "$DIR/brain.pid")" 2>/dev/null && echo "test box stopped" || echo "not running"
+  if [ -f "$DIR/brain.pid" ] && kill "$(cat "$DIR/brain.pid")" 2>/dev/null; then
+    # Uvicorn closes open connections (a phone's socket) before it exits: wait for the port to
+    # free, so "stop; start" on one line does not race the old box.
+    # uv hands the signal to uvicorn and exits with it, so its pid going away means the port is free.
+    for _ in $(seq 30); do kill -0 "$(cat "$DIR/brain.pid")" 2>/dev/null || break; sleep 0.5; done
+    echo "test box stopped"
+  else
+    echo "not running"
+  fi
   rm -f "$DIR/brain.pid"; exit 0
 fi
 : "${HOST:?set HOST to the tailnet address of this box, never 0.0.0.0}"
