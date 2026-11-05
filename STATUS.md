@@ -7,6 +7,39 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-04 - Hestia answers from the iPhone
+
+- **Every model call goes through `backend.py`** (`2c87364`, deployed) and **model work can wait for
+  a phone** (`model_jobs.py`, `e607bae`, deployed): in phone mode the timed jobs queue their model
+  step and a finisher completes it when a phone connects.
+- **Hearth Ember** is the app's look (`c9744d0`, deployed): parchment and burnt sienna, warm black and
+  ember. Alex: "very warm and cozy."
+- **The box renders the phone's prompt** (`chat_format.py`, deployed): byte for byte with llama-server
+  on 48 real turns. The phone's exact path scores 92.7% on the held-out suite, against 93.3% through
+  llama-server's chat endpoint (`benchmarks/phone-render/`).
+- **Light commands are held to the person's words** (`guards.said_words`, deployed): the phone path's
+  "put on the outside" turning the kitchen off (4 of 315) went to zero at the same score.
+- **On branch `feat/phone-socket`, pushed, not deployed** (kept off main until the phone is solid):
+  the phone's socket (`phone.py`, device tokens, model download, draining queued work), a test box
+  (`test_box.sh`), the held-out scorer able to host the socket, the first iPhone app (`phone/`, from
+  the Mac session), and the receipt shortcut for any lone light command (median model calls 4 to 1,
+  92.7% unchanged).
+- **First real phone run:** the 17 Pro downloaded the model over Tailscale HTTPS and answered its first
+  turn in 5.9 s. One held-out pass on the phone: 53/63 at 19 s a turn before the screen locked and the
+  socket closed. The 19 s was a test fixture forcing retries (fixed) plus the app rereading the whole
+  prompt on every call.
+- **Lessons:** iOS needs TLS, so the app reaches the box through `tailscale serve` (tailnet only, no
+  path on the target); the guest Wi-Fi forced Tailscale through a relay in Virginia, the main Wi-Fi is
+  direct at 8 ms; the app's model download restarts from zero when interrupted (needs resume and a
+  background session).
+- **Next concrete action:** the app keeps its context between requests and reads only what changed;
+  then the held-out suite on the phone again with the screen kept awake, then the `tail` layout.
+
+[non-production] Keep the phone's screen awake for the next held-out run on the phone.
+[non-production] Off-peak queue: reply to @TermuxSolutions, text Dad about the drone provider, Dawn's fresh-chat test, a nudge to your sister, NVMe HAT and SSD for the Pi 5 (all queued).
+
+---
+
 ## 2026-10-31 to 11-03 - a household member's own Claude window, the daily briefing, and a grammar that trims nothing
 
 - **A household member's Claude window** (`54a066a`, SECURITY.md): the MCP server runs in her
