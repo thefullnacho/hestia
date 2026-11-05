@@ -255,21 +255,22 @@ def _debounced(row: dict, now: dt.datetime) -> bool:
     return now - last_push < debounce()
 
 
-def notify(reason: str = "waiting", *, every_device: bool = False) -> dict:
+def notify(reason: str = "waiting", *, every_device: bool = False, only: set[str] | None = None) -> dict:
     """Ping the phones that need waking. With `every_device` (a new reminder: each phone syncs
     its own) every closed app is pinged; otherwise (model work: one phone drains it) nobody is
-    pinged while any phone is connected. Returns what happened, per device. Never raises."""
+    pinged while any phone is connected. `only` limits it to those devices (a reminder wakes
+    the phones that sync it). Returns what happened, per device. Never raises."""
     try:
         if not active():
             return {}
-        return _notify(reason if reason in MESSAGES else "waiting", every_device)
+        return _notify(reason if reason in MESSAGES else "waiting", every_device, only)
     except Exception as e:  # noqa: BLE001
         print(f"[push] failed: {type(e).__name__}: {e}", flush=True)
         return {}
 
 
-def _notify(reason: str, every_device: bool) -> dict:
-    rows = devices()
+def _notify(reason: str, every_device: bool, only: set[str] | None = None) -> dict:
+    rows = [r for r in devices() if only is None or r["device"] in only]
     if not every_device and any(r["connected"] for r in rows):
         return {r["device"]: "connected" for r in rows}
     cfg = settings()

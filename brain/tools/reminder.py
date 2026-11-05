@@ -257,9 +257,11 @@ def execute(action: str, text: str | None = None, when: str | None = None,
             return (f"I couldn't read the time '{when}'. Try a duration like '10 minutes', a "
                     f"time like '7:00', or a full date and time.")
         rid = store.add(due.isoformat(timespec="seconds"), label, person=config.person())
-        # A closed app learns of it only when it next syncs: wake it with the content-free
-        # ping (push.py). Phones whose app is open are skipped; the text never goes to Apple.
-        push.notify("reminder", every_device=True)
+        # A closed app learns of it only when it next syncs: wake the phones that sync this
+        # person's reminders with the content-free ping (push.py). Phones whose app is open are
+        # skipped; the text never goes to Apple.
+        import phone
+        push.notify("reminder", every_device=True, only=phone.devices_for(config.person()))
         return f"Reminder #{rid} set — I'll ping your phone {_fmt(due)}: {label}"
     if action == "list":
         rows = store.pending()

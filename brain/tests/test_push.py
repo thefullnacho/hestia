@@ -106,7 +106,16 @@ def test_the_payload_is_fixed_and_carries_no_caller_text():
         assert set(json.loads(body)) == {"aps"}
 
 
-def test_a_reminder_ping_never_carries_the_reminders_words(key, apple, db):
+@pytest.fixture
+def household(tmp_path, monkeypatch):
+    """Registered devices and person ties in a scratch data dir."""
+    monkeypatch.setattr(phone, "DEVICES", tmp_path / "devices.json")
+    monkeypatch.setattr(phone, "PEOPLE", tmp_path / "people.json")
+    for name in ("alex-17pro", "dawn-15"):
+        phone.add_device(name)
+
+
+def test_a_reminder_ping_never_carries_the_reminders_words(key, apple, db, household):
     _closed_phone()
     out = reminder.execute("create", text="Call the vet about Lily's stitches", when="10 minutes")
     assert out.startswith("Reminder #")
@@ -192,11 +201,13 @@ def test_the_hello_registers_the_token_under_the_authenticated_device(box):
             ws.receive_json()
             [row] = push.devices()
             assert row["device"] == "alex-17pro" and row["token"] == TOKEN_A and row["connected"]
-    for _ in range(100):  # the server's goodbye runs after the client has gone
-        [row] = push.devices()
-        if not row["connected"]:
-            break
-        time.sleep(0.02)
+        # The server's goodbye runs after the socket closes; wait for it while the app (and so
+        # its event loop) is still up, since closing the client cancels unfinished cleanup.
+        for _ in range(250):
+            [row] = push.devices()
+            if not row["connected"]:
+                break
+            time.sleep(0.02)
     assert not row["connected"] and row["last_seen_at"]
 
 
@@ -257,3 +268,31 @@ def test_a_connection_held_by_a_dead_process_does_not_count(key, apple, db):
     with push.store._conn() as c:
         c.execute("UPDATE phone_push SET connected_pid=? WHERE device=?", (2**22 + 12345, "alex-17pro"))
     assert push.notify("waiting") == {"alex-17pro": "sent"}
+
+
+def test_a_phone_that_drops_before_ready_is_not_left_connected(box):
+    with TestClient(hestia.app) as client:
+        with client.websocket_connect("/v1/model/socket",
+                                      headers={"Authorization": f"Bearer {box['token']}"}) as ws:
+            ws.send_json({"type": "hello", "device": "x", "model_sha256": box["sha"], "push_token": TOKEN_A})
+        # Whether the server read the hello before the close or not, the phone ends up not
+        # connected (no row at all when the hello was never read).
+        for _ in range(250):
+            if not any(r["connected"] for r in push.devices()):
+                break
+            time.sleep(0.02)
+    assert not any(r["connected"] for r in push.devices())
+
+
+def test_a_reminder_wakes_only_the_phones_that_sync_it(key, apple, db, household, monkeypatch):
+    _closed_phone("alex-17pro", TOKEN_A)
+    _closed_phone("dawn-15", TOKEN_B)
+    phone.tie("dawn-15", "dawn")
+    monkeypatch.setenv("HESTIA_PERSON", "dawn")
+    reminder.execute("create", text="farrier", when="10 minutes")
+    assert [r.url.path for r in apple["seen"]] == [f"/3/device/{TOKEN_B}"]
+    apple["seen"].clear()
+    monkeypatch.delenv("HESTIA_PERSON")   # a household reminder goes to the untied phone
+    monkeypatch.setattr(push, "debounce", lambda: dt.timedelta(0))
+    reminder.execute("create", text="trash", when="10 minutes")
+    assert [r.url.path for r in apple["seen"]] == [f"/3/device/{TOKEN_A}"]

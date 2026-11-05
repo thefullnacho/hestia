@@ -130,6 +130,15 @@ def person_for(device: str) -> str | None:
     return _people().get(device)
 
 
+def devices_for(person: str | None) -> set[str]:
+    """The devices whose reminder sync includes a reminder for `person`, by the same rule as
+    reminders_for: the phones tied to that person, else (household, or nobody's phone tied to
+    them) the untied phones."""
+    people = _people()
+    tied = {d for d, p in people.items() if p == person} if person is not None else set()
+    return tied or {d for d in _devices() if d not in people}
+
+
 def _local(due_at: str) -> dt.datetime | None:
     """A stored due time (ISO, local time of the box when naive) as an aware datetime."""
     try:
@@ -298,22 +307,29 @@ async def serve(ws) -> None:
     except Exception:  # noqa: BLE001 - no hello, no phone
         await ws.close(code=4400)
         return
-    await asyncio.to_thread(_hello_seen, name, hello)
-    info = await asyncio.to_thread(model_info)   # hashing a 1 GB file stays off the event loop
-    model_ok = bool(info) and hello.get("model_sha256") == info["sha256"]
-    await ws.send_json({"type": "ready", "model_sha256": info["sha256"] if info else None, "model_ok": model_ok})
-    phone = Phone(name, ws.send_json)
-    if model_ok:
-        hub.attach(phone)
-        asyncio.get_running_loop().create_task(_drain_logged())
+    phone = None
     try:
+        # Directly, like _gone below: done in a worker thread it could land after the goodbye
+        # and mark a phone that has already left as connected. Two small SQLite writes.
+        _hello_seen(name, hello)
+        info = await asyncio.to_thread(model_info)   # hashing a 1 GB file stays off the event loop
+        model_ok = bool(info) and hello.get("model_sha256") == info["sha256"]
+        await ws.send_json({"type": "ready", "model_sha256": info["sha256"] if info else None,
+                            "model_ok": model_ok})
+        phone = Phone(name, ws.send_json)
+        if model_ok:
+            hub.attach(phone)
+            asyncio.get_running_loop().create_task(_drain_logged())
         while True:
             phone.deliver(await ws.receive_json())
     except Exception:  # noqa: BLE001 - the app went to the background or the network dropped
         pass
     finally:
-        hub.detach(phone)
-        await asyncio.to_thread(_gone, name)
+        if phone is not None:
+            hub.detach(phone)
+        # Directly, not in a worker thread: a cancelled handler drops a queued thread job, and a
+        # phone left marked as connected would never be pinged.
+        _gone(name)
 
 
 _open: dict[str, int] = {}   # device -> sockets open in this process
