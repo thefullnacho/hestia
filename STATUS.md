@@ -7,6 +7,41 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-05 - phone loop proven, branch merged, pilot box, and a house that knows its shelf
+
+All on `main` and deployed (live brain at `b343523`).
+
+- **Push loop proven end to end on the phone:** a sandbox APNs ping landed on the lock screen, the
+  tap opened the app and synced reminders, and a reminder fired from the phone itself.
+- **`feat/phone-socket` merged into main** (`51891e1`). `~/hestia-socket` stays as the test box's
+  tree, kept equal to main; `test_box.sh stop` now waits for the old box to exit.
+- **Pilot box** (`deploy/pilot/`, `0140aa9`): `setup.sh` turns a Pi 5 into a household box (phone
+  mode, EmbeddingGemma on CPU, their own tailnet, refuses a wrong tailnet, never formats a disk)
+  plus a nightly USB backup whose result shows in status. Reviewed, dry-run here, not yet on a Pi.
+- **Network guard** (`deploy/firewall/`, `c62f645`): the tailnet address answers only through
+  Tailscale. Installed and verified on the operator's box.
+- **Memories reviewed in the app** (`bf9355b`): Keep, Edit, Not this on Today; same gate as the CLI.
+- **Library from the phone** (`698c6de`): the app reads pages on the device and sends text only;
+  warranty and manual questions route to the library.
+- **Inventory** (`34252af`, `INVENTORY.md`): amounts as said (a couple = about 2, some = no number),
+  counts from events, oldest stock first, age from a table, location only "last noted".
+- **Receipts** (`f29de46`, `abeb585`): the phone sends receipt lines; code reads items into Today
+  cards to keep. App side from the Mac session (`78d134f`).
+- **Grounded answer** (`b343523`): library answers carry what the house has on hand among the
+  things the passages name. "Pests on garlic" answered from the leaflet and the 2022 neem oil.
+- **Lessons:** the review agents caught real bugs twice (a backup folder on the SSD under an
+  unstarted automount; a reminder that failed when the WAN was down). Gemma rewrote "last noted"
+  into "is" until the tool description forbade it.
+- **Next concrete action:** set up the sister's Pi when the HAT and SSD arrive (flash to SSD,
+  10-minute load test, `setup.sh`). Open decision: give her box the APNs key or not.
+
+[non-production] Write and post the Facebook post (in progress).
+[non-production] Sister's answer on the nightly journal and daily briefing (texting now).
+[non-production] When the Pi 5 HAT and SSD arrive: flash Pi OS to the SSD, run the load test, run deploy/pilot/setup.sh with her Tailscale login.
+[non-production] Decide whether a pilot box gets the APNs push key.
+
+---
+
 ## 2026-11-04 (evening) - the phone matches the box, and the tool list stays put
 
 All on branch `feat/phone-socket`, pushed, not deployed. Main and the live brain are unchanged.
