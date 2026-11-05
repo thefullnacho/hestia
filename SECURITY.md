@@ -90,12 +90,35 @@ the operator. Nothing is sent automatically, and there is no export of history.
   the box goes back or stays. A box that goes back is wiped first. Pilot households are told all
   of this before they start.
 
-**Phone notifications carry no content.** (Decided 2026-10-30, not built.) An iPhone app can only
-be woken from outside through Apple's push service, so a phone notification leaves the house. It
-says only that something is waiting ("your briefing is ready"), never what. The phone then
-fetches the content from the brain over the tailnet. Home Assistant's iOS app is no way around
-this: its Local Push skips Apple only on Wi-Fi networks you name, and away from them it goes
-through Nabu Casa's relay and then Apple. Whatever carries the ping, the ping is empty.
+**Phone notifications carry no content.** (Decided 2026-10-30, built 2026-11-04,
+`brain/push.py`.) An iPhone app can only be woken from outside through Apple's push service, so a
+phone notification leaves the house. It says only that something is waiting, never what. The
+phone then fetches the content from the brain over the tailnet. Home Assistant's iOS app is no
+way around this: its Local Push skips Apple only on Wi-Fi networks you name, and away from them it
+goes through Nabu Casa's relay and then Apple. Whatever carries the ping, the ping is empty.
+
+What leaves the house, per ping, in one HTTP/2 request to `api.push.apple.com` (or the sandbox
+host for development builds):
+
+- the phone's APNs device token, in the request path;
+- a signed provider token (ES256 JWT) naming the Apple team id and key id, and when it was made;
+- the app's bundle id, a push type of `alert`, a fixed collapse id (`hestia-waiting`) and an
+  expiry a day out;
+- a body that is one of three fixed sentences, titled "Hestia": "Something is waiting in
+  Hestia.", "Your briefing is ready in Hestia." or "A new reminder is waiting in Hestia." Code
+  picks one from a reason word; nothing a caller passes can become text in the ping;
+- the timing itself: Apple sees when the box pings, from the box's public address.
+
+Never: a reminder's words, a briefing, a name, a record, a model answer, or anything else the
+household wrote or the model said. The two triggers are code, not the model: model work queued
+while no phone is connected, and a reminder made from another window while that phone's app is
+closed. Each device gets at most one ping per 30 minutes (`HESTIA_PUSH_DEBOUNCE_MIN`) unless its
+app opened since. The device token arrives in the socket hello, so only a phone holding a device
+token can register one; it is kept in `hestia.db` (`phone_push`), and Apple's "Unregistered" or
+"BadDeviceToken" answer deletes it. The
+`.p8` signing key stays in `secrets/` (named by `secrets/push.env`, template
+`deploy/push.env.example`); without it a ping is a logged dry run. Threshold watchers and Home
+Assistant's notify path do not use this.
 
 **The phone's socket is the one part of the brain that takes a token.** (Built 2026-11-04,
 `brain/phone.py`.) Whatever answers on `/v1/model/socket` sees every prompt, so the household's

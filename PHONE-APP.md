@@ -57,7 +57,8 @@ model.
 message, `Authorization: Bearer <device token>` on the connect:
 
 ```
-phone -> box  {"type": "hello", "device": "...", "model_sha256": "<sha256 of the GGUF it runs>"}
+phone -> box  {"type": "hello", "device": "...", "model_sha256": "<sha256 of the GGUF it runs>",
+               "push_token": "<APNs device token, hex>"}       (optional; see Notifications)
 box -> phone  {"type": "ready", "model_sha256": "<the box's>", "model_ok": true|false}
 box -> phone  {"type": "complete", "id": "7", "prompt": "<rendered text>", "n_predict": 768,
                "temperature": 0.3, "stop": ["<|im_end|>"], "json_schema": {...}}   (schema rarely)
@@ -147,6 +148,35 @@ Two paths, so that a reminder's text never has to leave the house:
   content. The box sends it directly, with an APNs key kept in `secrets/`.
 
 The operator's own house keeps its Home Assistant notify path until the app replaces it.
+
+**The ping is built 2026-11-04 (`brain/push.py`); the app's half is not.** What the app does:
+ask iOS for notification permission and register for remote notifications, then send the APNs
+device token (the `Data` from `didRegisterForRemoteNotificationsWithDeviceToken`, as lowercase
+hex) in every socket hello:
+
+```
+phone -> box  {"type": "hello", "device": "...", "model_sha256": "...", "push_token": "<hex>"}
+```
+
+The box files it under the device its bearer token names (not the hello's `device` field). Sending
+it on every connect keeps a token iOS rotated current; leaving the field out keeps the stored one.
+A value that is not 64 to 200 hex characters is ignored. Tapping the ping only needs to open the
+app: it connects, the box drains waiting model work, and the web view syncs.
+
+When the box pings, deterministically: model work is queued (`model_jobs`) while no phone is
+connected, one ping however many jobs; or a reminder is made from another window (the MCP
+server, web chat) and that phone's app is closed, each closed phone pinged, since each syncs its
+own reminders. A phone gets at most one ping per `HESTIA_PUSH_DEBOUNCE_MIN` minutes (default 30)
+unless its app connected since. Threshold watchers are not wired to it; an operator house keeps
+Home Assistant notifications for those. The ping's words are
+fixed in code (SECURITY.md, "Phone notifications"). Apple's 410 Unregistered or BadDeviceToken
+drops the stored token until the app sends a new one.
+
+Box config, in `secrets/push.env` (template `deploy/push.env.example`): `HESTIA_APNS_KEY_FILE`
+(the `.p8`, a relative path is read under `secrets/`), `HESTIA_APNS_KEY_ID`,
+`HESTIA_APNS_TEAM_ID`, `HESTIA_APNS_BUNDLE_ID`, and `HESTIA_APNS_SANDBOX=1` while the app is a
+development build (its tokens only work on the sandbox host). Without a key, a box with
+`HESTIA_BACKEND=phone` logs each ping as a dry run; any other box without a key does nothing.
 
 ## Speech
 
