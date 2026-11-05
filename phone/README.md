@@ -140,5 +140,9 @@ ping only opens the app.
 
 Checked in the simulator against the real brain in phone mode: the page's handshake, the tag
 reading "model ready", the sync (`200`, then `304`), a scheduled reminder delivered on time,
-and the push token stored under the device. Hearing the voice and the microphone need the
-phone: in the simulator CoreAudio stalled bringing up the input.
+and the push token stored under the device. In the simulator CoreAudio stalled bringing up the
+input, so the microphone and voice were checked on an iPhone 17 Pro: a spoken command came back
+as a final transcript, went to the model, and the answer was spoken through to `speak_finished`.
+
+A page the box answers with an error status (tailscale serve gives `502` and an empty body when
+the brain behind it is down) shows as "Can't reach the box" with Retry, not as a blank page.

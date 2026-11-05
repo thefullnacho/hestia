@@ -97,6 +97,10 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let e = error as NSError
+        // 102 is the cancel above (frame load interrupted), whose loadError is already set
+        if e.domain == WKErrorDomain || e.domain == "WebKitErrorDomain", e.code == 102 { return }
+        if e.code == NSURLErrorCancelled { return }
         loadError = error.localizedDescription
     }
 
@@ -115,6 +119,19 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
         }
+    }
+
+    /// An error status is a failed load, not a page: tailscale serve answers 502 with an empty
+    /// body when the brain behind it is down, which would otherwise show as a blank page.
+    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
+                 decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
+        if response.isForMainFrame, let http = response.response as? HTTPURLResponse, http.statusCode >= 400 {
+            loadError = http.statusCode == 502 || http.statusCode == 503 || http.statusCode == 504
+                ? "The box answered \(http.statusCode): its HTTPS front is up, but the brain behind it is not."
+                : "The box answered \(http.statusCode) for \(response.response.url?.path() ?? "the page")."
+            return decisionHandler(.cancel)
+        }
+        decisionHandler(.allow)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {

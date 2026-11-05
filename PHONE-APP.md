@@ -329,5 +329,6 @@ on the public internet.
    ping. The box half of the sync is built (2026-11-04, `GET /v1/phone/reminders`, above).
    The app half is built (2026-11-04, `phone/`): the web view with bridge version 1, on-device
    listening and speaking, the reminder sync to local notifications, and the push token in the
-   hello. Not yet: the APNs key on the box, and the microphone and voice checked on a phone.
+   hello. On an iPhone 17 Pro (2026-11-05) a spoken command reached the model through the mic
+   and its answer was read aloud. Not yet: the APNs key on the box, so no ping has arrived.
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.
