@@ -107,12 +107,16 @@ actor Engine {
         guard tokens.count < nCtx else { throw EngineError.tooLong(tokens.count, nCtx) }
 
         let t0 = Date()
-        let keep = rewind(to: tokens)
+        let (keep, shared) = rewind(to: tokens)
 
         // Read the rest of the prompt, stopping to checkpoint 4 + n_ubatch and 4 tokens before
         // its end, as llama-server does: the next call in a turn re-renders the last few tokens
         // (the assistant header), so a checkpoint just short of them is the one that gets reused.
-        let marks = Set([tokens.count - 4 - nUbatch, tokens.count - 4].filter { $0 > keep })
+        // Also checkpoint where this prompt left the last one: that is where the part that stays
+        // the same across turns ends (the system prompt and tools, then the history), so the
+        // next turn restores there however long the changing tail is. llama-server finds that
+        // point from message boundaries, which the phone never sees.
+        let marks = Set([tokens.count - 4 - nUbatch, tokens.count - 4, shared].filter { $0 > keep && $0 < tokens.count })
         var start = keep
         while start < tokens.count {
             try Task.checkCancellation()
@@ -172,24 +176,26 @@ actor Engine {
     /// The recurrent half of the cache at a point in an earlier prompt. A hybrid model like
     /// LFM3 cannot cut its recurrent state back to an earlier position, so reuse restores one
     /// of these and trims the attention half to match (llama-server's context checkpoints).
-    private struct Checkpoint { let nTokens: Int; let data: [UInt8] }
+    private struct Checkpoint { let nTokens: Int; let made: Int; let data: [UInt8] }
     private var checkpoints: [Checkpoint] = []
-    private static let maxCheckpoints = 8
+    private var made = 0
+    private static let maxCheckpoints = 16
     private static let partial = llama_state_seq_flags(LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY)
 
-    /// Bring the cache back to the longest prefix it shares with `tokens` and return its length.
-    /// At least one token is always left to read, for the logits of the last.
-    private func rewind(to tokens: [llama_token]) -> Int {
+    /// Bring the cache back to the longest prefix it shares with `tokens`. Returns where reading
+    /// resumes, and how far the two prompts agree. At least one token is always left to read,
+    /// for the logits of the last.
+    private func rewind(to tokens: [llama_token]) -> (keep: Int, shared: Int) {
         let shared = zip(cached, tokens).prefix { $0 == $1 }.count
         let target = min(shared, tokens.count - 1)
         let mem = llama_get_memory(ctx)
         // checkpoints past the shared prefix hold tokens this prompt does not have
         checkpoints.removeAll { $0.nTokens > target }
 
-        if target == cached.count { return target }                // a pure extension
+        if target == cached.count { return (target, shared) }      // a pure extension
         if target > 0 && llama_memory_seq_rm(mem, 0, Int32(target), -1) {
             cached.removeLast(cached.count - target)               // attention-only, or a short rollback
-            return target
+            return (target, shared)
         }
         for cp in checkpoints.reversed() where cp.nTokens > 0 {
             let restored = cp.data.withUnsafeBufferPointer {
@@ -198,13 +204,13 @@ actor Engine {
             // the recurrent state now ends at nTokens - 1; drop the attention cells after it
             if restored == cp.data.count && llama_memory_seq_rm(mem, 0, Int32(cp.nTokens), -1) {
                 cached.removeLast(cached.count - cp.nTokens)
-                return cp.nTokens
+                return (cp.nTokens, shared)
             }
         }
         llama_memory_clear(mem, true)
         cached = []
         checkpoints = []
-        return 0
+        return (0, shared)
     }
 
     /// Keep the recurrent state as it stands after `cached`, before reading on.
@@ -218,9 +224,13 @@ actor Engine {
             llama_state_seq_get_data_ext(ctx, $0.baseAddress, size, 0, Self.partial)
         }
         guard got == size else { return }
-        checkpoints.append(Checkpoint(nTokens: n, data: data))
+        made += 1
+        checkpoints.append(Checkpoint(nTokens: n, made: made, data: data))
         checkpoints.sort { $0.nTokens < $1.nTokens }
-        if checkpoints.count > Self.maxCheckpoints { checkpoints.removeFirst() }
+        if checkpoints.count > Self.maxCheckpoints,              // the oldest goes, as in llama-server
+           let oldest = checkpoints.indices.min(by: { checkpoints[$0].made < checkpoints[$1].made }) {
+            checkpoints.remove(at: oldest)
+        }
     }
 
     // MARK: - llama.cpp

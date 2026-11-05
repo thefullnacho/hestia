@@ -82,4 +82,12 @@ Known differences, for the step 2 gate:
   scratch (CPU only there). As llama-server warns for `cache_prompt`, results are not bit for
   bit those of a fresh read, since the prompt goes through in different batches; at
   temperature 0 the reused and fresh answers to that turn were worded differently.
+- **Across turns, a checkpoint marks where the prompt changed.** With the tail layout the front
+  (system prompt, tools, history) stays the same and the tail changes, and the tail can be
+  longer than the 516 tokens the end checkpoints cover. So the engine also checkpoints where a
+  prompt first differs from the one before it; the next turn restores there and reads only its
+  new message and tail. The first turn that differs still reads in full, since that point is
+  not known before it. In the simulator, three one-call turns with a 5,600-token prompt and a
+  700-token changing tail took 158 s, 156 s and then 19 s. Up to 16 checkpoints are kept, the
+  oldest dropped first.
 - **The model downloads only in the foreground.** Leaving the app mid-download starts it over.
