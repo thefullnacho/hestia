@@ -100,7 +100,8 @@ through Nabu Casa's relay and then Apple. Whatever carries the ping, the ping is
 **The phone's socket is the one part of the brain that takes a token.** (Built 2026-11-04,
 `brain/phone.py`.) Whatever answers on `/v1/model/socket` sees every prompt, so the household's
 memory and records, and writes every tool call. A device token, printed once at setup and stored
-on the box only as a SHA-256 hash, is required to connect, and to fetch the model file. A
+on the box only as a SHA-256 hash, is required to connect, to fetch the model file, and to read the reminders a phone schedules
+(`/v1/phone/reminders`, their full text, filtered to the person the device is tied to). A
 connection with an unknown token is closed before anything is sent. The network boundary still
 applies: the socket is on the brain's private address like everything else.
 

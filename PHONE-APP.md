@@ -148,6 +148,40 @@ Two paths, so that a reminder's text never has to leave the house:
 
 The operator's own house keeps its Home Assistant notify path until the app replaces it.
 
+**The reminder sync, built 2026-11-04 (box side).** Rows only, no model.
+
+```
+GET /v1/phone/reminders?days=14          Authorization: Bearer <device token>
+                                         If-None-Match: "<last sync>"   (optional)
+200  {"device": "dawn-15", "person": "dawn"|null,
+      "reminders": [{"id": "reminder-12-3f9a0c1b2d4e", "text": "call the farrier",
+                     "due_at": "2026-11-06T09:00:00-05:00", "person": "dawn"|null}, ...],
+      "sync": "<sha256 of the list>", "truncated": false,
+      "complete_until": "2026-11-18T14:02:11-05:00", "days": 14,
+      "generated_at": "2026-11-04T14:02:11-05:00"}
+304  the list matches If-None-Match            401  no or unknown device token
+```
+
+- **What is in it:** reminders not yet fired, due after now and within `days` (default 14,
+  clamped to 1..31), soonest first, at most 64, since iOS keeps 64 pending local notifications
+  per app. If the cap cut the list, `truncated` is true and `complete_until` is the last entry's
+  time: sync again before then. Otherwise `complete_until` is the end of the horizon.
+- **Using it:** `id` is the notification identifier. It is unique to the row for its lifetime,
+  so a reused row number gets a new one. When `sync` differs from the last one the app kept
+  (the `ETag` carries it too), remove every pending Hestia notification and schedule the list.
+  `due_at` carries its offset, so schedule it as an absolute date.
+- **Reminders are one-shot.** The store has no repeating reminders, so each row is one
+  notification. If repeats arrive, the box expands each into its occurrences inside the window,
+  each with its own `id`, and the app needs no change.
+- **Whose reminders:** a reminder's `person` names who it is for (null is the household). The
+  operator ties a device to a person with `python brain/phone.py tie <device> <person>`
+  (`-` unties it), kept in `data/phone_people.json`, never guessed from the name. A tied phone
+  gets that person's reminders. An untied phone is a default phone: the household's reminders,
+  plus those of anyone with no phone tied, the same fallback `reminders_tick.py` uses.
+- **Double pings.** `reminders_tick.py` still sends each due reminder through Home Assistant.
+  A house that also runs the app gets both until it turns one off. Which to turn off, and how,
+  is not decided yet.
+
 ## Speech
 
 The web view's mic and speaker buttons call into the app through a native bridge instead of the
@@ -210,5 +244,5 @@ on the public internet.
    the box, at a 1.8 s median turn (`benchmarks/phone-render/RESULTS.md`). Not yet: the web view,
    resuming an interrupted model download, and a schema-exact `json_schema` (`phone/README.md`).
 3. **Speech and notifications:** on-device speech, local notification sync, the content-free
-   ping.
+   ping. The box half of the sync is built (2026-11-04, `GET /v1/phone/reminders`, above).
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.

@@ -49,3 +49,12 @@ def cancel(rid: int) -> bool:
     with store._conn() as c:
         cur = c.execute("DELETE FROM reminders WHERE id=? AND fired_at IS NULL", (rid,))
         return cur.rowcount > 0
+
+
+def unfired() -> list[dict]:
+    """Every unfired reminder with what a phone needs to schedule it (phone.reminders_for picks
+    the window and the person). Soonest first."""
+    with store._conn() as c:
+        rows = c.execute("SELECT id,due_at,text,person,created_at FROM reminders "
+                         "WHERE fired_at IS NULL ORDER BY due_at").fetchall()
+    return [dict(r) for r in rows]

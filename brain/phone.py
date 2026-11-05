@@ -9,7 +9,8 @@ Whatever answers on this socket sees every prompt and writes every tool call, so
 of the brain it takes a device token, issued here and kept in the phone's Keychain:
 
     python phone.py add-device <name>     # prints a token once; only its hash is stored
-    python phone.py list                  # devices, and the model file phones are served
+    python phone.py tie <name> <person>   # this phone gets <person>'s reminders ("-" unties it)
+    python phone.py list                  # devices, who each is tied to, and the model file
 
 Wire, one JSON object per WebSocket message:
     phone -> box  {"type": "hello", "device": "...", "model_sha256": "..."}
@@ -24,6 +25,7 @@ Wire, one JSON object per WebSocket message:
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import hashlib
 import hmac
 import itertools
@@ -36,6 +38,7 @@ from pathlib import Path
 import config
 
 DEVICES = config.DATA_DIR / "phone_devices.json"           # {name: sha256 of its token}
+PEOPLE = config.DATA_DIR / "phone_people.json"             # {device name: person it is tied to}
 MODEL_FILE = os.environ.get("HESTIA_PHONE_MODEL", "")       # the GGUF phones download
 REPLY_TIMEOUT = float(os.environ.get("HESTIA_PHONE_TIMEOUT", "120"))
 
@@ -79,6 +82,95 @@ def bearer(header: str | None) -> str | None:
     if header and header.lower().startswith("bearer "):
         return header[7:].strip()
     return None
+
+
+# --- whose reminders a phone schedules -----------------------------------------------------------
+# A reminder's `person` says who it is for; null is the household default (reminders_tick sends
+# it to REMINDER_NOTIFY). A device is tied to a person by the operator (`phone.py tie`), never
+# guessed from its name. A tied phone gets its person's reminders. An untied phone is a default
+# phone: it gets the null-person reminders, and those of any person with no phone tied, the same
+# fallback reminders_tick uses so a reminder for someone without a target still lands somewhere.
+
+REMINDER_DAYS = 14          # default sync horizon
+REMINDER_MAX_DAYS = 31      # the most a phone may ask for
+REMINDER_LIMIT = 64         # iOS keeps at most 64 pending local notifications per app
+
+
+def _people() -> dict[str, str]:
+    try:
+        people = json.loads(PEOPLE.read_text())
+    except (OSError, ValueError):
+        return {}
+    return {d: p for d, p in people.items() if isinstance(p, str)} if isinstance(people, dict) else {}
+
+
+def _valid_person(person: str) -> bool:
+    """The same shape config.person() accepts, so a tie can match a reminder's person column."""
+    return bool(person) and person.isascii() and person.replace("_", "").isalnum() \
+        and person == person.lower() and len(person) <= 32
+
+
+def tie(device: str, person: str | None) -> None:
+    """Tie a device to a person (lowercase, as HESTIA_PERSON spells it), or untie it with None."""
+    if device not in _devices():
+        raise ValueError(f"no device named {device!r}")
+    if person is not None and not _valid_person(person):
+        raise ValueError("a person is a short lowercase name, letters, digits and _ only")
+    people = {d: p for d, p in _people().items() if d != device}
+    if person is not None:
+        people[device] = person
+    PEOPLE.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(PEOPLE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(people, f, indent=1)
+
+
+def person_for(device: str) -> str | None:
+    return _people().get(device)
+
+
+def _local(due_at: str) -> dt.datetime | None:
+    """A stored due time (ISO, local time of the box when naive) as an aware datetime."""
+    try:
+        when = dt.datetime.fromisoformat(due_at)
+    except (TypeError, ValueError):
+        return None
+    return when.astimezone() if when.tzinfo is None else when
+
+
+def reminders_for(device: str, days: int = REMINDER_DAYS, now: dt.datetime | None = None) -> dict:
+    """The reminders this phone should have scheduled with iOS: unfired, due after now and within
+    `days`, for this phone's person, soonest first, at most REMINDER_LIMIT. Reminders are one-shot
+    rows (reminders_store), so each is one notification. `sync` hashes the whole list: when it
+    differs from the app's last one, the app replaces its scheduled set. `complete_until` is the
+    instant the list is whole up to; when the cap cuts it short, that is the last one returned,
+    and the app should sync again before then."""
+    import reminders_store
+    days = max(1, min(int(days), REMINDER_MAX_DAYS))
+    now = (now or dt.datetime.now()).astimezone()
+    until = now + dt.timedelta(days=days)
+    tied = person_for(device)
+    if tied is not None:
+        mine = lambda p: p == tied  # noqa: E731
+    else:
+        covered = set(_people().values())
+        mine = lambda p: p is None or p not in covered  # noqa: E731
+    rows = []
+    for r in reminders_store.unfired():
+        when = _local(r["due_at"])
+        if when is None or not (now < when <= until) or not mine(r.get("person")):
+            continue
+        key = hashlib.sha256(f"{r['id']}|{r['created_at']}".encode()).hexdigest()[:12]
+        rows.append({"id": f"reminder-{r['id']}-{key}", "text": r["text"],
+                     "due_at": when.isoformat(timespec="seconds"), "person": r.get("person")})
+    rows.sort(key=lambda r: _local(r["due_at"]))
+    truncated = len(rows) > REMINDER_LIMIT
+    rows = rows[:REMINDER_LIMIT]
+    complete_until = rows[-1]["due_at"] if truncated else until.isoformat(timespec="seconds")
+    sync = hashlib.sha256(json.dumps([[r["id"], r["text"], r["due_at"]] for r in rows]).encode()).hexdigest()
+    return {"device": device, "person": tied, "reminders": rows, "sync": sync,
+            "truncated": truncated, "complete_until": complete_until, "days": days,
+            "generated_at": now.isoformat(timespec="seconds")}
 
 
 # --- the model file ----------------------------------------------------------------------------
@@ -236,8 +328,16 @@ def main() -> int:
         print(add_device(sys.argv[2]))
         print("Shown once. Put it in the app; only its hash is kept.", file=sys.stderr)
         return 0
+    if len(sys.argv) == 4 and sys.argv[1] == "tie":
+        try:
+            tie(sys.argv[2], None if sys.argv[3] == "-" else sys.argv[3])
+        except ValueError as e:
+            print(e, file=sys.stderr)
+            return 1
+        return 0
     if sys.argv[1:] == ["list"]:
-        print("devices:", ", ".join(_devices()) or "none")
+        people = _people()
+        print("devices:", ", ".join(f"{d} ({people.get(d, 'default')})" for d in _devices()) or "none")
         print("model:", model_info() or "HESTIA_PHONE_MODEL is not set or missing")
         return 0
     print(__doc__.split("\n\n")[2])

@@ -964,6 +964,25 @@ async def model_file(request: Request):
                         headers={"X-Model-SHA256": info["sha256"]})
 
 
+@app.get("/v1/phone/reminders")
+async def phone_reminders(request: Request):
+    """The reminders this phone schedules as iOS local notifications, full text, so they fire on
+    time with the app closed and never pass through Apple. Rows only, no model (PHONE-APP.md,
+    "Notifications"). `?days=` sets the horizon; the ETag is the list's sync hash."""
+    device = _phone_device(request)
+    if not device:
+        return JSONResponse({"error": "device token required"}, status_code=401)
+    try:
+        days = int(request.query_params.get("days", phone.REMINDER_DAYS))
+    except ValueError:
+        return JSONResponse({"error": "days must be a whole number"}, status_code=400)
+    out = await asyncio.to_thread(phone.reminders_for, device, days)
+    etag = f'"{out["sync"]}"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+    return JSONResponse(out, headers={"ETag": etag, "Cache-Control": "no-store"})
+
+
 @app.get("/v1/operations/{request_id}")
 async def operation_status(request_id: str):
     return {"request_id": request_id,
