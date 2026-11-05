@@ -58,6 +58,7 @@ import records_store  # noqa: E402
 import reminders_store  # noqa: E402
 import goals_api  # noqa: E402
 import memory_api  # noqa: E402
+import library_store  # noqa: E402
 import goals_store  # noqa: E402
 import review_notes  # noqa: E402
 import threads_store  # noqa: E402
@@ -997,6 +998,52 @@ async def phone_reminders(request: Request):
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag})
     return JSONResponse(out, headers={"ETag": etag, "Cache-Control": "no-store"})
+
+
+@app.post("/v1/phone/library")
+async def phone_library_add(request: Request):
+    """File a document the phone read with Apple's on-device text recognition: the text of each
+    page, never the images, so a household's papers stay in the house (LIBRARY-DESIGN.md,
+    "Documents from the phone"). Body: {"id": the app's id for it, "title", "pages": [text...]}.
+    The same id again replaces it. No model: code chunks, indexes and embeds."""
+    device = _phone_device(request)
+    if not device:
+        return JSONResponse({"error": "device token required"}, status_code=401)
+    raw = await request.body()
+    if len(raw) > library_store.MAX_SCAN_CHARS * 2 + 64_000:
+        return JSONResponse({"error": "that document is too long to file in one go"}, status_code=413)
+    try:
+        data = json.loads(raw or b"{}")
+        if not isinstance(data, dict):
+            raise ValueError("expected an object")
+        out = await asyncio.to_thread(library_store.add_scanned, data.get("id"), data.get("title"),
+                                      data.get("pages"))
+    except (ValueError, TypeError) as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    print(f"[library] {device} filed a {out['pages']}-page document ({out['passages']} passages)", flush=True)
+    return out
+
+
+@app.get("/v1/phone/library")
+async def phone_library_list(request: Request):
+    """What the library holds: the documents phones filed (which the phone may remove) and the
+    shelf the operator loaded. Titles and counts only."""
+    if not _phone_device(request):
+        return JSONResponse({"error": "device token required"}, status_code=401)
+    docs = await asyncio.to_thread(library_store.docs)
+    keep = ("id", "title", "pages", "passages", "year")
+    return {"scanned": [{k: d.get(k) for k in keep} for d in docs if d["scanned"]],
+            "shelf": [{k: d.get(k) for k in keep if k != "id"} for d in docs if not d["scanned"]]}
+
+
+@app.delete("/v1/phone/library/{doc_id}")
+async def phone_library_remove(doc_id: str, request: Request):
+    """Remove a document a phone filed. The operator's PDF shelf cannot be removed from here."""
+    if not _phone_device(request):
+        return JSONResponse({"error": "device token required"}, status_code=401)
+    if not await asyncio.to_thread(library_store.remove_scanned, doc_id):
+        return JSONResponse({"error": "no document with that id was filed from a phone"}, status_code=404)
+    return {"ok": True}
 
 
 @app.get("/v1/operations/{request_id}")

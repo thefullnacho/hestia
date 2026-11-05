@@ -11,6 +11,11 @@ passages, so a question costs one small embedding call and an in-memory cosine p
     cd brain && uv run python library_store.py ingest
     cd brain && uv run python library_store.py search "squash vine borer"
     cd brain && uv run python library_store.py docs
+
+Documents can also come from a household's phone (add_scanned): the app reads the pages with
+Apple's on-device text recognition and sends only the text, so nobody hands the operator their
+papers and no image leaves the phone. Those are kept under a "phone:" name, never touched by the
+folder ingest, and removed only by the phone (remove_scanned) or by hand.
 """
 from __future__ import annotations
 
@@ -147,6 +152,52 @@ def meta_of(first_pages: str) -> tuple[str | None, int | None]:
     return (pub.group(1).replace(" ", "") if pub else None, int(year.group(1)) if year else None)
 
 
+SCAN_PREFIX = "phone:"
+_SCAN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{7,63}")   # the app's own id for the document (a UUID)
+MAX_SCAN_PAGES = 300
+MAX_SCAN_CHARS = 2_000_000
+MAX_TITLE = 200
+
+
+def add_scanned(doc_id: str, title: str, pages: list) -> dict:
+    """File a document the phone read: one string per page, in order. The same id again replaces
+    it (a rescan, or a resend after a dropped connection). Returns what was stored and whether
+    its passages got vectors; without them the whole library falls back to keyword search until
+    the next ingest embeds them (_load_vectors), so the caller is told."""
+    if not _SCAN_ID.fullmatch(doc_id or ""):
+        raise ValueError("id must be the app's id for the document (8 to 64 letters, digits, dashes)")
+    title = " ".join(str(title or "").split())
+    if not title or len(title) > MAX_TITLE:
+        raise ValueError(f"a title of 1 to {MAX_TITLE} characters is required")
+    if not isinstance(pages, list) or not pages or len(pages) > MAX_SCAN_PAGES \
+            or not all(isinstance(t, str) for t in pages):
+        raise ValueError(f"pages must be a list of 1 to {MAX_SCAN_PAGES} page texts")
+    if sum(len(t) for t in pages) > MAX_SCAN_CHARS:
+        raise ValueError("that document is too long to file in one go")
+    file = SCAN_PREFIX + doc_id
+    passages = index_doc(file, pages, fix={"title": title})
+    out = {"id": doc_id, "title": title, "pages": len(pages), "passages": passages, "embedded": True}
+    if passages == 0:
+        out["note"] = "No text was found on those pages, so nothing is searchable yet."
+    try:
+        embed_missing()
+    except Exception as e:  # noqa: BLE001 — keyword search still finds it; the next ingest retries
+        out["embedded"] = False
+        out["note"] = (f"Filed, but meaning search is off until the embedder answers "
+                       f"({type(e).__name__}); keyword search still finds it.")
+    return out
+
+
+def remove_scanned(doc_id: str) -> bool:
+    """Drop a document the phone filed. True if there was one. Never touches the PDF shelf."""
+    if not _SCAN_ID.fullmatch(doc_id or ""):
+        return False
+    with _conn() as c:
+        found = c.execute("SELECT 1 FROM library_docs WHERE file = ?", (SCAN_PREFIX + doc_id,)).fetchone()
+        _drop(c, SCAN_PREFIX + doc_id)
+    return bool(found)
+
+
 def manifest(folder: Path | None = None) -> dict:
     path = (folder or LIBRARY_DIR) / "library.toml"
     return tomllib.loads(path.read_text()) if path.exists() else {}
@@ -248,8 +299,10 @@ def ingest(folder: Path = LIBRARY_DIR, force: bool = False) -> dict:
             del files[name]
             report["skipped"].append(name)
     with _conn() as c:
+        # Only the folder's own PDFs: documents the phone filed are not files in the folder.
         known = {r["file"]: (r["size"], r["mtime"])
-                 for r in c.execute("SELECT file, size, mtime FROM library_docs")}
+                 for r in c.execute("SELECT file, size, mtime FROM library_docs")
+                 if not r["file"].startswith(SCAN_PREFIX)}
         for gone in set(known) - set(files):
             _drop(c, gone)
             report["removed"] += 1
@@ -330,7 +383,14 @@ def docs() -> list[dict]:
         "SELECT d.title, d.pub, d.year, d.pages, d.file, COUNT(ch.id) AS passages "
         "FROM library_docs d LEFT JOIN library_chunks ch ON ch.doc_id = d.id "
         "GROUP BY d.id ORDER BY d.title").fetchall()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["scanned"] = d["file"].startswith(SCAN_PREFIX)
+        if d["scanned"]:
+            d["id"] = d["file"][len(SCAN_PREFIX):]
+        out.append(d)
+    return out
 
 
 def main():

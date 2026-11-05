@@ -62,6 +62,24 @@ Nothing in the hot path. The corpus is downloaded once, by the operator, from pu
 picked; the brain never fetches a document and the model never adds one. See SECURITY.md,
 "The library".
 
+## Documents from the phone
+
+Added 2026-11-05. A household files its own papers from the iPhone app: the app reads the pages
+with Apple's on-device text recognition and posts only the text (PHONE-APP.md, "Documents into
+the library"). The box files it through the same `index_doc` as the PDF shelf, so chunking,
+keyword and vector search, and citations by title and page all work unchanged. No model.
+
+- Each is kept as `phone:<the app's id>`; the folder ingest never removes those, since they are
+  not files in `data/library/`. A phone removes only documents a phone filed.
+- A resend with the same id replaces the document.
+- If the embedder is down when a document arrives, it is filed and keyword search finds it, the
+  phone is told, and the next ingest embeds it. Until then vector search is off for the whole
+  library (`_load_vectors` refuses a partial index), the same rule as the PDF ingest.
+- Household papers are not extension publications: the similarity floor (0.38) was tuned on
+  the operator's shelf, so watch the first real questions about manuals and warranties.
+- Routing sends warranty, manual, serial or model number, instructions and user guide
+  questions to the library.
+
 ## First slice
 
 1. 20 to 30 PDFs from the household's own state extension: what is in the ground now, soil

@@ -84,7 +84,10 @@ INTENT_TOOLS = {
                 r"preserv\w*|maple|sap|syrup|evaporator|forag\w*|edible|wild (?:plants?|food)|herbs?|"
                 r"elderberr\w*|purif\w*|boil(?:ing)? water|drinking water|water (?:filter|treatment)|"
                 r"survival|shelter|fire ?starting|start a fire|navigat\w*|first aid|snake ?bites?|"
-                r"bug (?:in|out)|evacuat\w*|prepared\w*|go ?bag)\b"),
+                r"bug (?:in|out)|evacuat\w*|prepared\w*|go ?bag|"
+                # The household's own papers, filed from the phone (library_store.add_scanned).
+                r"warrant(?:y|ies)|guarantee|manuals?|user guide|instructions|serial (?:number|no)|"
+                r"model (?:number|no))\b"),
 }
 
 

@@ -218,6 +218,49 @@ Box config, in `secrets/push.env` (template `deploy/push.env.example`): `HESTIA_
 development build (its tokens only work on the sandbox host). Without a key, a box with
 `HESTIA_BACKEND=phone` logs each ping as a dry run; any other box without a key does nothing.
 
+## Documents into the library
+
+Built 2026-11-05 (box side; the app's half is not). A household adds its own papers (manuals,
+warranties, the furnace's service sheet, an extension leaflet) by photographing them in the app.
+The app reads the text on the phone with Apple's Vision framework and sends only the text, so no
+image leaves the phone and nobody hands the operator their documents. The box files it in the
+same library as the operator's PDFs (LIBRARY-DESIGN.md, "Documents from the phone").
+
+What the app does:
+
+- Capture with `VNDocumentCameraViewController` (edge detection, multi-page), or import a PDF from
+  Files: a PDF with a text layer gives its text through PDFKit (`PDFPage.string`); a scanned one
+  is rendered page by page and read like a photo.
+- Read each page with `VNRecognizeTextRequest`, `recognitionLevel = .accurate`,
+  `usesLanguageCorrection = true`, lines joined top to bottom with newlines. One string per page,
+  in order; a page with no text is an empty string, not skipped, so page numbers stay true.
+- Ask for a title (suggest the first line of page 1), and keep a UUID for the document.
+
+```
+POST /v1/phone/library                    Authorization: Bearer <device token>
+     {"id": "<UUID>", "title": "Dishwasher manual", "pages": ["page 1 text", "page 2 text"]}
+200  {"id", "title", "pages", "passages", "embedded": true|false, "note"?: "..."}
+400  {"error": "..."}  bad shape        401  no or unknown device token        413  too long
+
+GET    /v1/phone/library                  {"scanned": [{"id", "title", "pages", "passages", "year"}],
+                                           "shelf":   [{"title", "pages", "passages", "year"}]}
+DELETE /v1/phone/library/<id>             200 {"ok": true}   404 not one a phone filed
+```
+
+- **Limits:** 1 to 300 pages, a 1 to 200 character title, about 2 MB of text. The id is 8 to 64
+  letters, digits and dashes (a UUID fits).
+- **Resend replaces:** the same id again replaces the document, so a retry after a dropped
+  connection, or a rescan, never makes a second copy.
+- **Show the result:** `passages` is how much became searchable. When `embedded` is false or a
+  `note` comes back, show the note: the document is filed and keyword search finds it, but
+  meaning search waits until the box's embedder answers.
+- **Removing:** the phone can remove only documents a phone filed (`scanned`), never the
+  operator's shelf. Offer it on each scanned document in a list from `GET`.
+
+Asking about them needs nothing new: "when does the dishwasher warranty run out" routes to the
+`library` tool (warranty, manual, serial or model number, instructions, user guide), which
+cites the document's title and page.
+
 ## Speech
 
 The web view's mic and speaker buttons call into the app through a native bridge instead of the
