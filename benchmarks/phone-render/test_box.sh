@@ -22,6 +22,11 @@ if [ "${1:-}" = stop ]; then
 fi
 : "${HOST:?set HOST to the tailnet address of this box, never 0.0.0.0}"
 case "$HOST" in 0.0.0.0|::|"*") echo "refusing $HOST: the brain binds to a private address only" >&2; exit 1;; esac
+if curl -sf --max-time 2 "http://$HOST:$PORT/health" > /dev/null; then
+  echo "something already answers on $HOST:$PORT; stop it first (test_box.sh stop, or kill the old" \
+       "uvicorn if brain.pid is stale)" >&2
+  exit 1
+fi
 mkdir -p "$DIR/data" "$DIR/memory"
 export HESTIA_DATA_DIR="$DIR/data" HESTIA_DB="$DIR/data/hestia.db" HESTIA_MEMORY_DIR="$DIR/memory" \
   HESTIA_BACKEND=phone HESTIA_PHONE_MODEL="$MODELS/LFM3-1.7B-QAD-Q4_0.gguf" \
@@ -34,4 +39,7 @@ fi
 nohup uv run --quiet uvicorn hestia:app --host "$HOST" --port "$PORT" > "$DIR/brain.log" 2>&1 &
 echo $! > "$DIR/brain.pid"
 for _ in $(seq 60); do curl -sf "http://$HOST:$PORT/health" > /dev/null && break; sleep 1; done
+if ! kill -0 "$(cat "$DIR/brain.pid")" 2>/dev/null; then
+  rm -f "$DIR/brain.pid"; echo "test box did not start; see $DIR/brain.log" >&2; tail -3 "$DIR/brain.log" >&2; exit 1
+fi
 echo "test box up on http://$HOST:$PORT; serve it over Tailscale HTTPS for the app (log: $DIR/brain.log)"

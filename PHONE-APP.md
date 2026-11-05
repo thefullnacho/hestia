@@ -204,10 +204,11 @@ on the public internet.
    and the phone's exact path run on the box (`HESTIA_BACKEND=completion`) scores 92.7% against
    93.3% through llama-server's chat endpoint (`benchmarks/phone-render/`).
    The phone half has a first build (2026-11-04, `phone/`): llama.cpp, the socket, the device
-   token and the model download, run end to end in the simulator against `phone.py`. Not yet:
-   the web view, a held-out run through a real phone, and a schema-exact `json_schema`
-   (`phone/README.md`). Prompt reuse across a turn's calls works through context checkpoints,
-   as in llama-server.
+   token and the model download, run end to end in the simulator against `phone.py`. Prompt reuse
+   across calls works through context checkpoints, as in llama-server. **Gate met 2026-11-04:**
+   the held-out suite on an iPhone 17 Pro scored 292/315 = 92.7%, the same as the phone path on
+   the box, at a 1.8 s median turn (`benchmarks/phone-render/RESULTS.md`). Not yet: the web view,
+   resuming an interrupted model download, and a schema-exact `json_schema` (`phone/README.md`).
 3. **Speech and notifications:** on-device speech, local notification sync, the content-free
    ping.
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.
