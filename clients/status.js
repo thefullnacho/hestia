@@ -38,6 +38,7 @@
 
     // Read-only on purpose: promoting a proposal into memory stays a human act at the CLI
     // (review_notes.py), so this panel can show the queue without becoming a way to nod it through.
+    // Keeping and dropping live on Today, behind memory_api.py's guard.
     if (inbox) {
       h += '<div class="card"><h2>Memory proposals</h2>';
       if (inbox.count > 0) {
@@ -46,7 +47,7 @@
           h += '<div class="inbox-item"><div>' + esc(p.body) + '</div><div class="meta">' + esc(p.type) +
             (p.age_days != null ? ' · ' + p.age_days + 'd ago' : '') + (p.source ? ' · ' + esc(p.source) : '') + '</div></div>';
         }
-        h += '<div class="meta" style="margin-top:8px">Review them at the terminal: <code>uv run --project brain python brain/review_notes.py list</code></div>';
+        h += '<div class="meta" style="margin-top:8px"><a href="#today">Keep or drop them on Today</a>, or at the terminal: <code>uv run --project brain python brain/review_notes.py list</code></div>';
       } else {
         h += '<div class="pills">' + pill('up', 'Inbox clear') + '</div>';
       }

@@ -1,8 +1,9 @@
 """Review the note-taker's proposals — the human "dispose" step.
 
 The note-taker proposes durable facts into memory/inbox/. Nothing becomes part of the
-brain's live memory until you promote it here, so the brain learns in the open and you
-stay in control (determinism over intelligence).
+brain's live memory until a person promotes it, here or with Keep in the app (memory_api.py,
+which calls the same promote() and discard()), so the brain learns in the open and the
+household stays in control (determinism over intelligence). The model has no way to promote.
 
 Usage:
   uv run --project brain python brain/review_notes.py list
@@ -12,7 +13,9 @@ Usage:
 """
 from __future__ import annotations
 
+import re
 import sys
+import threading
 
 import config
 import memory_store
@@ -29,9 +32,58 @@ def proposals() -> list[dict]:
     return [memory_store._parse(p) for p in sorted(INBOX_DIR.glob("*.md"))]
 
 
+_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,80}")   # note_taker._slug's shape; never a path
+
+
 def _find(rid: str):
+    if not _ID.fullmatch(rid or ""):
+        return None
     p = INBOX_DIR / f"{rid}.md"
     return p if p.is_file() else None
+
+
+MAX_TEXT = 2000
+_review = threading.Lock()   # a double tap on Keep must not write the memory twice
+
+
+def promote(rid: str, text: str | None = None) -> str:
+    """Make one proposal live memory, optionally in the person's own words. Returns the new
+    memory's id. LookupError if no such proposal; ValueError if edited text is empty, too long,
+    or something the note-taker would never propose (not a household fact)."""
+    with _review:
+        return _promote(rid, text)
+
+
+def _promote(rid: str, text: str | None) -> str:
+    p = _find(rid)
+    if not p:
+        raise LookupError(f"no proposal '{rid}' (already reviewed?)")
+    r = memory_store._parse(p)
+    m = r["meta"]
+    body = r["body"]
+    if text is not None:
+        body = " ".join(str(text).split())
+        if not body:
+            raise ValueError("The note is empty. Use Not this to drop it instead.")
+        if len(body) > MAX_TEXT:
+            raise ValueError(f"Keep a note under {MAX_TEXT} characters.")
+        import note_taker
+        why = note_taker.rejected(body)
+        if why:
+            raise ValueError(f"That reads as {why}, not something about the household to remember.")
+    new_id = memory_store.write(body, type=m.get("type", "preference"),
+                                source="reviewed", confidence=float(m.get("confidence", 0.8)))
+    p.unlink(missing_ok=True)
+    return new_id
+
+
+def discard(rid: str) -> None:
+    """Drop one proposal. LookupError if there is no such proposal."""
+    with _review:
+        p = _find(rid)
+        if not p:
+            raise LookupError(f"no proposal '{rid}' (already reviewed?)")
+        p.unlink(missing_ok=True)
 
 
 def cmd_list() -> int:
@@ -62,15 +114,11 @@ def cmd_promote(args: list[str]) -> int:
         return 1
     n = 0
     for rid in ids:
-        p = _find(rid)
-        if not p:
+        try:
+            new_id = promote(rid)
+        except LookupError:
             print(f"  ? no proposal '{rid}'")
             continue
-        r = memory_store._parse(p)
-        m = r["meta"]
-        new_id = memory_store.write(r["body"], type=m.get("type", "preference"),
-                                    source="reviewed", confidence=float(m.get("confidence", 0.8)))
-        p.unlink()
         n += 1
         print(f"  ✓ promoted '{rid}' -> memory '{new_id}'")
     print(f"Promoted {n} memory(ies).")
@@ -84,11 +132,11 @@ def cmd_discard(args: list[str]) -> int:
         return 1
     n = 0
     for rid in ids:
-        p = _find(rid)
-        if not p:
+        try:
+            discard(rid)
+        except LookupError:
             print(f"  ? no proposal '{rid}'")
             continue
-        p.unlink()
         n += 1
         print(f"  ✗ discarded '{rid}'")
     print(f"Discarded {n} proposal(s).")

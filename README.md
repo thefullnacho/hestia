@@ -286,7 +286,8 @@ to what the request implies.
 The brain also learns passively. After each exchange — once the answer is already on the
 wire — a background **note-taker** (`note_taker.py`) reads the turn and proposes durable
 facts it heard ("trash pickup is Tuesday mornings"). True to *propose, don't dispose*, those
-land in a review inbox (`memory/inbox/`), **not** straight into live memory:
+land in a review inbox (`memory/inbox/`), **not** straight into live memory. Keep or drop each
+one on the app's Today page (Keep, Edit, Not this), or at the terminal:
 
 ```bash
 uv run --project brain python brain/review_notes.py list

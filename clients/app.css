@@ -369,3 +369,10 @@ dialog input, dialog select {
 .lib-link svg { color: var(--accent); flex-shrink: 0; }
 .lib-link small { display: block; color: var(--muted); font-size: 12px; }
 #todayBody, #statusBody, #goalsBody { display: flex; flex-direction: column; gap: 14px; }
+
+/* Today: what the note-taker proposed, to keep or drop */
+.mem-list { list-style: none; margin: 0; padding: 0; }
+.mem-item { padding: 10px 0; border-top: 1px solid var(--line, rgba(127,127,127,.2)); }
+.mem-item:first-child { border-top: 0; padding-top: 0; }
+.mem-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+.mem-edit { width: 100%; box-sizing: border-box; font: inherit; }

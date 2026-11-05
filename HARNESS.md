@@ -177,8 +177,13 @@ served by `GET /app/{name}` and cached network-first by the service worker. No b
 - **Goals** reads `GET /api/goals`. Drafts the model proposed are editable cards with
   Approve and Discard; active goals list their steps with a tap-to-tick box (tap again to
   undo). No model is involved in anything on this page (see "Household goals" below).
+- **Today** opens with "Hestia wants to remember" while the note-taker has proposals waiting:
+  each one has Keep, Edit (keep it in your own words) and Not this. They POST to
+  `/api/memory/inbox/<id>/keep|discard` (`memory_api.py`, behind the goals page's header,
+  same-origin and JSON guard), which calls the same `review_notes.promote()`/`discard()` as the
+  terminal. Edited words pass the note-taker's own filter. The model has no way to keep a fact.
 - **Status** is the `/status` snapshot plus maintenance and the memory inbox. The inbox is
-  shown read-only and points at `review_notes.py`; there are deliberately no Approve buttons.
+  shown read-only there and points at Today and `review_notes.py`; no buttons on this page.
   It polls every 15 seconds only while visible and the app is in the foreground.
 - **Library** is the one clips renderer (`/clips` redirects here), the way into recipes,
   and the day's picks (below).

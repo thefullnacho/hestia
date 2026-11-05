@@ -57,6 +57,7 @@ import note_taker  # noqa: E402
 import records_store  # noqa: E402
 import reminders_store  # noqa: E402
 import goals_api  # noqa: E402
+import memory_api  # noqa: E402
 import goals_store  # noqa: E402
 import review_notes  # noqa: E402
 import threads_store  # noqa: E402
@@ -717,8 +718,9 @@ async def status_snapshot():
 async def memory_inbox(limit: int = 0):
     """The note-taker's pending proposals as JSON — what the brain wants to learn but hasn't
     been allowed to yet. Read-only ON PURPOSE: promoting a fact into live memory stays a
-    human act at the CLI (review_notes.py), so a dashboard tile can surface the queue without
-    becoming a way to nod it through. Serves review_notes.proposals(), the same list the CLI
+    human act, at the CLI (review_notes.py) or with Keep in the app (memory_api.py, behind its
+    own guard), so a dashboard tile can surface the queue without becoming a way to nod it
+    through. Serves review_notes.proposals(), the same list the CLI
     prints. Newest first (a dashboard shows the head, the CLI reviews the tail); ?limit=N caps
     the rows returned while `count` stays the true depth of the queue."""
     today = _dt.date.today()
@@ -1668,3 +1670,4 @@ async def _organize_recipe_source(source: str) -> dict:
 
 app.include_router(recipe_review.router(_organize_recipe_source))
 app.include_router(goals_api.router())
+app.include_router(memory_api.router())

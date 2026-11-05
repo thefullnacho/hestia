@@ -1,9 +1,13 @@
 // Today view: what is due, read straight from the stores by GET /today. No model, no GPU.
 // Each section can fail on its own (HA down, calendar unreachable) without blanking the rest.
+// On top, while the note-taker has proposals waiting, a card to keep or drop each one: nothing
+// is remembered until a person taps Keep (POST /api/memory/inbox, memory_api.py).
 'use strict';
 
 (() => {
   const body = () => document.getElementById('todayBody');
+  const MEMORY_HEADERS = { 'Content-Type': 'application/json', 'X-Hestia-Memory': '1' };
+  let inbox = null;   // GET /memory/inbox, or null when it could not be read
 
   const time = (iso) => {
     const d = new Date(iso);
@@ -13,8 +17,69 @@
   const card = (title, inner) => '<div class="card"><h2>' + esc(title) + '</h2>' + inner + '</div>';
   const list = (rows, none) => rows.length ? '<ul class="t-list">' + rows.join('') + '</ul>' : '<p class="t-none">' + esc(none) + '</p>';
 
+  function memoryItem(p) {
+    return '<li class="mem-item" data-id="' + esc(p.id) + '"><div class="mem-text">' + esc(p.body) + '</div>' +
+      '<div class="meta">' + esc(p.type) + (p.age_days ? ' · ' + p.age_days + 'd ago' : ' · today') + '</div>' +
+      '<p class="t-err" data-err hidden></p>' +
+      '<div class="mem-actions"><button class="btn" data-mem="discard">Not this</button>' +
+      '<button class="btn" data-mem="edit">Edit</button>' +
+      '<button class="btn primary" data-mem="keep">Keep</button></div></li>';
+  }
+
+  function memoryCard() {
+    if (!inbox || !inbox.count) return '';
+    const n = inbox.count;
+    return '<div class="card" id="memCard"><h2>Hestia wants to remember</h2>' +
+      '<p class="meta" style="margin:0 0 10px">From recent conversations. Nothing is remembered until you keep it' +
+      (n > inbox.proposals.length ? '; showing ' + inbox.proposals.length + ' of ' + n : '') + '.</p>' +
+      '<ul class="mem-list">' + inbox.proposals.map(memoryItem).join('') + '</ul></div>';
+  }
+
+  async function memoryPost(id, act, payload) {
+    const r = await fetch('/api/memory/inbox/' + encodeURIComponent(id) + '/' + act,
+      { method: 'POST', headers: MEMORY_HEADERS, body: JSON.stringify(payload || {}) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+
+  async function onMemory(e) {
+    const btn = e.target.closest('button[data-mem]');
+    if (!btn) return;
+    const li = btn.closest('.mem-item');
+    const id = li.dataset.id;
+    const err = li.querySelector('[data-err]');
+    const act = btn.dataset.mem;
+    if (act === 'edit') {
+      const text = li.querySelector('.mem-text');
+      text.innerHTML = '<textarea class="g-input mem-edit" rows="3">' + esc(text.textContent) + '</textarea>';
+      text.querySelector('textarea').focus();
+      btn.hidden = true;
+      li.querySelector('[data-mem="keep"]').textContent = 'Keep my words';
+      return;
+    }
+    const buttons = li.querySelectorAll('button');
+    buttons.forEach(b => { b.disabled = true; });
+    try {
+      const edited = li.querySelector('.mem-edit');
+      const j = await memoryPost(id, act === 'keep' ? 'keep' : 'discard',
+        act === 'keep' && edited ? { text: edited.value } : {});
+      inbox.proposals = inbox.proposals.filter(p => p.id !== id);
+      inbox.count = j.left;
+      li.remove();
+      if (!inbox.proposals.length) {
+        if (inbox.count) refresh();                 // more were waiting beyond the first page
+        else document.getElementById('memCard')?.remove();
+      }
+    } catch (ex) {
+      buttons.forEach(b => { b.disabled = false; });
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  }
+
   function render(t) {
-    let h = '';
+    let h = memoryCard();
 
     const rem = t.reminders || {};
     h += card('Reminders', failed(rem) || list((rem.items || []).map(r =>
@@ -74,10 +139,14 @@
   }
 
   async function refresh() {
+    // The review queue loads beside /today, never instead of it: either can fail alone.
+    const inboxReq = fetch('/memory/inbox?limit=20').then(r => r.ok ? r.json() : null).catch(() => null);
     try {
       const r = await fetch('/today');
       if (!r.ok) throw new Error('today ' + r.status);
-      render(await r.json());
+      const t = await r.json();
+      inbox = await inboxReq;
+      render(t);
     } catch (e) {
       body().innerHTML = '<div class="empty">Couldn’t load today: ' + esc(e.message) +
         '. Is the brain up and are you on the tailnet?</div>';
@@ -87,5 +156,6 @@
   Hestia.views.today = { title: 'Today', enter: refresh, resume: refresh };
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('todayRefresh').addEventListener('click', refresh);
+    body().addEventListener('click', onMemory);
   });
 })();
