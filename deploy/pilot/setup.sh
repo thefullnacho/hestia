@@ -23,7 +23,7 @@ BACKUP_LABEL="HESTIA-BACKUP"
 BACKUP_MNT="/mnt/hestia-backup"
 PORT=8730
 
-TZ_WANT="" LAT="" LON="" ALLOW_SD=0 DRY=0
+TZ_WANT="" LAT="" LON="" TAILNET="" ALLOW_SD=0 DRY=0
 PHONES=()
 
 usage() {
@@ -33,6 +33,8 @@ usage() {
 Options:
   --tz ZONE        IANA time zone of the household (reminders and the briefing use local time)
   --lat N --lon N  the house's coordinates, for the weather tool (only lat/lon leave the box)
+  --tailnet NAME   the household's tailnet, as Tailscale names it; setup stops until it matches,
+                   so the box never ends up on the operator's tailnet by mistake
   --phone NAME     mint a device token for a household phone (repeatable); printed once
   --allow-sd       run from an SD card anyway (testing only: SQLite writes all day wear it out)
   --dry-run        say what would be done, change nothing
@@ -41,9 +43,14 @@ EOF
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --tz|--lat|--lon|--tailnet|--phone)
+      [ $# -ge 2 ] || { echo "$1 needs a value" >&2; usage >&2; exit 2; } ;;
+  esac
+  case "$1" in
     --tz) TZ_WANT="$2"; shift 2 ;;
     --lat) LAT="$2"; shift 2 ;;
     --lon) LON="$2"; shift 2 ;;
+    --tailnet) TAILNET="$2"; shift 2 ;;
     --phone) PHONES+=("$2"); shift 2 ;;
     --allow-sd) ALLOW_SD=1; shift ;;
     --dry-run) DRY=1; shift ;;
@@ -97,7 +104,7 @@ fi
 # --- 2. packages ---------------------------------------------------------------------------------
 step "2. Packages"
 need=()
-for pkg in git curl sqlite3 poppler-utils rsync; do
+for pkg in git curl sqlite3 poppler-utils rsync zstd; do
   dpkg -s "$pkg" >/dev/null 2>&1 || need+=("$pkg")
 done
 if [ ${#need[@]} -gt 0 ]; then
@@ -120,8 +127,10 @@ if ! command -v ollama >/dev/null; then
 fi
 # The installer adds a system-wide service; the box runs Ollama as the user's unit instead, like
 # the operator's box, so hestiactl and the brain's Wants= find it. Localhost only either way.
-if systemctl is-enabled ollama >/dev/null 2>&1; then
-  run sudo systemctl disable --now ollama
+# Masked, not disabled: upgrading through install.sh re-enables a merely disabled service, which
+# would take port 11434 as the ollama user, without embeddinggemma.
+if [ "$(systemctl is-enabled ollama 2>/dev/null || true)" != masked ] && systemctl cat ollama >/dev/null 2>&1; then
+  run sudo systemctl mask --now ollama
 fi
 ok "ollama installed"
 
@@ -148,13 +157,31 @@ if [ -z "$TS_IP" ]; then
   [ "$DRY" = 1 ] || exit 1
   TS_IP=100.64.0.1   # a placeholder for the dry run only
 fi
-ok "on the tailnet at $TS_IP"
+if [ "$DRY" = 0 ]; then
+  read -r joined login < <(tailscale status --json | python3 -c 'import json, sys
+s = json.load(sys.stdin); me = s["Self"]
+print((s.get("CurrentTailnet") or {}).get("Name", "?"), s.get("User", {}).get(str(me.get("UserID")), {}).get("LoginName", "?"))')
+  if [ "$joined" != "$TAILNET" ]; then
+    todo "the box is on the tailnet \"$joined\" (logged in as $login)."
+    todo "if that is the household's own tailnet, run again with  --tailnet $joined"
+    todo "if not: sudo tailscale logout, and log in with the household's account"
+    exit 1
+  fi
+fi
+ok "on the household's tailnet ${TAILNET:-?} at $TS_IP"
 
 # --- 6. the brain and Ollama as user services --------------------------------------------------------
 step "6. Services"
 run mkdir -p "$UNITS/hestia-brain.service.d" "$UNITS/hestia-ollama.service.d" "$REPO/data" "$REPO/memory"
+# Settings from an earlier run survive a rerun that does not repeat them (adding a phone later).
+# pilot.conf is this script's; anything set by hand (Home Assistant) goes in local.conf beside it.
+prev="$UNITS/hestia-brain.service.d/pilot.conf"
+[ -n "$LAT" ] || LAT=$(sed -n 's/^Environment=HESTIA_LAT=//p' "$prev" 2>/dev/null || true)
+[ -n "$LON" ] || LON=$(sed -n 's/^Environment=HESTIA_LON=//p' "$prev" 2>/dev/null || true)
+units_sum() { { cat "$UNITS/hestia-brain.service" "$prev" 2>/dev/null || true; } | sha256sum; }   # none yet on a first run
+before=$(units_sum)
 if [ "$DRY" = 0 ]; then
-  sed "s/TAILSCALE_IP/$TS_IP/" "$REPO/deploy/systemd/hestia-brain.service" > "$UNITS/hestia-brain.service"
+  sed "s/^ExecStart=\(.*\)TAILSCALE_IP/ExecStart=\1$TS_IP/" "$REPO/deploy/systemd/hestia-brain.service" > "$UNITS/hestia-brain.service"
   cp "$REPO/deploy/systemd/hestia-ollama.service" "$UNITS/hestia-ollama.service"
   cp "$REPO/deploy/pilot/systemd/hestia-pilot-backup.service" "$REPO/deploy/pilot/systemd/hestia-pilot-backup.timer" "$UNITS/"
   {
@@ -164,6 +191,8 @@ if [ "$DRY" = 0 ]; then
     echo "Environment=HESTIA_PHONE_MODEL=$MODELS/$MODEL_FILE"
     echo "Environment=HESTIA_CHAT_TEMPLATE=$MODELS/$TEMPLATE_FILE"
     echo "Environment=HESTIA_BOS_TOKEN=<|startoftext|>"
+    echo "# setup.sh already synced the environment; boot must not need PyPI"
+    echo "Environment=UV_NO_SYNC=1"
     [ -z "$LAT" ] || echo "Environment=HESTIA_LAT=$LAT"
     [ -z "$LON" ] || echo "Environment=HESTIA_LON=$LON"
   } > "$UNITS/hestia-brain.service.d/pilot.conf"
@@ -187,6 +216,9 @@ if [ "$DRY" = 0 ] && ! curl -sf http://127.0.0.1:11434/api/tags | grep -q embedd
 fi
 ok "ollama running, embeddinggemma pulled"
 run systemctl --user enable --now hestia-brain.service
+if [ "$DRY" = 0 ] && [ "$before" != "$(units_sum)" ]; then
+  systemctl --user try-restart hestia-brain.service   # a rerun's new settings take effect now
+fi
 if [ "$DRY" = 0 ]; then
   for _ in $(seq 60); do curl -sf "http://$TS_IP:$PORT/health" >/dev/null && break; sleep 1; done
   health=$(curl -sf "http://$TS_IP:$PORT/health") || die "the brain did not come up: journalctl --user -u hestia-brain -n 50"
@@ -198,7 +230,7 @@ ok "brain up in phone mode on $TS_IP:$PORT (tailnet only)"
 step "7. HTTPS for the app (iOS needs TLS; tailnet only, never Funnel)"
 if [ "$DRY" = 1 ]; then
   run sudo tailscale serve --bg --https=443 "http://$TS_IP:$PORT"
-elif sudo tailscale serve --bg --https=443 "http://$TS_IP:$PORT" >/dev/null 2>&1; then
+elif sudo timeout 20 tailscale serve --bg --https=443 "http://$TS_IP:$PORT" >/dev/null; then
   ok "https://$(tailscale status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))')"
 else
   todo "tailscale serve failed: in the household's Tailscale admin console, turn on MagicDNS and"
@@ -212,15 +244,30 @@ if ! grep -q "LABEL=$BACKUP_LABEL" /etc/fstab; then
   if [ "$DRY" = 1 ]; then
     run sudo tee -a /etc/fstab "<<< LABEL=$BACKUP_LABEL $BACKUP_MNT auto nofail,noatime,x-systemd.automount,x-systemd.device-timeout=10s 0 2"
   else
+    sudo cp /etc/fstab /etc/fstab.hestia-bak
+    [ -z "$(tail -c1 /etc/fstab)" ] || echo | sudo tee -a /etc/fstab >/dev/null
     echo "LABEL=$BACKUP_LABEL $BACKUP_MNT auto nofail,noatime,x-systemd.automount,x-systemd.device-timeout=10s 0 2" \
       | sudo tee -a /etc/fstab >/dev/null
+    if ! sudo findmnt --verify --tab-file /etc/fstab >/dev/null 2>&1; then
+      sudo cp /etc/fstab.hestia-bak /etc/fstab
+      die "the new /etc/fstab did not verify; put the old one back (findmnt --verify to see why)"
+    fi
     sudo systemctl daemon-reload
   fi
 fi
 if lsblk -no LABEL 2>/dev/null | grep -qx "$BACKUP_LABEL"; then
+  fstype=$(lsblk -no LABEL,FSTYPE | awk -v l="$BACKUP_LABEL" '$1 == l {print $2; exit}')
+  [ "$fstype" = ext4 ] || die "the $BACKUP_LABEL drive is $fstype; it must be ext4 (ownership and rsync -a need it)"
+  # Start the automount now (daemon-reload alone does not) and touch it, so the folder is made on
+  # the drive, never in the empty mount point on the SSD.
+  run sudo systemctl start "$(systemd-escape -p --suffix=automount "$BACKUP_MNT")"
+  ls "$BACKUP_MNT" >/dev/null 2>&1 || true
+  if [ "$DRY" = 0 ] && [ "$(findmnt -no FSTYPE "$BACKUP_MNT" | tail -1)" != ext4 ]; then
+    die "the $BACKUP_LABEL drive did not mount at $BACKUP_MNT (findmnt $BACKUP_MNT)"
+  fi
   run sudo mkdir -p "$BACKUP_MNT/hestia"
   run sudo chown "$USER:" "$BACKUP_MNT/hestia"
-  ok "backup drive present, mounted at $BACKUP_MNT"
+  ok "backup drive mounted at $BACKUP_MNT"
 else
   todo "no drive labelled $BACKUP_LABEL. Plug one in and label it (this ERASES that drive, check the"
   todo "device name with lsblk first):  sudo mkfs.ext4 -L $BACKUP_LABEL /dev/sdX1   then run this again"

@@ -330,6 +330,25 @@ def _downloads() -> dict:
 
 # ---------- snapshot: the shared data layer ----------
 
+def _backup() -> dict | None:
+    """A pilot box's nightly USB backup (deploy/pilot/backup.sh writes data/backup-status.json).
+    None on a box without one. Stale when the last run is over 36 hours old: a timer that stopped
+    firing must read as wrong, not as the last good night."""
+    import datetime as dt
+    import json
+
+    import config
+    try:
+        st = json.loads((config.DATA_DIR / "backup-status.json").read_text())
+        at = dt.datetime.fromisoformat(st["at"])
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, KeyError, TypeError):
+        return {"result": "unreadable", "at": None, "detail": "backup-status.json", "stale": True}
+    stale = dt.datetime.now(at.tzinfo) - at > dt.timedelta(hours=36)
+    return {"result": st.get("result"), "at": st["at"], "detail": st.get("detail", ""), "stale": stale}
+
+
 def snapshot() -> dict:
     """Collect the whole health picture as a plain dict. The brain tool formats this; the web
     /status endpoint will serialise the very same dict. All probes run in parallel."""
@@ -351,6 +370,7 @@ def snapshot() -> dict:
             "gpu_processes": gpu["processes"],
             "system": system_f.result(),
             "downloads": downloads_f.result(),
+            "backup": _backup(),
         }
 
 
@@ -429,6 +449,16 @@ _FORMATTERS = {
 }
 
 
+def _fmt_backup(b: dict | None) -> str:
+    if not b:
+        return ""
+    if b["result"] == "ok" and not b["stale"]:
+        return f"Backup: ok ({b['detail']})."
+    when = f" since {b['at'][:16].replace('T', ' ')}" if b.get("at") else ""
+    what = "no backup has run" + when if b["result"] == "ok" else f"the last backup {b['result']}: {b['detail']}"
+    return f"Backup: PROBLEM, {what}."
+
+
 def execute(section: str = "all") -> str:
     try:
         snap = snapshot()
@@ -441,6 +471,9 @@ def execute(section: str = "all") -> str:
     down = [s["name"] for s in snap["services"] if not s["up"]]
     if not snap["brain"]["ollama_up"]:
         down.append("Ollama")
+    backup = snap.get("backup")
+    if backup and (backup["result"] != "ok" or backup["stale"]):
+        down.append("the nightly backup")
     # An unexpected VRAM holder is not "down", but it IS an answer to "is everything ok?" —
     # the orphaned-container case reads as perfectly healthy on every other signal.
     stray = _unexpected_vram(snap.get("gpu_processes", []))
@@ -461,4 +494,5 @@ def execute(section: str = "all") -> str:
         _fmt_gpu(snap["gpus"], snap.get("gpu_processes")),
         _fmt_system(snap["system"]),
         _fmt_downloads(snap["downloads"]),
+        *([_fmt_backup(backup)] if backup else []),
     ])

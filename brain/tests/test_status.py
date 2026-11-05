@@ -148,3 +148,53 @@ def test_label_falls_through_to_the_script_for_interpreters():
 
 def test_label_survives_an_unreadable_cmdline():
     assert status._vram_label("", "/usr/local/lib/ollama/llama-server") == "llama-server"
+
+
+# ---------- a pilot box's nightly backup (deploy/pilot/backup.sh) ----------
+
+def _backup_status(tmp_path, monkeypatch, **st):
+    import json
+
+    import config
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    if st:
+        (tmp_path / "backup-status.json").write_text(json.dumps(st))
+
+
+def test_no_backup_file_means_no_backup_section(tmp_path, monkeypatch):
+    _backup_status(tmp_path, monkeypatch)
+    assert status._backup() is None and status._fmt_backup(None) == ""
+
+
+def test_a_recent_good_backup_reads_ok(tmp_path, monkeypatch):
+    import datetime as dt
+    _backup_status(tmp_path, monkeypatch, at=dt.datetime.now().astimezone().isoformat(),
+                   result="ok", detail="2026-11-05, 1.2G on the drive")
+    b = status._backup()
+    assert b["result"] == "ok" and not b["stale"]
+    assert status._fmt_backup(b) == "Backup: ok (2026-11-05, 1.2G on the drive)."
+
+
+def test_a_failed_or_stale_backup_is_a_problem_in_the_headline(tmp_path, monkeypatch):
+    import datetime as dt
+    old = (dt.datetime.now().astimezone() - dt.timedelta(days=3)).isoformat()
+    _backup_status(tmp_path, monkeypatch, at=old, result="ok", detail="2026-11-02")
+    assert status._backup()["stale"] and "PROBLEM" in status._fmt_backup(status._backup())
+    _backup_status(tmp_path, monkeypatch, at=dt.datetime.now().astimezone().isoformat(),
+                   result="failed", detail="no backup drive mounted")
+    monkeypatch.setattr(status, "snapshot", lambda: {
+        "services": [], "brain": {"ollama_up": True}, "gpus": [], "gpu_processes": [],
+        "system": {}, "downloads": {}, "backup": status._backup()})
+    for fmt in ("_fmt_brain", "_fmt_gpu", "_fmt_system", "_fmt_downloads", "_fmt_services"):
+        monkeypatch.setattr(status, fmt, lambda *a: "")
+    out = status.execute()
+    assert "the nightly backup down" in out.splitlines()[0]
+    assert "Backup: PROBLEM, the last backup failed: no backup drive mounted." in out
+
+
+def test_an_unreadable_status_file_is_a_problem_not_a_crash(tmp_path, monkeypatch):
+    import config
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    (tmp_path / "backup-status.json").write_text("{not json")
+    b = status._backup()
+    assert b["result"] == "unreadable" and b["stale"]

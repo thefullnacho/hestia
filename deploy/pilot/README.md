@@ -29,31 +29,39 @@ Before it goes to a household, load the drive for 10 minutes and check the kerne
 problems show up as NVMe timeouts or resets under combined load:
 
     sudo apt-get install -y stress-ng
-    stress-ng --cpu 4 --timeout 10m &  dd if=/dev/zero of=~/burn bs=1M count=20000 oflag=direct; rm ~/burn
+    stress-ng --cpu 4 --hdd 2 --hdd-bytes 4G --temp-path ~ --timeout 10m   # CPU and SSD together, 10 minutes
     dmesg | grep -i nvme              # "timeout", "reset" or "controller is down" = send it back
 
 ## 2. Run the setup
 
     git clone https://github.com/thefullnacho/hestia ~/hestia
     mkdir -p ~/models/lfm3 && scp <operator box>:models/lfm3/{LFM3-1.7B-QAD-Q4_0.gguf,chat_template.jinja} ~/models/lfm3/
-    ~/hestia/deploy/pilot/setup.sh --tz <their zone> --lat <lat> --lon <lon> --phone <name>-iphone
+    ~/hestia/deploy/pilot/setup.sh --tz <their zone> --lat <lat> --lon <lon> --phone <name>-iphone \
+        --tailnet <their tailnet>
 
 `--dry-run` shows every step without changing anything. The script stops where a person is
 needed and says what to do; run it again afterwards and it picks up where it stopped:
 
 - **Tailscale:** `sudo tailscale up --hostname hestia`, logged in with the household's account.
+  Setup then shows which tailnet the box joined and stops until `--tailnet` names it, so the box
+  never lands on the operator's tailnet by mistake.
 - **HTTPS:** in the household's Tailscale admin console, turn on MagicDNS and HTTPS certificates.
 - **Backup drive:** label it `HESTIA-BACKUP` (`sudo mkfs.ext4 -L HESTIA-BACKUP /dev/sdX1`, after
   checking the device with `lsblk`: this erases it). It mounts at `/mnt/hestia-backup` on use.
 
-Each `--phone` prints a device token once. Enter it in the app with the box's HTTPS address.
+Each `--phone` prints a device token once. Enter it in the app with the box's HTTPS address. To
+add a phone later, run setup again with just `--tailnet` and the new `--phone`; settings from the
+first run are kept. Setup owns `~/.config/systemd/user/hestia-brain.service.d/pilot.conf`; put
+anything set by hand (Home Assistant's `HA_URL` and `HA_TOKEN`) in a `local.conf` beside it.
 
 ## 3. Sharing the box
 
 For service during the pilot, the household shares **this one machine** (not their tailnet) with
 the operator's tailnet, from their admin console (the machine's menu, Share). A shared machine is
 quarantined: it answers connections but cannot start them into the operator's tailnet. Confirm
-that on the first box: from the Pi, `tailscale ping` an operator machine must fail. Never Tailscale
+that on the first box, after the operator has connected to it once: from the Pi, a connection to
+an operator machine must fail, for example `nc -zvw3 <operator machine's 100.x address> 22`.
+(`tailscale ping` cannot show it: its probe bypasses the filter.) Never Tailscale
 Funnel: that puts the box on the public internet.
 
 Households are told, before they start: the operator can reach the box during the pilot, and
@@ -68,13 +76,28 @@ because the brain has no login, that access can read their data. The share ends 
 ## Restoring from the backup
 
 Each night is a folder on the drive named by date, holding `hestia.db.gz` and `memory.tar.gz`;
-`files/` is a rolling copy of everything else in `data/` (photos, library documents, device files).
+`files/` is a rolling copy of everything else in `data/` (photos, recipes, library documents,
+device files). A file deleted or changed in `data/` keeps its old copy in that night's `deleted/`.
 
     systemctl --user stop hestia-brain
+    rm -f ~/hestia/data/hestia.db-wal ~/hestia/data/hestia.db-shm   # stale WAL would replay over the restore
     zcat /mnt/hestia-backup/hestia/<date>/hestia.db.gz > ~/hestia/data/hestia.db
     tar -xzf /mnt/hestia-backup/hestia/<date>/memory.tar.gz -C ~/hestia
     rsync -a /mnt/hestia-backup/hestia/files/ ~/hestia/data/
     systemctl --user start hestia-brain
+
+## What else runs, and what does not
+
+Only the brain, Ollama and the backup. The daily briefing, the nightly journal, the feed and the
+watchers are not installed: their timers are the operator's box's, and each needs its own
+decision for a household (the feed needs search, which is off for pilots until they answer).
+The backup's result shows on the status page and in Hestia's status answer; a failed or missing
+night reads as a problem there.
+
+The brain binds to the tailnet address only. A device on the household's LAN could still reach
+that address by adding a route through the Pi (Linux answers on any interface); the operator's own
+box has the same exposure. A firewall rule that only lets port 8730 in on `tailscale0` would close
+it; not added yet.
 
 ## Reminders on a pilot box
 
