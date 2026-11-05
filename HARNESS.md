@@ -163,7 +163,7 @@ only its section into `{"error": ...}`.
 
 `/app` is one page with five flat views picked by the URL hash: `#chat`, `#today`,
 `#goals`, `#status` and `#library`. The page is `clients/chat.html`; its styles and scripts are
-plain files beside it (`theme.css`, `app.css`, `core.js`, then one script per view),
+plain files beside it (`theme.css`, `app.css`, `core.js`, `bridge.js`, then one script per view),
 served by `GET /app/{name}` and cached network-first by the service worker. No build step.
 
 - **Chat** sends only the new message with its `thread_id` and `hestia_events: true`, shows
@@ -188,6 +188,12 @@ queue's Done buttons need the NFC token. Identify (`/identify`) takes no token a
 the app, since the app's scope covers them and a standalone app has no back button. The camera button posts to `/ingest/photo` with the
 ingest token. The app asks for each token once, keeps it in that phone's localStorage, and
 forgets it when the brain answers 401. Nothing about who may write changes.
+
+Inside the iPhone app the page is the same; `bridge.js` notices the app's message handler and
+sends the mic and speaker through Apple's on-device recognition and voice instead of the box's
+STT and TTS, asks the app to resync reminders after the reminder tool runs, and shows the
+phone's model socket as a tag beside the brain's dot. In a browser it does nothing. The
+contract is in PHONE-APP.md, "The web view".
 
 The theme follows the phone's light or dark setting. Replies and tool progress are announced
 through one polite live region, every control has a text label, and keyboard focus is visible.

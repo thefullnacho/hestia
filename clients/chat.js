@@ -381,6 +381,9 @@ async function submit({ viaVoice = false, text: given = null } = {}) {
       announce(reply);
       if (autoNarrate || viaVoice) speak(reply);
     }
+    if (inApp() && (receipts || []).some(r => r.tool === 'reminder' && r.status === 'succeeded')) {
+      hestiaBridge.send({ type: 'sync_notifications' });   // the app schedules the new reminder now
+    }
     $('dot').className = 'dot ok';
     loadThreads().catch(() => {});      // titles and counts are the brain's to set
   } catch (e) {
@@ -401,6 +404,7 @@ async function submit({ viaVoice = false, text: given = null } = {}) {
 // getUserMedia needs a secure context, so over plain http we point at the https:// URL. ---
 let recorder = null, chunks = [], recording = false;
 async function toggleMic() {
+  if (inApp()) { appToggleMic(); return; }
   stopSpeaking();
   const mic = $('mic');
   if (recording) { recorder.stop(); return; }
@@ -449,6 +453,7 @@ async function transcribeAndSend(blob) {
 }
 
 function stopSpeaking() {
+  if (inApp()) { appStopSpeaking(); return; }
   if (ttsAudio && !ttsAudio.paused) { ttsAudio.pause(); ttsAudio.currentTime = 0; }
   resetActiveSpeaker();
 }
@@ -456,6 +461,7 @@ function resetActiveSpeaker() {
   if (activeSpeakBtn) { activeSpeakBtn.innerHTML = ICONS.speak + ' <span>Speak</span>'; activeSpeakBtn = null; }
 }
 async function toggleSpeakMessage(text, btn) {
+  if (inApp()) { appToggleSpeak(text, btn); return; }
   if (ttsAudio && !ttsAudio.paused && activeSpeakBtn === btn) { stopSpeaking(); return; }
   resetActiveSpeaker();
   activeSpeakBtn = btn;
@@ -463,6 +469,7 @@ async function toggleSpeakMessage(text, btn) {
   await speak(text);
 }
 async function speak(text) {
+  if (inApp()) { appSpeak(text); return; }
   if (!ttsAudio) ttsAudio = new Audio();
   try {
     const r = await fetch('/v1/audio/speech', {
@@ -476,6 +483,89 @@ async function speak(text) {
     ttsAudio.onerror = resetActiveSpeaker;
     await ttsAudio.play().catch(resetActiveSpeaker);
   } catch { resetActiveSpeaker(); }
+}
+
+// --- Voice inside the iPhone app: the same buttons, through the app's on-device recognition
+// and voice (bridge.js; contract in PHONE-APP.md, "The web view"). Nothing here runs in a
+// browser, and after a bridge version mismatch the box's STT and TTS take over again. ---
+const inApp = () => window.hestiaBridge?.active === true;
+let appListening = null;       // the 'Listening…' note while the app is recognizing, else null
+let appSpeakingId = null;      // the id of the reply the app is speaking, else null
+let appSpeakSeq = 0;
+
+function appMicDone() {
+  const mic = $('mic');
+  mic.classList.remove('rec');
+  mic.setAttribute('aria-label', 'Talk to Hestia');
+  const note = appListening;
+  appListening = null;
+  return note;
+}
+function appToggleMic() {
+  if (appListening) { hestiaBridge.send({ type: 'listen_stop' }); return; }
+  appStopSpeaking();
+  if (hestiaBridge.speech === false) { appSpeechUnavailable(); return; }
+  if (!hestiaBridge.send({ type: 'listen' })) { bubble('err', "Couldn't reach the app's speech recognition. Typing still works."); return; }
+  appListening = bubble('note', 'Listening…');
+  const mic = $('mic');
+  mic.classList.add('rec');
+  mic.setAttribute('aria-label', 'Stop recording');
+  announce('Listening');
+}
+function appSpeechUnavailable() {
+  bubble('err', "This phone can't recognize speech on the device, so the mic is off. Typing still works.");
+}
+function appOnTranscript(m) {
+  if (!appListening) return;
+  const text = String(m.text || '').trim();
+  if (!m.final) { if (text) appListening.textContent = text + '…'; return; }
+  appMicDone().remove();
+  if (!text) { bubble('err', "Didn't catch that. Try again, a bit closer to the mic."); return; }
+  submit({ viaVoice: true, text });               // send it AND speak the reply
+}
+function appOnListenError(m) {
+  const note = appMicDone();
+  if (note) note.remove();
+  if (m.code === 'unavailable') { hestiaBridge.speech = false; appSpeechUnavailable(); }
+  else if (m.code === 'denied') bubble('err', "Hestia isn't allowed to use the mic or speech recognition. Turn them on in Settings, Hestia. Typing still works.");
+  else bubble('err', 'Speech recognition stopped: ' + (m.message || m.code || 'unknown error') + '.');
+}
+
+// The app gets plain words: the reply as it reads on screen, without markdown marks.
+function speakableText(text) {
+  const d = document.createElement('div');
+  d.innerHTML = formatMarkdown(text);
+  return (d.textContent || '').trim();
+}
+function appSpeak(text) {
+  const words = speakableText(text);
+  if (!words) { resetActiveSpeaker(); return; }
+  if (appSpeakingId) hestiaBridge.send({ type: 'speak_stop' });
+  appSpeakingId = String(++appSpeakSeq);
+  if (!hestiaBridge.send({ type: 'speak', id: appSpeakingId, text: words })) { appSpeakingId = null; resetActiveSpeaker(); }
+}
+function appStopSpeaking() {
+  if (appSpeakingId) hestiaBridge.send({ type: 'speak_stop' });
+  appSpeakingId = null;
+  resetActiveSpeaker();
+}
+function appToggleSpeak(text, btn) {
+  if (appSpeakingId && activeSpeakBtn === btn) { appStopSpeaking(); return; }
+  resetActiveSpeaker();
+  activeSpeakBtn = btn;
+  btn.innerHTML = ICONS.stop + ' <span>Stop</span>';
+  appSpeak(text);
+}
+function appOnSpeakFinished(m) {
+  if (m.id !== appSpeakingId) return;     // a reply that was already replaced or stopped
+  appSpeakingId = null;
+  resetActiveSpeaker();
+}
+if (window.hestiaBridge?.active) {
+  hestiaBridge.on('transcript', appOnTranscript);
+  hestiaBridge.on('listen_error', appOnListenError);
+  hestiaBridge.on('speak_finished', appOnSpeakFinished);
+  hestiaBridge.on('mismatch', () => { const note = appMicDone(); if (note) note.remove(); appSpeakingId = null; resetActiveSpeaker(); });
 }
 
 function updateNarrateUI() {

@@ -44,7 +44,7 @@ bulk-touched. Control those one at a time, by name.
 | `brain/routing.py` | Which tools and context a turn gets: skills, garden focus, intent words, explicit commands. English keywords, no model, no network. A learned router would replace this module |
 | `brain/tools/` | One module per scoped tool: calendar, goals, home, library, media, memory, records, recipe, reminder, search, shopping, status, weather. `skill.py` dispatches skill packs |
 | `brain/skills/` | The brain's own skill packs (almanac, garden_bed, home_control, media, recipe, whelping, wildlife). **Not** Claude Code skills |
-| `clients/` | The app at `/app`: `chat.html` shell, `theme.css` shared with `/recipes`, one script per view (chat, today, status, library, plus feed.js for Library's picks). Plain files, no build step. See `HARNESS.md`, "The app" |
+| `clients/` | The app at `/app`: `chat.html` shell, `theme.css` shared with `/recipes`, one script per view (chat, today, status, library, plus feed.js for Library's picks and bridge.js for the iPhone app's native bridge). Plain files, no build step. See `HARNESS.md`, "The app" |
 | `phone/` | The iPhone app (Swift, Xcode project): runs the model with llama.cpp and answers the box's `/v1/model/socket`. The llama.cpp framework is fetched, not committed. See `phone/README.md` |
 | `brain/nfc.py`, `brain/whelp_form.py` | No-LLM capture surfaces: plain forms that POST straight to the stores. **Never** route these through the model |
 | `brain/identify.py` | Species ID at `/identify`: the forager_ml router and experts on CPU, loaded from the field station checkout with its two-photo rule. No model. Keeps each sighting for a person to label (`sightings_store.py`, `/identify/review`): the local in-field dataset |

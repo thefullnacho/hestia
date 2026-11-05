@@ -159,8 +159,54 @@ chat still works. Replies are spoken with Apple's on-device voice.
 
 The app loads `/app` from the box over the tailnet, unchanged: chat, today, status, library,
 recipes. The screens stay plain files on the box with no build step. The only new web code is a
-small bridge (`window.webkit.messageHandlers`) for speech, notification sync and the
-connection state, used only when the page detects it is inside the app.
+small bridge (`clients/bridge.js`) for speech, notification sync and the connection state, used
+only when the page detects it is inside the app.
+
+### The bridge contract, version 1
+
+**Detection.** The page is inside the app when `window.webkit.messageHandlers.hestia` exists,
+so the app registers a script message handler named `hestia` before it loads `/app`. Without it
+`bridge.js` posts nothing and changes nothing on the page, and the mic and speaker buttons use the
+box's Whisper and Chatterbox as before. `bridge.js` loads only on `/app`, not on `/recipes`,
+`/queue`, `/whelp` or `/identify`.
+
+**Shape.** Every message both ways is one JSON object with a `type` string and `v: 1`.
+
+- Page to app: `window.webkit.messageHandlers.hestia.postMessage({v: 1, type, ...})`. The body
+  arrives as a dictionary, not a string.
+- App to page: `window.hestiaBridge.receive({v: 1, type, ...})` through `evaluateJavaScript`.
+  A JSON string is accepted too.
+- Each side ignores a `type` it does not know. Fields marked optional may be left out.
+
+**Version.** A message whose `v` is not 1 turns the page's bridge off for the rest of the page
+load: the tag in the top bar reads "update app", and the mic and speaker go back to the box's
+speech. The app should answer any page message whose `v` it does not speak with its own
+`hello`, so the page sees the mismatch; a new version is a new number on both sides.
+
+**Page to app**
+
+| `type` | Fields | Meaning |
+|---|---|---|
+| `hello` | none | The page has loaded (once per load, including reloads and returning from another page). The app answers with `hello`, then the current `connection`. Send nothing to the page before this. |
+| `listen` | none | Start on-device recognition (`requiresOnDeviceRecognition`; never Apple's servers). Results come back as `transcript`, failures as `listen_error`. |
+| `listen_stop` | none | The person tapped the mic again. Stop, and send the final `transcript` (with empty `text` if nothing was heard). |
+| `speak` | `id` string, `text` string | Speak `text` with the on-device voice. `text` is plain words, markdown already removed. A new `speak` replaces the one playing. |
+| `speak_stop` | none | Stop speaking now. |
+| `sync_notifications` | none | Fetch the upcoming reminders and reschedule the local notifications now. The page sends it after a turn in which the reminder tool succeeded; the app also syncs on its own whenever it opens. |
+
+**App to page**
+
+| `type` | Fields | Meaning |
+|---|---|---|
+| `hello` | `speech` boolean, `app` string (optional) | The reply to the page's `hello`. `speech` is whether on-device recognition is available on this phone for its language; when false the mic says so and sends nothing. `app` is the app's version, for problem reports. |
+| `transcript` | `text` string, `final` boolean | Recognized words. Partials (`final: false`) show in the Listening note; send the whole text so far each time, not a delta. Exactly one `final: true` ends each `listen`, whether the person tapped stop or recognition ended on its own, and the page sends it as a voice turn (the reply is spoken back). |
+| `listen_error` | `code` string, `message` string (optional) | Ends the `listen` instead of a final `transcript`. `code` is `unavailable` (no on-device recognition: the mic stays off for this page load, chat still works), `denied` (mic or speech permission refused: the page points to Settings) or `failed` (anything else; `message` is shown to the person). |
+| `speak_started` | `id` string | The voice began speaking that `id`. Informational; the page shows Stop as soon as it asks. |
+| `speak_finished` | `id` string, `error` string (optional) | That `id` finished, was stopped, was replaced, or failed. Send it in every case, so a Stop button never sticks. |
+| `connection` | `state` string, `progress` number (optional), `detail` string (optional) | The phone's model socket to the box. `state` is `connected`, `disconnected` or `downloading`; `progress` is 0 to 1 while downloading. `detail` is a short reason, added to the tag's accessible label. Send it after `hello` and on every change. |
+
+The page shows `connection` as a small tag beside the brain's dot: "model ready", "model 42%"
+or "model offline". It appears only inside the app.
 
 ## The pilot box
 
