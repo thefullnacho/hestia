@@ -272,6 +272,7 @@ name = "hestia-brain"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "httpx", extra = ["http2"] },
     { name = "jinja2" },
@@ -286,12 +287,12 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "cryptography" },
     { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=46" },
     { name = "fastapi", specifier = ">=0.110" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1.6" },
@@ -305,10 +306,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "cryptography", specifier = ">=46" },
-    { name = "pytest", specifier = ">=8" },
-]
+dev = [{ name = "pytest", specifier = ">=8" }]
 
 [[package]]
 name = "hpack"
