@@ -6,7 +6,10 @@
 #   HOST=<the box's tailnet address> benchmarks/phone-render/test_box.sh      # start
 #   benchmarks/phone-render/test_box.sh stop
 #
-# The first start prints a device token for the app. Point the app at ws://HOST:PORT.
+# The first start prints a device token for the app. iOS needs TLS, so put the test box behind
+# Tailscale HTTPS, tailnet only, with no path on the target (a path there joins every request's):
+#   tailscale serve --bg --https=8443 http://HOST:PORT
+# and point the app at https://<this box's tailnet name>:8443. Undo: tailscale serve --https=8443 off
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 DIR="${TEST_BOX_DIR:-$HOME/.local/state/hestia-testbox}"
@@ -31,4 +34,4 @@ fi
 nohup uv run --quiet uvicorn hestia:app --host "$HOST" --port "$PORT" > "$DIR/brain.log" 2>&1 &
 echo $! > "$DIR/brain.pid"
 for _ in $(seq 60); do curl -sf "http://$HOST:$PORT/health" > /dev/null && break; sleep 1; done
-echo "test box up: ws://$HOST:$PORT/v1/model/socket (log: $DIR/brain.log)"
+echo "test box up on http://$HOST:$PORT; serve it over Tailscale HTTPS for the app (log: $DIR/brain.log)"
