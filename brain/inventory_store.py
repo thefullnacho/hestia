@@ -372,3 +372,48 @@ def overview(location: str | None = None, old_only: bool = False, today: dt.date
         return ("Nothing old on hand." if old_only else
                 f"Nothing on record{' in ' + location if location else ''}.")
     return "\n".join(lines)
+
+
+# --- what is on hand for a question (the library's grounded answers) ----------------------------------
+
+_SIZE_WORDS = {"oz", "fl", "lb", "lbs", "pk", "ct", "cf", "gal", "qt", "pt", "ft", "in", "ml", "l", "kg", "g",
+               "pack", "count", "bag", "bottle", "jar", "box", "can", "the", "and", "of", "for", "with"}
+
+
+def _stem(word: str) -> str:
+    return re.sub(r"(?:es|s)$", "", word) if len(word) > 3 else word
+
+
+def _name_words(name: str) -> set[str]:
+    return {_stem(w) for w in re.findall(r"[a-z]+", name.lower()) if w not in _SIZE_WORDS and len(w) > 1}
+
+
+def on_hand_for(texts: list[str], today: dt.date | None = None) -> list[str]:
+    """Items on hand whose every name word appears in `texts` (passages a search returned), one
+    line each with how much, how old and where last noted. Strict on purpose: telling someone
+    they have a thing they don't is worse than missing one ("Neem Oil 16 oz" matches a passage
+    saying "neem oil"; "insect killing soap" does not match "insecticidal soap")."""
+    today = today or dt.date.today()
+    words = {_stem(w) for w in re.findall(r"[a-z]+", " ".join(texts).lower())}
+    out = []
+    with store._conn() as c:
+        for r in c.execute("SELECT * FROM entities WHERE kind=? ORDER BY name COLLATE NOCASE", (KIND,)):
+            item = store._row_entity(r)
+            mine = _name_words(item["name"])
+            if not mine or not mine <= words or (len(mine) == 1 and len(next(iter(mine))) < 4):
+                continue
+            evs = _events(c, item["id"])
+            if not evs:
+                continue
+            s = stock(item, evs)
+            if not s["have"]:
+                continue
+            out.append("- " + _say(item["name"], s) + "." + _age_note(item["name"], s, item, today)
+                       + _where(item))
+    return out
+
+
+def has_any() -> bool:
+    """Whether this house keeps an inventory at all (any amount ever logged)."""
+    with store._conn() as c:
+        return c.execute("SELECT 1 FROM events WHERE kind=? LIMIT 1", (EVENT,)).fetchone() is not None

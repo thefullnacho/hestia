@@ -45,7 +45,9 @@ SCHEMA = {
                         "snakebite) and emergency preparedness. Use it for how-to, timing and "
                         "diagnosis questions "
                         "in those areas, then answer from the passages and name the publication and "
-                        "page. Pass the user's question in plain words as the query."),
+                        "page. It also lists what the house already has on hand among the things "
+                        "the passages name, so the answer can start from the shelf. Pass the user's "
+                        "question in plain words as the query."),
         "parameters": {
             "type": "object",
             "properties": {"query": {"type": "string", "description": "the question, in plain words"}},
@@ -58,6 +60,26 @@ SCHEMA = {
 def cite(p: dict) -> str:
     year = f", {p['year']}" if p.get("year") else ""
     return f"{p['title']}{year}, p.{p['page']}"
+
+
+ON_HAND_HEAD = ("On hand in this house, from the inventory, among the things these passages name. "
+                "Build the answer around these where the passages support them; say where each was "
+                "last noted (never that it IS there), and pass on any old-stock note:")
+NONE_ON_HAND = ("Nothing in the house's inventory matches what these passages name. If the answer needs "
+                "something, say what, and offer to put it on the shopping list.")
+
+
+def _on_hand(query: str, hits: list[dict]) -> str:
+    """The inventory join (INVENTORY.md, "The grounded answer"), done in code: what the passages
+    name that the house already has. Nothing is added for a house with no inventory at all."""
+    try:
+        import inventory_store
+        items = inventory_store.on_hand_for([query, *(p["text"] for p in hits)])
+        if items:
+            return "\n\n" + ON_HAND_HEAD + "\n" + "\n".join(items)
+        return "\n\n" + NONE_ON_HAND if inventory_store.has_any() else ""
+    except Exception:  # noqa: BLE001 - the passages still answer without the join
+        return ""
 
 
 def execute(query: str) -> str:
@@ -77,6 +99,7 @@ def execute(query: str) -> str:
     if hits[0].get("mode") == "keyword":
         head += " (Keyword search: the meaning search was unavailable, so check fit carefully.)"
     out = head + "\n\n" + "\n\n".join(lines)
+    out += _on_hand(query, hits)
     if _MED.search(query) or _MED.search(hits[0]["text"]):
         out += "\n\n" + MED_NOTE
     if _EDIBLE.search(query):

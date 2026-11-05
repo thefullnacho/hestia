@@ -58,7 +58,18 @@ reads them, no model:
 - An abbreviation the store printed ("BNLS CHKN BRST") stays as printed for the person to fix.
   A model could expand it, but a wrong guess would be filed as a fact, so v1 leaves it to Edit.
 
-## Not yet
+## The grounded answer
 
-- **The grounded answer:** library passages joined with what is on hand ("how do I treat pests
-  on garlic" answered from the extension leaflets and the neem oil in the garage).
+Built 2026-11-05. When the `library` tool answers, code attaches what the house already has among
+the things the passages name (`inventory_store.on_hand_for`), with how much, how old and where it
+was last noted. The model plans from that; it never has to remember to look. "How do I treat
+pests naturally on garlic?" comes back with the extension's methods (neem oil or insecticidal soap
+on thrips, row covers, diatomaceous earth) and "one bottle of neem oil, last noted in the garage,
+from 2022, may have lost strength" (checked with gemma4 on a scratch brain).
+
+- **The match is strict:** every word of an item's name must be in the passages, plurals aside,
+  sizes and pack counts ignored ("Neem Oil 16 oz" matches "neem oil"). "Insect killing soap"
+  does not match "insecticidal soap", and a one-word name under four letters never matches.
+  Telling someone they have a thing they don't is worse than missing one.
+- Used-up stock is not offered. When the house keeps an inventory but nothing matches, the tool
+  says so and the model offers the shopping list. A house with no inventory gets only the passages.

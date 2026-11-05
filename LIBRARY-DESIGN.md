@@ -3,7 +3,7 @@
 Status: designed 2026-10-23; built 2026-10-24. The `library` tool searches by EmbeddingGemma
 vectors (keyword when the embedder is down), code appends the source when an answer names none,
 and code adds the pharmacist line to dose and stopping questions. A similarity floor
-(0.38) turns away questions the shelf clearly doesn't cover. Still open: the inventory join.
+(0.38) turns away questions the shelf clearly doesn't cover. The inventory join is built (2026-11-05, INVENTORY.md, "The grounded answer"): code attaches what the house has on hand among the things the passages name.
 
 ## The idea
 
