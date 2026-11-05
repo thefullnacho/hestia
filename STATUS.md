@@ -7,6 +7,62 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-04 (evening) - the phone matches the box, and the tool list stays put
+
+All on branch `feat/phone-socket`, pushed, not deployed. Main and the live brain are unchanged.
+
+- **The phone keeps its context between calls** (`d7b4e92`, `bf20094`, `3e2e1a3`, from the Mac
+  session): the app checkpoints where a prompt stops matching the last one, keeps the one at the end
+  of the system prompt, and reads only what changed.
+- **Held-out suite on the 17 Pro, all five passes, screen awake: 292/315 = 92.7%** (`1b81653`), the
+  same score as the phone path on the box. Median turn 1.8 s (was 19 s), median one model call, no
+  slowdown across 315 turns. All 23 misses made no call; none switched the wrong light.
+- **Moving the tool list out of the system message costs five points** (`6ed9512`): 87.9% as text in
+  the latest message, 86.7% as the template's own `additional_tools`. Routing changes the tool list
+  turn to turn and the template puts it ahead of the history, so a chat thread rereads its history
+  each turn. Head layout stays; the app needs no change for it.
+- **`/health` and the turn log name the phone's model** (`f1f442c`): the GGUF, and whether a phone is
+  connected, in place of "ollama/gemma4". `hestiactl status` shows `phone=`.
+- **Next concrete action:** none queued on the phone path. The test box still runs pre-`f1f442c`
+  code until it is restarted.
+
+[non-production] Off-peak queue unchanged: reply to @TermuxSolutions, text Dad about the drone provider, Dawn's fresh-chat test, a nudge to your sister, NVMe HAT and SSD for the Pi 5.
+
+---
+
+## 2026-11-04 - Hestia answers from the iPhone
+
+- **Every model call goes through `backend.py`** (`2c87364`, deployed) and **model work can wait for
+  a phone** (`model_jobs.py`, `e607bae`, deployed): in phone mode the timed jobs queue their model
+  step and a finisher completes it when a phone connects.
+- **Hearth Ember** is the app's look (`c9744d0`, deployed): parchment and burnt sienna, warm black and
+  ember. Alex: "very warm and cozy."
+- **The box renders the phone's prompt** (`chat_format.py`, deployed): byte for byte with llama-server
+  on 48 real turns. The phone's exact path scores 92.7% on the held-out suite, against 93.3% through
+  llama-server's chat endpoint (`benchmarks/phone-render/`).
+- **Light commands are held to the person's words** (`guards.said_words`, deployed): the phone path's
+  "put on the outside" turning the kitchen off (4 of 315) went to zero at the same score.
+- **On branch `feat/phone-socket`, pushed, not deployed** (kept off main until the phone is solid):
+  the phone's socket (`phone.py`, device tokens, model download, draining queued work), a test box
+  (`test_box.sh`), the held-out scorer able to host the socket, the first iPhone app (`phone/`, from
+  the Mac session), and the receipt shortcut for any lone light command (median model calls 4 to 1,
+  92.7% unchanged).
+- **First real phone run:** the 17 Pro downloaded the model over Tailscale HTTPS and answered its first
+  turn in 5.9 s. One held-out pass on the phone: 53/63 at 19 s a turn before the screen locked and the
+  socket closed. The 19 s was a test fixture forcing retries (fixed) plus the app rereading the whole
+  prompt on every call.
+- **Lessons:** iOS needs TLS, so the app reaches the box through `tailscale serve` (tailnet only, no
+  path on the target); the guest Wi-Fi forced Tailscale through a relay in Virginia, the main Wi-Fi is
+  direct at 8 ms; the app's model download restarts from zero when interrupted (needs resume and a
+  background session).
+- **Next concrete action:** the app keeps its context between requests and reads only what changed;
+  then the held-out suite on the phone again with the screen kept awake, then the `tail` layout.
+
+[non-production] Keep the phone's screen awake for the next held-out run on the phone.
+[non-production] Off-peak queue: reply to @TermuxSolutions, text Dad about the drone provider, Dawn's fresh-chat test, a nudge to your sister, NVMe HAT and SSD for the Pi 5 (all queued).
+
+---
+
 ## 2026-10-31 to 11-03 - a household member's own Claude window, the daily briefing, and a grammar that trims nothing
 
 - **A household member's Claude window** (`54a066a`, SECURITY.md): the MCP server runs in her
