@@ -27,7 +27,7 @@ struct ContentView: View {
         NavigationStack {
             Form {
                 Section("Box") {
-                    TextField("http://100.x.y.z:8734", text: $link.boxAddress)
+                    TextField("https://box.your-tailnet.ts.net:8444", text: $link.boxAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)

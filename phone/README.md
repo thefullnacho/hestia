@@ -35,10 +35,30 @@ the iPhone bench (`benchmarks/RESULTS.md`). For speed numbers, still launch from
 
 ## Use
 
-On the box, start a brain in phone mode (`benchmarks/phone-render/test_box.sh` makes one beside
-the real brain and prints a device token). In the app, enter `http://<box tailnet address>:8734`
-and the token, then Save and connect. The first connect downloads the model (about 1 GB, keep
-the app open); after that the status reads "connected, ready" and the log shows each request.
+iOS refuses a plain `ws://` socket to the box (App Transport Security), so the phone reaches it
+as `wss://` through `tailscale serve`, which holds the box's tailnet certificate and forwards to
+the brain on its private address.
+
+1. On the box, start a brain in phone mode. `benchmarks/phone-render/test_box.sh` makes one
+   beside the real brain and prints a device token on its first start.
+2. Put HTTPS in front of it, pointing at the brain's root, **with no path**:
+
+   ```bash
+   tailscale serve --bg --https=8444 http://<box tailnet address>:8734
+   ```
+
+   A path on the target doubles every request: tailscale serve joins the target's path to the
+   request's, so the socket arrives as `/v1/model/socket/v1/model/socket` and the model
+   download as `/v1/model/socket/v1/model/info`. `tailscale serve status` shows the target.
+3. In the app, enter `https://<box MagicDNS name>:8444` and the token, then Save and connect.
+   A `wss://` address, with or without `/v1/model/socket`, works too; the app adds the paths
+   itself.
+
+The first connect downloads the model (about 1 GB, keep the app open); after that the status
+reads "connected, ready" and the log shows each request.
+
+In the simulator, a box on this Mac works over plain `ws://127.0.0.1:<port>`: local addresses
+are allowed.
 
 ## How it matches llama-server
 

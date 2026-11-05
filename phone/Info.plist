@@ -4,20 +4,10 @@
 <dict>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<!-- The box is reached over the tailnet by address or MagicDNS name, plain ws://,
-		     as the web app is. WireGuard is the transport security. -->
+		<!-- The box is reached as wss:// through tailscale serve (phone/README.md). Local
+		     networking stays allowed for a box on this Mac while developing in the simulator. -->
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>ts.net</key>
-			<dict>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-			</dict>
-		</dict>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Hestia connects to your household's box to run its model on this phone.</string>
