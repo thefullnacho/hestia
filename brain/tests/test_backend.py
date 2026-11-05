@@ -130,3 +130,11 @@ def test_completion_mode_jobs_render_without_tools_and_report_the_cap(text_mode,
     assert url.endswith("/completion") and body["prompt"] == "<s><user>rank</><assistant>"
     assert body["json_schema"] == {"type": "object"} and body["n_predict"] == 32
     assert out == {"content": "{}", "truncated": True}
+
+
+def test_model_name_follows_the_backend(monkeypatch):
+    monkeypatch.setattr(backend, "BACKEND", "ollama")
+    assert backend.model_name() == backend.MODEL
+    monkeypatch.setattr(backend, "BACKEND", "openai")
+    monkeypatch.setattr(backend, "OPENAI_MODEL", "mlx-qwen")
+    assert backend.model_name() == "mlx-qwen"

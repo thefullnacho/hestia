@@ -162,3 +162,17 @@ def test_the_model_file_and_its_details_take_a_device_token(box):
         assert client.get("/v1/model/file").status_code == 401
         r = client.get("/v1/model/file", headers=auth(box["token"]))
         assert r.content == b"weights" and r.headers["x-model-sha256"] == box["sha"]
+
+
+def test_health_names_the_phone_model_and_whether_a_phone_is_there(box):
+    client = TestClient(hestia.app)
+    out = client.get("/health").json()
+    assert out["status"] == "ok" and out["backend"] == "phone"
+    assert out["model"] == "model" and out["phone"] == "not connected"
+    assert "ollama" not in out
+    phone.hub.attach(phone.Phone("alex-17pro", None))
+    assert client.get("/health").json()["phone"] == "connected"
+
+
+def test_the_turn_log_names_the_phone_model_not_ollamas(box):
+    assert hestia.TurnTrace().model == "model"

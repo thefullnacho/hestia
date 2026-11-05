@@ -252,6 +252,17 @@ async def ollama_chat(messages: list[dict], schemas: list | None = None) -> dict
     return payload["message"]
 
 
+def model_name() -> str:
+    """The model that answers, as health and the turn log name it. With the model on a phone it
+    is the file phones are served, not HESTIA_MODEL, which still names the box's Ollama model."""
+    if BACKEND == "phone":
+        import phone
+        return os.path.splitext(os.path.basename(phone.MODEL_FILE))[0] if phone.MODEL_FILE else "phone"
+    if BACKEND == "openai":
+        return OPENAI_MODEL
+    return MODEL
+
+
 def deferred() -> bool:
     """True when the model lives on a phone that may not be connected (HESTIA_BACKEND=phone).
     Jobs then queue their model step in model_jobs instead of calling complete(); chat turns and

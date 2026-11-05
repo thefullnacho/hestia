@@ -89,7 +89,7 @@ cmd_status() {
   local health
   if health=$(curl -fsS --max-time 5 "$BRAIN_URL/health" 2>/dev/null); then
     if command -v jq >/dev/null; then
-      echo "$health" | jq -r '"\("'"$GRN"'●'"$RST"'") status=\(.status)  ollama=\(.ollama)  model=\(.model)  tools=\(.tools|join(","))  memories=\(.memory_records)"'
+      echo "$health" | jq -r '"\("'"$GRN"'●'"$RST"'") status=\(.status)  \(if .phone then "phone=\(.phone)" else "ollama=\(.ollama)" end)  model=\(.model)  tools=\(.tools|join(","))  memories=\(.memory_records)"'
     else
       echo "${GRN}●${RST} $health"
     fi

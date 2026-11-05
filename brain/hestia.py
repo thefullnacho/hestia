@@ -110,7 +110,7 @@ def _layout(prompt: str, convo: list[dict]) -> list[dict]:
 class TurnTrace:
     """Request-local measurements. No prompts, arguments or household data in metrics."""
     request_id: str = field(default_factory=lambda: uuid.uuid4().hex)
-    model: str = MODEL
+    model: str = field(default_factory=lambda: backend.model_name())
     think: bool = THINK
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -876,6 +876,16 @@ async def today():
 
 @app.get("/health")
 async def health():
+    common = {"tools": [s["function"]["name"] for s in tools.SCHEMAS],
+              "memory_records": len(list(memory_store.MEMORY_DIR.glob("*.md"))) if memory_store.MEMORY_DIR.exists() else 0}
+    if backend.BACKEND == "phone":
+        # The brain is up with no phone attached: facts, reminders and the stores still answer,
+        # and model work waits in model_jobs. Only what answers the model is reported.
+        import phone
+        return {"status": "ok", "backend": "phone", "model": backend.model_name(),
+                "phone": "connected" if phone.hub.connected() else "not connected", **common}
+    if backend.BACKEND != "ollama":
+        return {"status": "ok", "backend": backend.BACKEND, "model": backend.model_name(), **common}
     try:
         r = await backend.client.get("/api/tags")
         names = [m["name"] for m in r.json().get("models", [])]
@@ -883,9 +893,7 @@ async def health():
         return JSONResponse(status_code=503, content={"status": "down", "ollama": "unreachable", "error": str(e)})
     base = MODEL.split(":")[0]
     return {"status": "ok" if any(n.split(":")[0] == base for n in names) else "degraded",
-            "ollama": "up", "model": MODEL,
-            "tools": [s["function"]["name"] for s in tools.SCHEMAS],
-            "memory_records": len(list(memory_store.MEMORY_DIR.glob("*.md"))) if memory_store.MEMORY_DIR.exists() else 0}
+            "backend": "ollama", "ollama": "up", "model": MODEL, **common}
 
 
 # Answers that are non-substantive (errors / give-ups) — never worth note-taking on.

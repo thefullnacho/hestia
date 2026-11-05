@@ -75,7 +75,9 @@ waited (`model_jobs`). With no phone connected, a turn from another window gets 
 app" reply. Setup on the box: `python brain/phone.py add-device <name>` prints the token once;
 `HESTIA_BACKEND=phone`, `HESTIA_PHONE_MODEL` (the GGUF), `HESTIA_CHAT_TEMPLATE` and
 `HESTIA_BOS_TOKEN` select and describe the model. `benchmarks/phone-render/fake_phone.py` plays the
-phone's part against a llama-server, for testing the box without the app.
+phone's part against a llama-server, for testing the box without the app. `/health` and the turn log
+name the GGUF as the model, and `/health` says whether a phone is connected; with none it still
+reads `ok`, since everything but the model still answers.
 
 ## Who renders the prompt: the box
 
