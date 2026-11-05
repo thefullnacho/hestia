@@ -333,3 +333,5 @@ on the public internet.
    and its answer was read aloud, and a ping from the test box through Apple's sandbox arrived;
    tapping it opened the app, which connected and finished the waiting work (a reminder).
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.
+   The setup script and the nightly USB backup are written (2026-11-05, `deploy/pilot/`), not
+   yet run on a Pi. Not yet: problem reports, and so the day-30 removal of their code.

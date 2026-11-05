@@ -1,0 +1,11 @@
+[Unit]
+Description=Hestia pilot box: nightly backup
+
+[Timer]
+# After the journal (23:45) has written the day; a box that was off catches up when it boots.
+OnCalendar=*-*-* 02:30
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

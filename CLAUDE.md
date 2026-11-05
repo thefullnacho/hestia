@@ -52,6 +52,7 @@ bulk-touched. Control those one at a time, by name.
 | `brain/mcp_server.py` | Stdio MCP server offering the same tool registry to the operator's Claude Code, or a household member's Claude Desktop (`HESTIA_PERSON` names them). Read-only unless `HESTIA_MCP_WRITES=1`; writes are audited with who. A tool added to `brain/tools/` must be classified in its `READ_ONLY` or `EXCLUDED`. `recipe_review` (chat approval of recipe drafts) lives only here, never in the brain |
 | `brain/*_store.py` | SQLite stores: records, memory, reminders, threads (chat history), feed (picks and reactions), goals (plans and steps), library (extension passages and their vectors), sightings (identified photos and their labels), all in `hestia.db` |
 | `brain/voice/` | Whisper STT, Chatterbox-Turbo TTS, Piper CPU fallback. Separate venv and pyproject |
+| `deploy/pilot/` | A pilot household's Pi 5: `setup.sh` (phone mode, EmbeddingGemma on CPU, their own tailnet), the nightly USB backup, the runbook |
 | `deploy/systemd/` | Units and timers: brain, ollama, briefing, journal, feed, reminders, garden-watch, puppy-watch, box-watch, backup, whisper, chatterbox, piper |
 | `benchmarks/`, `brain/eval_*.py` | Model evaluation. `MODEL_EVAL.md` records results |
 

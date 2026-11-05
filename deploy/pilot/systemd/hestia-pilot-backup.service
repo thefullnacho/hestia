@@ -1,0 +1,9 @@
+[Unit]
+Description=Hestia pilot box: nightly backup to the HESTIA-BACKUP USB drive
+# deploy/pilot/backup.sh. The drive mounts on first access (/etc/fstab, x-systemd.automount).
+
+[Service]
+Type=oneshot
+ExecStart=%h/hestia/deploy/pilot/backup.sh
+Nice=10
+IOSchedulingClass=idle
