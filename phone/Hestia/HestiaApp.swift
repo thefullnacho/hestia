@@ -6,6 +6,7 @@ struct HestiaApp: App {
     @StateObject private var link: Link
     @StateObject private var notifier: Notifier
     @StateObject private var bridge: Bridge
+    @StateObject private var documents: Documents
     @Environment(\.scenePhase) private var phase
 
     init() {
@@ -14,11 +15,12 @@ struct HestiaApp: App {
         _link = StateObject(wrappedValue: link)
         _notifier = StateObject(wrappedValue: notifier)
         _bridge = StateObject(wrappedValue: Bridge(link: link, notifier: notifier))
+        _documents = StateObject(wrappedValue: Documents(link: link))
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView(link: link, notifier: notifier, bridge: bridge)
+            RootView(link: link, notifier: notifier, bridge: bridge, documents: documents)
         }
         // The model runs only while the app is open: dial the box in the foreground, hang up
         // after. Opening the app also syncs the reminders.
@@ -45,6 +47,7 @@ struct RootView: View {
     @ObservedObject var link: Link
     @ObservedObject var notifier: Notifier
     @ObservedObject var bridge: Bridge
+    @ObservedObject var documents: Documents
 
     var body: some View {
         Group {
@@ -58,13 +61,23 @@ struct RootView: View {
                                        settings: { bridge.wantsSettings = true })
                         }
                     }
+                    .sheet(isPresented: $bridge.wantsDocuments) {
+                        NavigationStack {
+                            DocumentsView(documents: documents)
+                                .toolbar {
+                                    ToolbarItem(placement: .confirmationAction) {
+                                        Button("Done") { bridge.wantsDocuments = false }
+                                    }
+                                }
+                        }
+                    }
             } else {
-                NavigationStack { SettingsView(link: link, notifier: notifier) }
+                NavigationStack { SettingsView(link: link, notifier: notifier, documents: documents) }
             }
         }
         .sheet(isPresented: $bridge.wantsSettings) {
             NavigationStack {
-                SettingsView(link: link, notifier: notifier)
+                SettingsView(link: link, notifier: notifier, documents: documents)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { bridge.wantsSettings = false }
@@ -100,6 +113,7 @@ struct LoadFailed: View {
 struct SettingsView: View {
     @ObservedObject var link: Link
     @ObservedObject var notifier: Notifier
+    @ObservedObject var documents: Documents
 
     var body: some View {
         Form {
@@ -112,6 +126,11 @@ struct SettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 Button("Save and connect") { link.save() }
+            }
+            if link.configured {
+                Section {
+                    NavigationLink("Documents in the library") { DocumentsView(documents: documents) }
+                }
             }
             Section("Status") {
                 LabeledContent("Socket", value: link.status)

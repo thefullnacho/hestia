@@ -12,6 +12,7 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
 
     @Published var loadError: String?
     @Published var wantsSettings = false
+    @Published var wantsDocuments = false
     weak var webView: WKWebView?
     let link: Link
     let notifier: Notifier
@@ -57,6 +58,8 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
             speech.speak(id: body["id"].map { "\($0)" } ?? "", text: body["text"] as? String ?? "")
         case "speak_stop":
             speech.stopSpeaking()
+        case "documents":
+            wantsDocuments = true                // scan or import into the library, natively
         case "sync_notifications":
             Task { await notifier.sync(reason: "the page asked") }
         default:
@@ -69,7 +72,7 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
     private func sendHello() {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-        send(["type": "hello", "speech": speech.available, "app": "\(version) (\(build))"])
+        send(["type": "hello", "speech": speech.available, "documents": true, "app": "\(version) (\(build))"])
     }
 
     func send(_ msg: [String: Any]) {

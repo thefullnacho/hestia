@@ -220,7 +220,7 @@ development build (its tokens only work on the sandbox host). Without a key, a b
 
 ## Documents into the library
 
-Built 2026-11-05 (box side; the app's half is not). A household adds its own papers (manuals,
+Built 2026-11-05, both halves (box: `brain/hestia.py`; app: `phone/Hestia/Documents.swift`). A household adds its own papers (manuals,
 warranties, the furnace's service sheet, an extension leaflet) by photographing them in the app.
 The app reads the text on the phone with Apple's Vision framework and sends only the text, so no
 image leaves the phone and nobody hands the operator their documents. The box files it in the
@@ -260,6 +260,12 @@ DELETE /v1/phone/library/<id>             200 {"ok": true}   404 not one a phone
 Asking about them needs nothing new: "when does the dishwasher warranty run out" routes to the
 `library` tool (warranty, manual, serial or model number, instructions, user guide), which
 cites the document's title and page.
+
+**Where it lives in the app:** a native Library screen, opened from the app's settings or by the
+page sending `documents` over the bridge (the page's menu item is the page's to add). The
+screen lists what phones filed (swipe to remove) and the operator's shelf, and has Scan pages and
+Add a PDF from Files. After reading, the person checks the title and sees the page count, how
+many pages had no text, and the start of the text before anything is sent.
 
 ## Speech
 
@@ -306,12 +312,13 @@ speech. The app should answer any page message whose `v` it does not speak with 
 | `speak` | `id` string, `text` string | Speak `text` with the on-device voice. `text` is plain words, markdown already removed. A new `speak` replaces the one playing. |
 | `speak_stop` | none | Stop speaking now. |
 | `sync_notifications` | none | Fetch the upcoming reminders and reschedule the local notifications now. The page sends it after a turn in which the reminder tool succeeded; the app also syncs on its own whenever it opens. |
+| `documents` | none | Open the app's own Library screen: scan pages or add a PDF, and see or remove what phones filed ("Documents into the library"). Send it only when the app's `hello` said `documents: true`. |
 
 **App to page**
 
 | `type` | Fields | Meaning |
 |---|---|---|
-| `hello` | `speech` boolean, `app` string (optional) | The reply to the page's `hello`. `speech` is whether on-device recognition is available on this phone for its language; when false the mic says so and sends nothing. `app` is the app's version, for problem reports. |
+| `hello` | `speech` boolean, `documents` boolean (optional), `app` string (optional) | The reply to the page's `hello`. `speech` is whether on-device recognition is available on this phone for its language; when false the mic says so and sends nothing. `documents` true means the page may offer "Add a document" and send `documents`; absent on older apps. `app` is the app's version, for problem reports. |
 | `transcript` | `text` string, `final` boolean | Recognized words. Partials (`final: false`) show in the Listening note; send the whole text so far each time, not a delta. Exactly one `final: true` ends each `listen`, whether the person tapped stop or recognition ended on its own, and the page sends it as a voice turn (the reply is spoken back). |
 | `listen_error` | `code` string, `message` string (optional) | Ends the `listen` instead of a final `transcript`. `code` is `unavailable` (no on-device recognition: the mic stays off for this page load, chat still works), `denied` (mic or speech permission refused: the page points to Settings) or `failed` (anything else; `message` is shown to the person). |
 | `speak_started` | `id` string | The voice began speaking that `id`. Informational; the page shows Stop as soon as it asks. |

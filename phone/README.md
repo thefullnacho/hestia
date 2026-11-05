@@ -13,6 +13,7 @@ reminders as local notifications, and the push token for the box's content-free 
 | `Hestia/ModelFile.swift` | The GGUF in Application Support: sha256, and fetching it from `/v1/model/file` |
 | `Hestia/WebView.swift` | `/app` in a WKWebView and the bridge, version 1 (PHONE-APP.md, "The web view") |
 | `Hestia/Speech.swift` | Listening (`requiresOnDeviceRecognition`) and speaking (AVSpeechSynthesizer) for the bridge |
+| `Hestia/Documents.swift` | Documents into the library: the document camera and PDF import, Vision reading each page, and the Library screen that files, lists and removes them |
 | `Hestia/Notifier.swift` | The reminder sync to local notifications, and the push token from iOS |
 | `Hestia/Keychain.swift` | The device token, this device only |
 | `Hestia/HestiaApp.swift` | Connects and syncs in the foreground, hangs up in the background; the settings screen |
@@ -148,3 +149,20 @@ connected and finished the queued work.
 
 A page the box answers with an error status (tailscale serve gives `502` and an empty body when
 the brain behind it is down) shows as "Can't reach the box" with Retry, not as a blank page.
+
+## Documents into the library
+
+The Library screen (settings, or the page sending `documents`) scans pages with VisionKit's
+document camera or takes a PDF from Files, reads each page on the phone, and posts only the text
+to `POST /v1/phone/library` (PHONE-APP.md, "Documents into the library"). A PDF page with its
+own text layer gives that text; a page without one is drawn at about 2,200 px on its long side,
+its rotation applied, and read with `VNRecognizeTextRequest` (accurate, language correction on).
+Lines go top to bottom, and a page with no text is sent as an empty string so page numbers stay
+true. Over 300 pages or about 2 MB of text is refused before anything is sent. Each read gets a
+new UUID, kept while its sheet is open, so Try again replaces rather than duplicates. The log
+records counts only, never a title or text.
+
+Checked in the simulator against the brain: a three-page PDF (a text layer, a blank page, and a
+rotated picture of text) read as three pages with the picture upright, filed with the box's
+embedder down (its note shown), listed, and removed with a swipe. The document camera needs a
+phone.
