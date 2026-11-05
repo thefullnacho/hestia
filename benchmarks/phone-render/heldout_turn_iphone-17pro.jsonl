@@ -1,0 +1,315 @@
+{"rep": 0, "user": "shut off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 12.87}
+{"rep": 0, "user": "turn off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 13.01}
+{"rep": 0, "user": "switch on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 5.75}
+{"rep": 0, "user": "kill the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 26.6}
+{"rep": 0, "user": "flip on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 18.88}
+{"rep": 0, "user": "flip on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 14.65}
+{"rep": 0, "user": "put on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 9.71}
+{"rep": 0, "user": "please cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 16.35}
+{"rep": 0, "user": "switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 45.26}
+{"rep": 0, "user": "cut the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 10.33}
+{"rep": 0, "user": "can you cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 12.41}
+{"rep": 0, "user": "switch off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 12.89}
+{"rep": 0, "user": "switch off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 16.9}
+{"rep": 0, "user": "can you put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 20.93}
+{"rep": 0, "user": "kill the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 16.77}
+{"rep": 0, "user": "go turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 27.68}
+{"rep": 0, "user": "please put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 15.69}
+{"rep": 0, "user": "turn on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 16.82}
+{"rep": 0, "user": "can you switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 11.04}
+{"rep": 0, "user": "please flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 19.68}
+{"rep": 0, "user": "cut the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 20.47}
+{"rep": 0, "user": "go switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 20.53}
+{"rep": 0, "user": "shut off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 16.62}
+{"rep": 0, "user": "switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 9.15}
+{"rep": 0, "user": "go cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 24.11}
+{"rep": 0, "user": "turn off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 13.02}
+{"rep": 0, "user": "go flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 6.39}
+{"rep": 0, "user": "can you turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 36.17}
+{"rep": 0, "user": "go put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 28.6}
+{"rep": 0, "user": "cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 23.36}
+{"rep": 0, "user": "please turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 34.54}
+{"rep": 0, "user": "can you kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 26.39}
+{"rep": 0, "user": "turn on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 37.17}
+{"rep": 0, "user": "turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 42.26}
+{"rep": 0, "user": "turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 23.55}
+{"rep": 0, "user": "go turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 25.74}
+{"rep": 0, "user": "put on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 45.27}
+{"rep": 0, "user": "can you switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 45.26}
+{"rep": 0, "user": "can you turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 45.25}
+{"rep": 0, "user": "flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 27.27}
+{"rep": 0, "user": "please turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 5.88}
+{"rep": 0, "user": "shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 12.26}
+{"rep": 0, "user": "switch on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 20.59}
+{"rep": 0, "user": "go shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 29.74}
+{"rep": 0, "user": "please shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 24.27}
+{"rep": 0, "user": "turn off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 19.0}
+{"rep": 0, "user": "kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 41.18}
+{"rep": 0, "user": "please kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 8.83}
+{"rep": 0, "user": "turn on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 32.99}
+{"rep": 0, "user": "can you flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 45.27}
+{"rep": 0, "user": "please switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 42.17}
+{"rep": 0, "user": "go switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 35.4}
+{"rep": 0, "user": "switch off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 0, "user": "flip on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 0, "user": "shut off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 0, "user": "switch on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 0, "user": "put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 0, "user": "put on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 0, "user": "kill the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 0, "user": "cut the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 0, "user": "please switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": {"action": "turn_on", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 12.29}
+{"rep": 0, "user": "go kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 21.94}
+{"rep": 0, "user": "can you shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside_lights"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 28.42}
+{"rep": 1, "user": "shut off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": {"action": "turn_off", "entity_id": "light.outside"}, "resolved": "light.light_outside_lights", "exact": true, "seconds": 28.49}
+{"rep": 1, "user": "turn off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 1.64}
+{"rep": 1, "user": "switch on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.24}
+{"rep": 1, "user": "kill the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "flip on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.26}
+{"rep": 1, "user": "flip on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.26}
+{"rep": 1, "user": "put on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "please cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.23}
+{"rep": 1, "user": "switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "cut the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.25}
+{"rep": 1, "user": "can you cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "switch off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.25}
+{"rep": 1, "user": "switch off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "can you put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "kill the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.23}
+{"rep": 1, "user": "go turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 1, "user": "please put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 1, "user": "turn on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.4}
+{"rep": 1, "user": "can you switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 1, "user": "please flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.38}
+{"rep": 1, "user": "cut the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "go switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "shut off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "go cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 1, "user": "turn off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "go flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "can you turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.27}
+{"rep": 1, "user": "go put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 1, "user": "cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 1, "user": "please turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 1, "user": "can you kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 1, "user": "turn on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 1, "user": "turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 1, "user": "go turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "put on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 1, "user": "can you switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 1, "user": "can you turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 1, "user": "flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 1, "user": "please turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 1, "user": "switch on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "go shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "please shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "turn off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 1, "user": "please kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "turn on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 1, "user": "can you flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 1, "user": "please switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "go switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 1, "user": "switch off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 1, "user": "flip on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "shut off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 1, "user": "switch on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 1, "user": "put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.29}
+{"rep": 1, "user": "put on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 1, "user": "kill the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "cut the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "please switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 1, "user": "go kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 1, "user": "can you shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "shut off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 2, "user": "turn off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 2, "user": "switch on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 2, "user": "kill the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 2, "user": "flip on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 2, "user": "flip on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 2, "user": "put on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 2, "user": "please cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 2, "user": "switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "cut the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 2, "user": "can you cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 2, "user": "switch off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "switch off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 2, "user": "can you put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 2, "user": "kill the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.28}
+{"rep": 2, "user": "go turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.37}
+{"rep": 2, "user": "please put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 2, "user": "turn on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.28}
+{"rep": 2, "user": "can you switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.37}
+{"rep": 2, "user": "please flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "cut the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 2, "user": "go switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 2, "user": "shut off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 2, "user": "go cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "turn off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 2, "user": "go flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.29}
+{"rep": 2, "user": "can you turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 2, "user": "go put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 2, "user": "cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.45}
+{"rep": 2, "user": "please turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.4}
+{"rep": 2, "user": "can you kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.46}
+{"rep": 2, "user": "turn on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.54}
+{"rep": 2, "user": "turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.5}
+{"rep": 2, "user": "turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 2, "user": "go turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.5}
+{"rep": 2, "user": "put on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 2, "user": "can you switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.54}
+{"rep": 2, "user": "can you turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.54}
+{"rep": 2, "user": "flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.52}
+{"rep": 2, "user": "please turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.54}
+{"rep": 2, "user": "shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.56}
+{"rep": 2, "user": "switch on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 2, "user": "go shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 2, "user": "please shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.46}
+{"rep": 2, "user": "turn off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 2, "user": "kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 2, "user": "please kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.45}
+{"rep": 2, "user": "turn on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.42}
+{"rep": 2, "user": "can you flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 2, "user": "please switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.48}
+{"rep": 2, "user": "go switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 2, "user": "switch off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 2, "user": "flip on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 2, "user": "shut off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.53}
+{"rep": 2, "user": "switch on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 2, "user": "put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "put on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 2, "user": "kill the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 2, "user": "cut the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 2, "user": "please switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 2, "user": "go kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 2, "user": "can you shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 3, "user": "shut off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "turn off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "switch on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 3, "user": "kill the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 3, "user": "flip on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 3, "user": "flip on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 3, "user": "put on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "please cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 3, "user": "switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "cut the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 3, "user": "can you cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "switch off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "switch off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 3, "user": "can you put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "kill the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "go turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 3, "user": "please put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "turn on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "can you switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "please flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 3, "user": "cut the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "go switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 3, "user": "shut off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.42}
+{"rep": 3, "user": "switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "go cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "turn off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "go flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 3, "user": "can you turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "go put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "please turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "can you kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 3, "user": "turn on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 3, "user": "turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 3, "user": "go turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 3, "user": "put on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "can you switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 3, "user": "can you turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 3, "user": "flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 3, "user": "please turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "switch on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.42}
+{"rep": 3, "user": "go shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 3, "user": "please shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 3, "user": "turn off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 3, "user": "kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 3, "user": "please kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 3, "user": "turn on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "can you flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 3, "user": "please switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 3, "user": "go switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "switch off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 3, "user": "flip on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 3, "user": "shut off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 3, "user": "switch on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 3, "user": "put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.42}
+{"rep": 3, "user": "put on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 3, "user": "kill the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 3, "user": "cut the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 3, "user": "please switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.45}
+{"rep": 3, "user": "go kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 3, "user": "can you shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 4, "user": "shut off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 4, "user": "turn off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 4, "user": "switch on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "kill the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 4, "user": "flip on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 4, "user": "flip on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.36}
+{"rep": 4, "user": "put on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.4}
+{"rep": 4, "user": "please cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 4, "user": "cut the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "can you cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 4, "user": "switch off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 4, "user": "switch off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.4}
+{"rep": 4, "user": "can you put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "kill the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 4, "user": "go turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 4, "user": "please put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 4, "user": "turn on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 4, "user": "can you switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 4, "user": "please flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 4, "user": "cut the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.42}
+{"rep": 4, "user": "go switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.45}
+{"rep": 4, "user": "shut off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 4, "user": "switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 4, "user": "go cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "turn off the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 4, "user": "go flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.37}
+{"rep": 4, "user": "can you turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.47}
+{"rep": 4, "user": "go put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.42}
+{"rep": 4, "user": "cut the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "please turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 4, "user": "can you kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 4, "user": "turn on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.33}
+{"rep": 4, "user": "turn off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 4, "user": "turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 4, "user": "go turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 4, "user": "put on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 4, "user": "can you switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 4, "user": "can you turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 4, "user": "flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "please turn on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.41}
+{"rep": 4, "user": "shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "switch on the outside light", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 4, "user": "go shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "please shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 4, "user": "turn off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 4, "user": "kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.28}
+{"rep": 4, "user": "please kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.4}
+{"rep": 4, "user": "turn on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}
+{"rep": 4, "user": "can you flip on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 4, "user": "please switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 4, "user": "go switch off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 4, "user": "switch off the lights in the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 4, "user": "flip on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.39}
+{"rep": 4, "user": "shut off the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 4, "user": "switch on the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.44}
+{"rep": 4, "user": "put on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.3}
+{"rep": 4, "user": "put on the lights in the outside", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.35}
+{"rep": 4, "user": "kill the outside light", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.43}
+{"rep": 4, "user": "cut the outside", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 4, "user": "please switch on the outside lights", "gold": ["turn_on", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.34}
+{"rep": 4, "user": "go kill the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.31}
+{"rep": 4, "user": "can you shut off the outside lights", "gold": ["turn_off", "light.light_outside_lights"], "call": null, "resolved": null, "exact": false, "seconds": 0.32}

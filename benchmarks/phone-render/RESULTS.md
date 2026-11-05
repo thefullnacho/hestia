@@ -83,3 +83,29 @@ household, refuses 0.0.0.0). Checked with `fake_phone.py` answering from a llama
 socket, turn median 2.6 s and 90th percentile 6.0 s. The iPhone generates about a third as fast as
 that GPU, so its turns will be slower; the run on the 17 Pro will say by how much, and whether
 it throttles over 315 turns.
+
+## The first run on the iPhone 17 Pro, and what it showed (same day)
+
+The app (`phone/`, built in a session on the Mac) downloaded the model from the test box over
+Tailscale HTTPS and answered its first turn in 5.9 s, of which about 4.5 s was reading a
+6,871-token prompt (an unscoped question offers all 13 tools). The held-out run through the phone
+lasted one pass before the screen locked and iOS closed the socket: 53/63 exact (84.1%), median
+turn 19 s. The turn records showed why: 4 model calls a turn, 10,924 prompt tokens read, 347
+written. Two causes were the box's, both fixed here:
+
+- The shared fixture house only accepts the kitchen light, so every right call to the outside
+  light drew an error and a retry. This scorer now accepts the outside light, so a right call ends
+  the turn as it would at home.
+- A lone light command answered with its receipt only when worded "turn on/off the ... lights";
+  "put on the outside" paid for a final model call whose words were thrown away. The loop now
+  uses the routing's own command detection for that shortcut.
+
+| phone path on the box, K=5 | exact | model calls per turn | turn on the 4060 Ti |
+|---|---|---|---|
+| before | 292/315 = 92.7% | median 4 (the fixture) | median 2.6 s |
+| **after** | **292/315 = 92.7%** | **median 1** | **median 0.72 s** |
+
+On the phone one call is one prompt read (about 2,700 tokens, roughly 1.8 s at 1,514 tokens a
+second) plus about 20 tokens written. The third cause is the app's to fix: every request reread its
+whole prompt. Keeping the context between requests and reading only what changed is next, then the
+`tail` prompt layout so the front of the prompt stays the same across turns too.

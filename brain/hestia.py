@@ -615,7 +615,11 @@ async def _agent_loop(messages: list[dict]) -> str:
         if (len(calls) == 1 and (_trace.get() and _trace.get().actions)
                 and all(a.status == 'succeeded' for a in _trace.get().actions)
                 and calls[0]['function'].get('name') == 'home'
-                and re.fullmatch(r"(?:please )?turn (?:on|off) (?:the )?[a-z ]{1,60}lights?[.!]?", user_text.strip(), re.I)
+                # A lone light command ("turn off the kitchen lights", "put on the outside") is
+                # answered with its receipt; another model call would only reword it. On the phone
+                # that call costs a full prompt read.
+                and (re.fullmatch(r"(?:please )?turn (?:on|off) (?:the )?[a-z ]{1,60}lights?[.!]?", user_text.strip(), re.I)
+                     or (routing.required_writes(user_text) == {'home'} and len(user_text.split()) <= 12))
                 and not re.search(r"\b(?:and|then|also|if|when|before|after|while)\b", user_text, re.I)):
             return _trace.get().actions[-1].data
         read_names = {c['function'].get('name') for c in calls}

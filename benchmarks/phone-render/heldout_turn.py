@@ -30,18 +30,44 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "brain"))
 from eval_support import fixtures, hestia, run  # noqa: E402
+import backend  # noqa: E402
 import eval_heldout  # noqa: E402
 import tools  # noqa: E402
 
+OUTSIDE = "light.light_outside_lights"
 FIXTURE_LIGHTS = [{"entity_id": "light.light_kitchen_lights", "attributes": {"friendly_name": "Kitchen lights"}},
                   {"entity_id": "light.light_outside_lights", "attributes": {"friendly_name": "Outside lights"}}]
 
 
-def first_switch(prompt: str, runner=run) -> dict | None:
+def first_switch(prompt: str, runner=run) -> tuple[dict | None, int]:
+    """The first on/off that ran, and how many model calls the turn took. The shared fixture
+    house only accepts the kitchen light; here the outside light works too, so a right call
+    finishes the turn the way it would at home instead of drawing an error and a retry."""
+    model_calls = 0
+    real_chat = backend.chat
+
+    async def counted(messages, schemas=None):
+        nonlocal model_calls
+        model_calls += 1
+        return await real_chat(messages, schemas)
+
     with fixtures() as state:
-        runner(hestia.run_agent([{"role": "user", "content": prompt}]))
-    return next((c["args"] for c in state["calls"]
+        fixture_dispatch = tools.dispatch
+
+        def dispatch(name, args):
+            if name == "home" and tools.home._resolve(str(args.get("entity_id") or ""), FIXTURE_LIGHTS) == OUTSIDE:
+                state["calls"].append({"name": name, "args": args})
+                return f"Done - Outside lights are {'on' if args.get('action') == 'turn_on' else 'off'}."
+            return fixture_dispatch(name, args)
+
+        tools.dispatch, backend.chat = dispatch, counted
+        try:
+            runner(hestia.run_agent([{"role": "user", "content": prompt}]))
+        finally:
+            tools.dispatch, backend.chat = fixture_dispatch, real_chat
+    call = next((c["args"] for c in state["calls"]
                  if c["name"] == "home" and c["args"].get("action") in ("turn_on", "turn_off")), None)
+    return call, model_calls
 
 
 def main() -> int:
@@ -58,8 +84,9 @@ def main() -> int:
     for rep in range(args.repeats):
         for case in cases:
             began = time.perf_counter()
+            model_calls = 0
             try:
-                call = first_switch(case["user"], runner)
+                call, model_calls = first_switch(case["user"], runner)
             except Exception as e:  # noqa: BLE001
                 call = {"error": type(e).__name__ + ": " + str(e)[:80]}
             seconds = time.perf_counter() - began
@@ -67,10 +94,12 @@ def main() -> int:
             ok = bool(call) and call.get("action") == case["action"] and resolved == case["entity"]
             exact += ok
             rows.append({"rep": rep, "user": case["user"], "gold": [case["action"], case["entity"]],
-                         "call": call, "resolved": resolved, "exact": ok, "seconds": round(seconds, 2)})
+                         "call": call, "resolved": resolved, "exact": ok, "seconds": round(seconds, 2),
+                         "model_calls": model_calls})
         print(f"rep {rep + 1}: {sum(r['exact'] for r in rows if r['rep'] == rep)}/{len(cases)}", flush=True)
     total = len(rows)
     print(f"\n{args.label}: exact {exact}/{total} = {exact / total * 100:.1f}%  ({time.time() - t0:.0f}s)")
+    print(f"model calls per turn: median {statistics.median(r['model_calls'] for r in rows)}")
     times = sorted(r["seconds"] for r in rows)
     print(f"turn seconds: median {statistics.median(times):.2f}, 90th {times[int(len(times) * .9)]:.2f}, "
           f"worst {times[-1]:.2f}; first rep median {statistics.median(r['seconds'] for r in rows if r['rep'] == 0):.2f}, "
