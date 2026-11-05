@@ -126,3 +126,24 @@ The phone now matches the phone path on the box exactly, 292/315. All 23 misses 
 all ("kill the outside" 5, "put on", "switch on", "cut" 4 each, "turn on", "flip on" 3 each); none
 switched the wrong light. It did not slow down over the run: first pass median 1.7 s, last 1.8 s.
 The long tail is the few turns that took several calls or tripped the repeat-call guard.
+
+## Moving the tool list out of the system message: measured, not kept (2026-11-04)
+
+LFM3's template writes the tool list at the end of the system message, ahead of the history, and
+routing changes that list turn to turn. So the prompt changes right after the fixed system prompt
+(about 1,980 tokens) under either layout, and a chat thread's history is read again every turn.
+The `tail` layout alone does not change that: on a three-turn garden thread it reused 34% of turn
+two against head's 67%, because head keeps the skill text ahead of the tools.
+
+Two ways to keep the history reusable were tried on the phone path (llama-server on the 4060 Ti,
+`heldout_turn.py`, K=5), and both cost accuracy:
+
+| layout | exact | wrong light |
+|---|---|---|
+| head (the shipped layout) | 292/315 = 92.7% | 0 |
+| tail, and the `<tools>` block at the head of the latest user message | 277/315 = 87.9% | 0 |
+| tail, and the tools as the template's own `additional_tools`, after a `tool_search` call | 273/315 = 86.7% | 0 |
+
+Every extra miss is a short "... the outside" command that made no call. Head stays. The phone's
+reuse still pays where the prompt holds still: a lone light command reuses 99% of the last one,
+and the app checkpoints the end of the system prompt for every first call after the first.
