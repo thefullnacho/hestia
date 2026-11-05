@@ -185,7 +185,7 @@ GET /v1/phone/reminders?days=14          Authorization: Bearer <device token>
   A house that also runs the app gets both until it turns one off. Which to turn off, and how,
   is not decided yet.
 
-**The ping is built 2026-11-04 (`brain/push.py`); the app's half is not.** What the app does:
+**The ping is built 2026-11-04 (`brain/push.py`), the app's half 2026-11-04 (`phone/`).** What the app does:
 ask iOS for notification permission and register for remote notifications, then send the APNs
 device token (the `Data` from `didRegisterForRemoteNotificationsWithDeviceToken`, as lowercase
 hex) in every socket hello:
@@ -330,5 +330,6 @@ on the public internet.
    The app half is built (2026-11-04, `phone/`): the web view with bridge version 1, on-device
    listening and speaking, the reminder sync to local notifications, and the push token in the
    hello. On an iPhone 17 Pro (2026-11-05) a spoken command reached the model through the mic
-   and its answer was read aloud. Not yet: the APNs key on the box, so no ping has arrived.
+   and its answer was read aloud, and a ping from the test box through Apple's sandbox arrived;
+   tapping it opened the app, which connected and finished the waiting work (a reminder).
 4. **The pilot box:** setup script, SSD image, backups, problem reports, day-30 removal.
