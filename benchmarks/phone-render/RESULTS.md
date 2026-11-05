@@ -109,3 +109,20 @@ On the phone one call is one prompt read (about 2,700 tokens, roughly 1.8 s at 1
 second) plus about 20 tokens written. The third cause is the app's to fix: every request reread its
 whole prompt. Keeping the context between requests and reading only what changed is next, then the
 `tail` prompt layout so the front of the prompt stays the same across turns too.
+
+## The iPhone 17 Pro with prompt reuse (2026-11-04)
+
+The app now keeps the context between requests (context checkpoints, `phone/Hestia/Engine.swift`),
+so a later call reads only its new tokens. The held-out run went all five passes with the screen
+kept awake, scored by `heldout_turn.py --serve` through the 8444 route
+(`heldout_turn_iphone-17pro-reuse.jsonl`).
+
+| iPhone 17 Pro, K=5 | exact | model calls per turn | turn |
+|---|---|---|---|
+| first run, one pass | 53/63 = 84.1% | 4 | median 19 s |
+| **with reuse** | **292/315 = 92.7%** (58, 59, 59, 58, 58) | **median 1** | **median 1.8 s, 90th 8.3 s, worst 45 s** |
+
+The phone now matches the phone path on the box exactly, 292/315. All 23 misses made no call at
+all ("kill the outside" 5, "put on", "switch on", "cut" 4 each, "turn on", "flip on" 3 each); none
+switched the wrong light. It did not slow down over the run: first pass median 1.7 s, last 1.8 s.
+The long tail is the few turns that took several calls or tripped the repeat-call guard.
