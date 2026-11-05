@@ -269,7 +269,7 @@ many pages had no text, and the start of the text before anything is sent.
 
 ## Receipts
 
-Built 2026-11-05 (box side; the app's half is not). The same capture as documents, for a
+Built 2026-11-05, both halves. The same capture as documents, for a
 receipt: the app reads it on the phone and sends only the lines of text (INVENTORY.md,
 "Receipts"). The box reads the items in code and puts each on the Today page for a person to
 keep; the app shows nothing new, since review happens in the web view.
@@ -287,6 +287,14 @@ POST /v1/phone/receipts                   Authorization: Bearer <device token>
 
 - At most 400 lines. The same id again replaces the items still waiting from that receipt.
 - After a 200, show how many items were read and open the Today page, where they wait.
+
+**Where it lives in the app:** Scan a receipt and Read a receipt photo in the app's settings, or
+the page sending `receipt` over the bridge (the camera, or Photos where there is no camera). A
+photo is for a receipt photographed at the till; either way only the lines leave the phone.
+Vision often returns an item's name and its price as two pieces with the gap between them, so
+the app joins pieces on the same printed row, left to right, before sending: one string per
+printed line, price at its end. A card over the page shows reading, sending, then how many items
+were read; a failure offers Try again with the same id.
 
 ## Speech
 
@@ -334,12 +342,13 @@ speech. The app should answer any page message whose `v` it does not speak with 
 | `speak_stop` | none | Stop speaking now. |
 | `sync_notifications` | none | Fetch the upcoming reminders and reschedule the local notifications now. The page sends it after a turn in which the reminder tool succeeded; the app also syncs on its own whenever it opens. |
 | `documents` | none | Open the app's own Library screen: scan pages or add a PDF, and see or remove what phones filed ("Documents into the library"). Send it only when the app's `hello` said `documents: true`. |
+| `receipt` | none | Scan a receipt with the app's camera and file its lines ("Receipts"); the app opens Today when the box has read it. Send it only when the app's `hello` said `receipts: true`. |
 
 **App to page**
 
 | `type` | Fields | Meaning |
 |---|---|---|
-| `hello` | `speech` boolean, `documents` boolean (optional), `app` string (optional) | The reply to the page's `hello`. `speech` is whether on-device recognition is available on this phone for its language; when false the mic says so and sends nothing. `documents` true means the page may offer "Add a document" and send `documents`; absent on older apps. `app` is the app's version, for problem reports. |
+| `hello` | `speech` boolean, `documents` boolean (optional), `receipts` boolean (optional), `app` string (optional) | The reply to the page's `hello`. `speech` is whether on-device recognition is available on this phone for its language; when false the mic says so and sends nothing. `documents` true means the page may offer "Add a document" and send `documents`; `receipts` true, "Scan a receipt" and `receipt`; both absent on older apps. `app` is the app's version, for problem reports. |
 | `transcript` | `text` string, `final` boolean | Recognized words. Partials (`final: false`) show in the Listening note; send the whole text so far each time, not a delta. Exactly one `final: true` ends each `listen`, whether the person tapped stop or recognition ended on its own, and the page sends it as a voice turn (the reply is spoken back). |
 | `listen_error` | `code` string, `message` string (optional) | Ends the `listen` instead of a final `transcript`. `code` is `unavailable` (no on-device recognition: the mic stays off for this page load, chat still works), `denied` (mic or speech permission refused: the page points to Settings) or `failed` (anything else; `message` is shown to the person). |
 | `speak_started` | `id` string | The voice began speaking that `id`. Informational; the page shows Stop as soon as it asks. |

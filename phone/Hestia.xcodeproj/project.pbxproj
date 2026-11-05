@@ -204,7 +204,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Hestia;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Hestia's Identify page uses the camera to photograph a plant.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Hestia uses the camera to scan papers and receipts, read on this phone, and to photograph a plant on the Identify page.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Hestia listens when you tap the mic, and only then.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Hestia turns what you say into text on this phone. Nothing is sent to Apple.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -230,7 +230,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Hestia;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Hestia's Identify page uses the camera to photograph a plant.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Hestia uses the camera to scan papers and receipts, read on this phone, and to photograph a plant on the Identify page.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Hestia listens when you tap the mic, and only then.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Hestia turns what you say into text on this phone. Nothing is sent to Apple.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

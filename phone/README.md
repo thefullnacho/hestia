@@ -14,6 +14,7 @@ reminders as local notifications, and the push token for the box's content-free 
 | `Hestia/WebView.swift` | `/app` in a WKWebView and the bridge, version 1 (PHONE-APP.md, "The web view") |
 | `Hestia/Speech.swift` | Listening (`requiresOnDeviceRecognition`) and speaking (AVSpeechSynthesizer) for the bridge |
 | `Hestia/Documents.swift` | Documents into the library: the document camera and PDF import, Vision reading each page, and the Library screen that files, lists and removes them |
+| `Hestia/Receipts.swift` | Receipts into the inventory: the camera or a photo, Vision reading it into printed lines, the post, and the card over the page |
 | `Hestia/Notifier.swift` | The reminder sync to local notifications, and the push token from iOS |
 | `Hestia/Keychain.swift` | The device token, this device only |
 | `Hestia/HestiaApp.swift` | Connects and syncs in the foreground, hangs up in the background; the settings screen |
@@ -165,4 +166,20 @@ records counts only, never a title or text.
 Checked in the simulator against the brain: a three-page PDF (a text layer, a blank page, and a
 rotated picture of text) read as three pages with the picture upright, filed with the box's
 embedder down (its note shown), listed, and removed with a swipe. The document camera needs a
+phone.
+
+## Receipts
+
+Scan a receipt (the document camera) or Read a receipt photo (Photos) in settings, or the page
+sending `receipt`, reads the receipt on the phone and posts its lines to `POST /v1/phone/receipts`
+(PHONE-APP.md, "Receipts"). Vision returns a name and its price as separate pieces when there is
+a gap between them, so pieces whose middles sit within half a line height are joined left to
+right into one printed line: on a test receipt 21 pieces became its 13 lines, each price at the
+end of its item. A long receipt shot in several pages is read in order, up to 400 lines. After a
+200 a card says how many items were read and the web view goes to Today (or refreshes it when
+already there); a failure keeps the lines and id for Try again. The log records counts only.
+
+Checked in the simulator against the brain: a receipt photo read into 13 lines, filed (`200`, 4
+items, store and date found), and Today opened on its card with Keep, Edit, Not this and Keep
+all. The simulator offers the document camera but cannot take a picture, so scanning needs a
 phone.

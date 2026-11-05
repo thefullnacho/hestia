@@ -14,6 +14,7 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
     @Published var wantsSettings = false
     @Published var wantsDocuments = false
     weak var webView: WKWebView?
+    weak var receipts: Receipts?
     let link: Link
     let notifier: Notifier
     let speech = Speech()
@@ -60,6 +61,8 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
             speech.stopSpeaking()
         case "documents":
             wantsDocuments = true                // scan or import into the library, natively
+        case "receipt":
+            receipts?.start()                    // the camera, then the lines to the box
         case "sync_notifications":
             Task { await notifier.sync(reason: "the page asked") }
         default:
@@ -72,7 +75,7 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
     private func sendHello() {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-        send(["type": "hello", "speech": speech.available, "documents": true, "app": "\(version) (\(build))"])
+        send(["type": "hello", "speech": speech.available, "documents": true, "receipts": true, "app": "\(version) (\(build))"])
     }
 
     func send(_ msg: [String: Any]) {
@@ -85,6 +88,24 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
         guard let data = try? JSONSerialization.data(withJSONObject: m),
               let json = String(data: data, encoding: .utf8) else { return }
         webView.evaluateJavaScript("window.hestiaBridge && window.hestiaBridge.receive(\(json))")
+    }
+
+    /// The Today page, fetched fresh: a receipt's items wait there. The page's router skips a
+    /// view it is already on, so on Today it refreshes instead.
+    func showToday() {
+        guard let webView else { return }
+        // core.js declares Hestia with const: global, but not a property of window
+        webView.evaluateJavaScript("""
+            (function () {
+              if (typeof Hestia === 'undefined' || !Hestia.views || !location.pathname.startsWith('/app')) return false;
+              if (Hestia.current === 'today') Hestia.views.today.enter(); else location.hash = 'today';
+              return true;
+            })()
+            """) { [weak self] result, _ in
+            guard result as? Bool != true, let box = self?.link.savedBox,
+                  let url = URL(string: box.appending(path: "app").absoluteString + "#today") else { return }
+            webView.load(URLRequest(url: url))
+        }
     }
 
     // MARK: navigation

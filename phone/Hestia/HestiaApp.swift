@@ -7,6 +7,7 @@ struct HestiaApp: App {
     @StateObject private var notifier: Notifier
     @StateObject private var bridge: Bridge
     @StateObject private var documents: Documents
+    @StateObject private var receipts: Receipts
     @Environment(\.scenePhase) private var phase
 
     init() {
@@ -14,13 +15,18 @@ struct HestiaApp: App {
         let notifier = Notifier(link: link)
         _link = StateObject(wrappedValue: link)
         _notifier = StateObject(wrappedValue: notifier)
-        _bridge = StateObject(wrappedValue: Bridge(link: link, notifier: notifier))
+        let bridge = Bridge(link: link, notifier: notifier)
+        _bridge = StateObject(wrappedValue: bridge)
         _documents = StateObject(wrappedValue: Documents(link: link))
+        let receipts = Receipts(link: link)
+        receipts.onFiled = { [weak bridge] in bridge?.showToday() }
+        bridge.receipts = receipts
+        _receipts = StateObject(wrappedValue: receipts)
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView(link: link, notifier: notifier, bridge: bridge, documents: documents)
+            RootView(link: link, notifier: notifier, bridge: bridge, documents: documents, receipts: receipts)
         }
         // The model runs only while the app is open: dial the box in the foreground, hang up
         // after. Opening the app also syncs the reminders.
@@ -48,6 +54,7 @@ struct RootView: View {
     @ObservedObject var notifier: Notifier
     @ObservedObject var bridge: Bridge
     @ObservedObject var documents: Documents
+    @ObservedObject var receipts: Receipts
 
     var body: some View {
         Group {
@@ -72,18 +79,33 @@ struct RootView: View {
                         }
                     }
             } else {
-                NavigationStack { SettingsView(link: link, notifier: notifier, documents: documents) }
+                NavigationStack { SettingsView(link: link, notifier: notifier, documents: documents, scanReceipt: scanReceipt) }
             }
         }
         .sheet(isPresented: $bridge.wantsSettings) {
             NavigationStack {
-                SettingsView(link: link, notifier: notifier, documents: documents)
+                SettingsView(link: link, notifier: notifier, documents: documents, scanReceipt: scanReceipt)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { bridge.wantsSettings = false }
                         }
                     }
             }
+        }
+        .overlay(alignment: .bottom) { ReceiptBanner(receipts: receipts) }
+        .fullScreenCover(isPresented: $receipts.camera) {
+            DocumentCamera { receipts.scanned($0) }.ignoresSafeArea()
+        }
+        .photosPicker(isPresented: $receipts.photos, selection: $receipts.photo, matching: .images)
+        .onChange(of: receipts.photo) { _, item in if item != nil { receipts.picked(item) } }
+    }
+
+    /// From the settings sheet: close it first, since a sheet can't present the camera over itself.
+    private func scanReceipt(fromPhotos: Bool) {
+        bridge.wantsSettings = false
+        Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            receipts.start(fromPhotos: fromPhotos)
         }
     }
 }
@@ -114,6 +136,7 @@ struct SettingsView: View {
     @ObservedObject var link: Link
     @ObservedObject var notifier: Notifier
     @ObservedObject var documents: Documents
+    let scanReceipt: (_ fromPhotos: Bool) -> Void
 
     var body: some View {
         Form {
@@ -130,6 +153,10 @@ struct SettingsView: View {
             if link.configured {
                 Section {
                     NavigationLink("Documents in the library") { DocumentsView(documents: documents) }
+                    Button("Scan a receipt") { scanReceipt(false) }
+                    Button("Read a receipt photo") { scanReceipt(true) }
+                } footer: {
+                    Text("Read on this phone; only the text goes to the box. Its items wait on the Today page to be kept.")
                 }
             }
             Section("Status") {
