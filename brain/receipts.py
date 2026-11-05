@@ -71,6 +71,17 @@ def _receipt_date(lines: list[str]) -> str | None:
     return None
 
 
+def _price(line: str) -> float | None:
+    m = re.search(r"(-?\d{1,5})[.,](\d{2})\s*(?:[A-Z]{1,2}|\*)?\s*$", line)
+    return float(f"{m.group(1)}.{m.group(2)}") if m else None
+
+
+def _ocr_fixes(line: str) -> str:
+    """Misreads that are never real receipt text: "160Z" is 16 OZ (the O read as a zero; 0Z is
+    never a unit)."""
+    return re.sub(r"(\d)0Z\b", r"\1 OZ", line)
+
+
 def _clean_name(text: str) -> str:
     had_code = bool(_SKU.search(text))
     text = _SKU.sub(" ", text)
@@ -88,23 +99,40 @@ def _clean_name(text: str) -> str:
 
 def parse(lines: list[str]) -> dict:
     """{store, bought, items: [{name, qty, unit, line}]} from a receipt's lines, top to bottom."""
-    lines = [" ".join(str(ln).split()) for ln in lines]
+    lines = [_ocr_fixes(" ".join(str(ln).split())) for ln in lines]
     lines = [ln for ln in lines if ln]
     store_name = next((ln for ln in lines[:4] if re.search(r"[A-Za-z]{3}", ln)
                        and not _DATE.search(ln) and not _PRICE.search(ln) and not _SKIP.search(ln)), None)
     items: list[dict] = []
+    carry = None                         # a count line that the arithmetic gives to the item below
     for i, ln in enumerate(lines):
         at = _QTY_AT.match(ln)
-        if at:                           # "3 @ 3.49" or "2.31 lb @ 0.54/lb" belongs to the line above
+        if at:                           # "3 @ 3.49" or "2.31 lb @ 0.54/lb", usually the line above's
+            qty_at = float(at.group(1))
+            unit_at = store.normalize_unit(at.group(2))[1] if at.group(2) else None
+            each = re.search(r"@\s*\$?(\d+)[.,](\d{2})", ln)
+            each = float(f"{each.group(1)}.{each.group(2)}") if each else None
+            own_total = _price(ln.split("@", 1)[1])
+            if each is not None and own_total == each:      # no total on this line: check the sums
+                total = qty_at * each
+                below = lines[i + 1] if i + 1 < len(lines) else ""
+                below_price = _price(below) if below and not _QTY_AT.match(below) else None
+                above_price = items[-1]["price"] if items else None
+                # qty x price is the next line's price and not the last one's: it belongs below
+                # ("2 @ 3.49" over "GARDEN TWINE 6.98", under "NEEM OIL 12.99").
+                if below_price is not None and abs(below_price - total) < 0.015 \
+                        and (above_price is None or abs(above_price - total) >= 0.015):
+                    carry = (qty_at, unit_at, ln)
+                    continue
             above = lines[i - 1] if i else ""
             if above and not _PRICE.search(above) and not _SKIP.search(above) \
                     and re.search(r"[A-Za-z]{2}", above) and above != store_name:
-                items.append({"name": _clean_name(above), "qty": 1.0, "unit": None, "line": above})
+                items.append({"name": _clean_name(above), "qty": 1.0, "unit": None, "line": above, "price": None})
             if not items:
                 continue
-            items[-1]["qty"] = float(at.group(1))
-            if at.group(2):
-                items[-1]["unit"] = store.normalize_unit(at.group(2))[1]
+            items[-1]["qty"] = qty_at
+            if unit_at:
+                items[-1]["unit"] = unit_at
             items[-1]["line"] += " / " + ln
             continue
         if not _PRICE.search(ln) or _SKIP.search(ln) or ln == store_name:
@@ -122,7 +150,12 @@ def parse(lines: list[str]) -> dict:
         name = _clean_name(body)
         if len(name) < 2:
             continue
-        items.append({"name": name, "qty": qty, "unit": None, "line": ln})
+        item = {"name": name, "qty": qty, "unit": None, "line": ln, "price": _price(ln)}
+        if carry:
+            item["qty"], item["unit"] = carry[0], carry[1]
+            item["line"] = carry[2] + " / " + ln
+            carry = None
+        items.append(item)
     merged: dict[str, dict] = {}         # the same item rung up twice is one proposal
     for it in items:
         key = (it["name"].lower(), it["unit"])

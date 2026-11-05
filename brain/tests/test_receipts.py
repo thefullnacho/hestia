@@ -133,3 +133,16 @@ def test_the_guard_stops_writes_not_from_the_app(box):
                               headers={"Content-Type": "application/json"}).status_code == 409
     assert len(receipts.pending()) == 3 and inv.find_item("garden twine 2 pk") is None
     assert box["client"].post("/api/inventory/receipt-items/999/keep", content="{}", headers=H).status_code == 404
+
+
+def test_ocr_reading_an_o_as_a_zero_and_a_count_line_that_belongs_below():
+    """From the app's first simulator run: Vision read 16OZ as 160Z, and a bare '2 @ 3.49' sat
+    between two items. 2 x 3.49 is the twine's 6.98, not the neem oil's 12.99, so it is the twine's."""
+    got = receipts.parse(["TRACTOR SUPPLY CO", "11/03/2026 10:42 AM", "NEEM OIL 160Z 12.99 T",
+                          "2 @ 3.49", "GARDEN TWINE 6.98 T", "TOTAL 19.97"])
+    assert names(got) == [("Neem Oil 16 oz", 1, None), ("Garden Twine", 2, None)]
+
+
+def test_a_count_line_with_its_own_total_stays_with_the_item_above():
+    got = receipts.parse(["NEEM OIL 12.99 T", "2 @ 3.49 6.98 T", "GARDEN TWINE 6.98 T"])
+    assert names(got) == [("Neem Oil", 2, None), ("Garden Twine", 1, None)]
