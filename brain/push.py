@@ -225,6 +225,13 @@ def seen(device: str, connected: bool) -> None:
                   (device, now, os.getpid() if connected else None))
 
 
+def reset_connections() -> None:
+    """At brain startup: no socket is open yet, and the brain is the only process that holds
+    them, so a mark left by a crash or power loss (a pid that may be reused) is cleared."""
+    with store._conn() as c:
+        c.execute("UPDATE phone_push SET connected_pid=NULL WHERE connected_pid IS NOT NULL")
+
+
 def _alive(pid) -> bool:
     if not pid:
         return False
@@ -253,6 +260,20 @@ def _debounced(row: dict, now: dt.datetime) -> bool:
     if seen_at and dt.datetime.fromisoformat(seen_at) >= last_push:
         return False  # the app came up since: this is news again
     return now - last_push < debounce()
+
+
+def _spawn(fn) -> None:
+    """Run a ping beside the caller. Not a daemon: a timer job that queues work and exits still
+    gets its ping out, bounded by TIMEOUT per device. Tests swap this for a direct call."""
+    threading.Thread(target=fn, name="hestia-push").start()
+
+
+def notify_later(reason: str = "waiting", *, every_device: bool = False,
+                 only: set[str] | None = None) -> None:
+    """notify(), off the caller's path: a slow or unreachable Apple (the WAN down, a blocked
+    host) must never delay or fail the reminder or job that asked for the ping."""
+    if active():
+        _spawn(lambda: notify(reason, every_device=every_device, only=only))
 
 
 def notify(reason: str = "waiting", *, every_device: bool = False, only: set[str] | None = None) -> dict:

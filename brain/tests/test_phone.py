@@ -154,6 +154,29 @@ def test_work_that_waited_is_finished_when_a_phone_connects(box, db, monkeypatch
     assert done == [("Rain this afternoon.", {"identifier": "b1"})] and model_jobs.pending() == []
 
 
+def test_work_queued_while_a_phone_is_attached_is_finished_without_a_reconnect(box, db, monkeypatch):
+    """A timer can queue work while the app is open; with a phone connected no ping goes out,
+    so the brain looks for waiting work every DRAIN_EVERY seconds while one stays attached."""
+    done = []
+    monkeypatch.setattr(model_jobs, "_finisher", lambda kind: lambda text, ctx: done.append(text))
+    monkeypatch.setattr(phone, "DRAIN_EVERY", 0.1)
+    with TestClient(hestia.app) as client:
+        with client.websocket_connect("/v1/model/socket", headers=auth(box["token"])) as ws:
+            ws.send_json({"type": "hello", "device": "17pro", "model_sha256": box["sha"]})
+            ws.receive_json()
+            model_jobs.enqueue("feed", {"messages": [{"role": "user", "content": "Rank these."}],
+                                        "options": {"max_tokens": 16}}, {})
+            job = ws.receive_json()
+            assert job["type"] == "complete" and "Rank these." in job["prompt"]
+            ws.send_json({"type": "delta", "id": job["id"], "text": "1, 2"})
+            ws.send_json({"type": "done", "id": job["id"], "stop_type": "eos"})
+            for _ in range(100):
+                if done:
+                    break
+                threading.Event().wait(0.05)
+    assert done == ["1, 2"] and model_jobs.pending() == []
+
+
 def test_the_model_file_and_its_details_take_a_device_token(box):
     with TestClient(hestia.app) as client:
         assert client.get("/v1/model/info").status_code == 401

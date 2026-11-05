@@ -164,6 +164,16 @@ PIPER_ADDR = _hostport("HESTIA_PIPER", "127.0.0.1:10200")      # wyoming-piper (
 STT_RATE = 16000  # faster-whisper wants 16 kHz mono s16le; ffmpeg resamples whatever the browser sends
 
 app = FastAPI(title="Hestia", version="0.4-phase4")
+
+
+@app.on_event("startup")
+async def _clear_phone_marks() -> None:
+    """No phone is connected to a brain that just started (push.reset_connections)."""
+    try:
+        import push
+        await asyncio.to_thread(push.reset_connections)
+    except Exception as e:  # noqa: BLE001 - a stale mark only delays a ping; never block startup
+        print(f"[push] could not clear connection marks: {type(e).__name__}", flush=True)
 # --- clips router (added 2026-10-13; delete this block to revert) ---
 import clips as _clips_mod  # noqa: E402
 app.include_router(_clips_mod.router)
@@ -976,7 +986,11 @@ async def phone_reminders(request: Request):
         days = int(request.query_params.get("days", phone.REMINDER_DAYS))
     except ValueError:
         return JSONResponse({"error": "days must be a whole number"}, status_code=400)
-    out = await asyncio.to_thread(phone.reminders_for, device, days)
+    try:
+        out = await asyncio.to_thread(phone.reminders_for, device, days)
+    except phone.PeopleUnreadable:
+        # Fail closed: an unreadable ties file must not read as "nobody is tied".
+        return JSONResponse({"error": "the box cannot read its phone ties"}, status_code=503)
     etag = f'"{out["sync"]}"'
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag})

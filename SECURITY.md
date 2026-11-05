@@ -111,8 +111,8 @@ host for development builds):
 
 Never: a reminder's words, a briefing, a name, a record, a model answer, or anything else the
 household wrote or the model said. The two triggers are code, not the model: model work queued
-while no phone is connected, and a reminder made from another window while that phone's app is
-closed. Each device gets at most one ping per 30 minutes (`HESTIA_PUSH_DEBOUNCE_MIN`) unless its
+while no phone is connected, and a reminder added or cancelled while the app of a phone that
+syncs it is closed. Each device gets at most one ping per 30 minutes (`HESTIA_PUSH_DEBOUNCE_MIN`) unless its
 app opened since. The device token arrives in the socket hello, so only a phone holding a device
 token can register one; it is kept in `hestia.db` (`phone_push`), and Apple's "Unregistered" or
 "BadDeviceToken" answer deletes it. The

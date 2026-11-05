@@ -107,10 +107,8 @@ def test_the_payload_is_fixed_and_carries_no_caller_text():
 
 
 @pytest.fixture
-def household(tmp_path, monkeypatch):
-    """Registered devices and person ties in a scratch data dir."""
-    monkeypatch.setattr(phone, "DEVICES", tmp_path / "devices.json")
-    monkeypatch.setattr(phone, "PEOPLE", tmp_path / "people.json")
+def household():
+    """Two registered devices (conftest keeps the phone files in a scratch dir)."""
     for name in ("alex-17pro", "dawn-15"):
         phone.add_device(name)
 
@@ -143,13 +141,74 @@ def test_unconfigured_off_a_phone_box_does_nothing(unconfigured, apple, db, monk
     assert push.notify("waiting") == {} and apple["seen"] == []
 
 
-def test_a_failed_send_never_breaks_the_caller(key, db, monkeypatch):
+def test_a_failed_send_never_breaks_the_caller(key, db, household, monkeypatch):
+    tried = []
+
     def boom(request):
+        tried.append(request.url.path)
         raise httpx.ConnectError("no route")
     monkeypatch.setattr(push, "_transport", httpx.MockTransport(boom))
     _closed_phone()
     assert push.notify("waiting") == {"alex-17pro": "error: ConnectError"}
+    tried.clear()
     assert reminder.execute("create", text="x", when="10 minutes").startswith("Reminder #")
+    assert tried == [f"/3/device/{TOKEN_A}"]   # the send was really attempted, and failed
+
+
+def test_a_reminder_never_waits_on_apple(key, db, household, monkeypatch):
+    """The ping runs beside the caller: a hung Apple (the WAN down) cannot time the tool out."""
+    started = []
+    monkeypatch.setattr(push, "_spawn", lambda fn: started.append(fn))
+    monkeypatch.setattr(push, "_transport", httpx.MockTransport(lambda r: (_ for _ in ()).throw(AssertionError("sent inline"))))
+    _closed_phone()
+    assert reminder.execute("create", text="x", when="10 minutes").startswith("Reminder #")
+    assert len(started) == 1
+
+
+def test_a_cancel_and_any_writer_wake_the_phone(key, apple, db, household, monkeypatch):
+    import reminders_store
+    monkeypatch.setattr(push, "debounce", lambda: dt.timedelta(0))
+    _closed_phone()
+    rid = reminders_store.add("2030-01-01T09:00:00", "from the breeding follow-ups")
+    assert len(apple["seen"]) == 1
+    assert reminders_store.cancel(rid)
+    assert len(apple["seen"]) == 2
+    assert not reminders_store.cancel(rid)   # nothing removed, nothing to wake
+    assert len(apple["seen"]) == 2
+
+
+def test_with_every_phone_tied_a_household_reminder_goes_to_all(household):
+    phone.tie("alex-17pro", "alex")
+    phone.tie("dawn-15", "dawn")
+    assert phone.devices_for(None) == {"alex-17pro", "dawn-15"}
+    assert phone.devices_for("dawn") == {"dawn-15"}
+    assert phone.devices_for("momo") == {"alex-17pro", "dawn-15"}   # nobody's phone: all of them
+
+
+def test_a_tie_for_a_removed_device_is_ignored(household):
+    phone.tie("dawn-15", "dawn")
+    devices = json.loads(phone.DEVICES.read_text())
+    del devices["dawn-15"]
+    phone.DEVICES.write_text(json.dumps(devices))
+    assert phone.devices_for("dawn") == {"alex-17pro"}
+
+
+def test_an_unreadable_ties_file_fails_closed(household):
+    phone.PEOPLE.write_text("{half written")
+    with pytest.raises(phone.PeopleUnreadable):
+        phone.devices_for(None)
+    client = TestClient(hestia.app)
+    token = phone.add_device("ipad")
+    r = client.get("/v1/phone/reminders", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 503 and "reminders" not in r.json()
+
+
+def test_the_brain_clears_stale_connection_marks_at_startup(db):
+    push.register("alex-17pro", TOKEN_A)
+    push.seen("alex-17pro", True)   # this pid: alive
+    assert push.devices()[0]["connected"]
+    with TestClient(hestia.app):
+        assert not push.devices()[0]["connected"]
 
 
 # --- tokens: registration, Apple saying a token is gone -----------------------------------------
@@ -268,6 +327,17 @@ def test_a_connection_held_by_a_dead_process_does_not_count(key, apple, db):
     with push.store._conn() as c:
         c.execute("UPDATE phone_push SET connected_pid=? WHERE device=?", (2**22 + 12345, "alex-17pro"))
     assert push.notify("waiting") == {"alex-17pro": "sent"}
+
+
+def test_a_phone_without_the_model_does_not_count_as_connected(box):
+    """Still downloading: it cannot drain work, so it must not stop the ping."""
+    with TestClient(hestia.app) as client:
+        with client.websocket_connect("/v1/model/socket",
+                                      headers={"Authorization": f"Bearer {box['token']}"}) as ws:
+            ws.send_json({"type": "hello", "device": "x", "model_sha256": "0" * 64, "push_token": TOKEN_A})
+            assert ws.receive_json()["model_ok"] is False
+            [row] = push.devices()
+            assert row["token"] == TOKEN_A and not row["connected"]
 
 
 def test_a_phone_that_drops_before_ready_is_not_left_connected(box):

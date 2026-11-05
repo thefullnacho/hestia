@@ -97,12 +97,23 @@ REMINDER_MAX_DAYS = 31      # the most a phone may ask for
 REMINDER_LIMIT = 64         # iOS keeps at most 64 pending local notifications per app
 
 
+class PeopleUnreadable(RuntimeError):
+    """The ties file exists but cannot be read. Never read as "nobody is tied": that would hand
+    every phone everyone's reminders."""
+
+
 def _people() -> dict[str, str]:
+    """Device -> person ties, for devices that still exist."""
     try:
         people = json.loads(PEOPLE.read_text())
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return {}
-    return {d: p for d, p in people.items() if isinstance(p, str)} if isinstance(people, dict) else {}
+    except (OSError, ValueError) as e:
+        raise PeopleUnreadable(f"{PEOPLE.name}: {type(e).__name__}") from e
+    if not isinstance(people, dict):
+        raise PeopleUnreadable(f"{PEOPLE.name}: not an object")
+    known = _devices()
+    return {d: p for d, p in people.items() if isinstance(p, str) and d in known}
 
 
 def _valid_person(person: str) -> bool:
@@ -121,9 +132,11 @@ def tie(device: str, person: str | None) -> None:
     if person is not None:
         people[device] = person
     PEOPLE.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(PEOPLE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    tmp = PEOPLE.with_name(PEOPLE.name + ".tmp")   # a sync never sees a half-written file
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         json.dump(people, f, indent=1)
+    os.replace(tmp, PEOPLE)
 
 
 def person_for(device: str) -> str | None:
@@ -131,12 +144,14 @@ def person_for(device: str) -> str | None:
 
 
 def devices_for(person: str | None) -> set[str]:
-    """The devices whose reminder sync includes a reminder for `person`, by the same rule as
-    reminders_for: the phones tied to that person, else (household, or nobody's phone tied to
-    them) the untied phones."""
+    """The phones a reminder for `person` goes to; the sync (reminders_for) and the ping both use
+    this. A person's reminders go to the phones tied to them. A household reminder (None), or one
+    for someone with no phone tied, goes to the untied phones, and to every phone when all are
+    tied, so a reminder always lands somewhere (as reminders_tick.py falls back to the default)."""
     people = _people()
+    every = set(_devices())
     tied = {d for d, p in people.items() if p == person} if person is not None else set()
-    return tied or {d for d in _devices() if d not in people}
+    return tied or (every - set(people)) or every
 
 
 def _local(due_at: str) -> dt.datetime | None:
@@ -160,11 +175,12 @@ def reminders_for(device: str, days: int = REMINDER_DAYS, now: dt.datetime | Non
     now = (now or dt.datetime.now()).astimezone()
     until = now + dt.timedelta(days=days)
     tied = person_for(device)
-    if tied is not None:
-        mine = lambda p: p == tied  # noqa: E731
-    else:
-        covered = set(_people().values())
-        mine = lambda p: p is None or p not in covered  # noqa: E731
+    goes_here: dict = {}   # one rule for the sync and the ping (devices_for), read once per person
+
+    def mine(person):
+        if person not in goes_here:
+            goes_here[person] = device in devices_for(person)
+        return goes_here[person]
     rows = []
     for r in reminders_store.unfired():
         when = _local(r["due_at"])
@@ -307,11 +323,9 @@ async def serve(ws) -> None:
     except Exception:  # noqa: BLE001 - no hello, no phone
         await ws.close(code=4400)
         return
-    phone = None
+    phone, counted, draining = None, False, None
     try:
-        # Directly, like _gone below: done in a worker thread it could land after the goodbye
-        # and mark a phone that has already left as connected. Two small SQLite writes.
-        _hello_seen(name, hello)
+        await asyncio.to_thread(_hello_seen, name, hello)   # the push token only
         info = await asyncio.to_thread(model_info)   # hashing a 1 GB file stays off the event loop
         model_ok = bool(info) and hello.get("model_sha256") == info["sha256"]
         await ws.send_json({"type": "ready", "model_sha256": info["sha256"] if info else None,
@@ -319,30 +333,60 @@ async def serve(ws) -> None:
         phone = Phone(name, ws.send_json)
         if model_ok:
             hub.attach(phone)
-            asyncio.get_running_loop().create_task(_drain_logged())
+            # Connected, for push.py, only once it can do model work: a phone still downloading
+            # the model must not stop the ping that wakes one that can. Directly, like _gone.
+            _attached(name)
+            counted = True
+            draining = asyncio.get_running_loop().create_task(_drain_while_attached(phone))
         while True:
             phone.deliver(await ws.receive_json())
     except Exception:  # noqa: BLE001 - the app went to the background or the network dropped
         pass
     finally:
+        if draining is not None:
+            draining.cancel()
         if phone is not None:
             hub.detach(phone)
         # Directly, not in a worker thread: a cancelled handler drops a queued thread job, and a
         # phone left marked as connected would never be pinged.
-        _gone(name)
+        if counted:
+            _gone(name)
+
+
+async def _drain_while_attached(phone: Phone) -> None:
+    """Finish waiting model work now, and again every DRAIN_EVERY seconds while this phone stays
+    attached: a timer (the briefing, the feed) can queue work while an app is open, and with a
+    phone connected no ping goes out to bring it in."""
+    while phone in hub.phones:
+        if not _draining.locked():
+            async with _draining:
+                await _drain_logged()
+        await asyncio.sleep(DRAIN_EVERY)
+
+
+DRAIN_EVERY = 60
+_draining = asyncio.Lock()
 
 
 _open: dict[str, int] = {}   # device -> sockets open in this process
 
 
 def _hello_seen(name: str, hello: dict) -> None:
-    """Mark the app as up (push.py won't ping it) and keep its APNs token, if it sent one."""
+    """Keep the app's APNs token, if it sent one."""
+    import push
+    try:
+        if hello.get("push_token") is not None and not push.register(name, hello["push_token"]):
+            print(f"[phone] {name} sent a push token that is not an APNs token; ignored", flush=True)
+    except Exception as e:  # noqa: BLE001 - bookkeeping must not stop the socket
+        print(f"[phone] push bookkeeping failed: {type(e).__name__}", flush=True)
+
+
+def _attached(name: str) -> None:
+    """The app can do model work: push.py won't ping it while it stays."""
     import push
     _open[name] = _open.get(name, 0) + 1
     try:
         push.seen(name, True)
-        if hello.get("push_token") is not None and not push.register(name, hello["push_token"]):
-            print(f"[phone] {name} sent a push token that is not an APNs token; ignored", flush=True)
     except Exception as e:  # noqa: BLE001 - bookkeeping must not stop the socket
         print(f"[phone] push bookkeeping failed: {type(e).__name__}", flush=True)
 
@@ -351,10 +395,13 @@ def _gone(name: str) -> None:
     import push
     _open[name] = max(0, _open.get(name, 0) - 1)
     if not _open[name]:
-        try:
-            push.seen(name, False)
-        except Exception as e:  # noqa: BLE001
-            print(f"[phone] push bookkeeping failed: {type(e).__name__}", flush=True)
+        for attempt in (0, 1):   # once more if a timer or backup held the write lock
+            try:
+                push.seen(name, False)
+                return
+            except Exception as e:  # noqa: BLE001
+                if attempt:
+                    print(f"[phone] push bookkeeping failed: {type(e).__name__}", flush=True)
 
 
 async def _drain_logged() -> None:

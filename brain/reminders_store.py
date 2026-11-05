@@ -19,7 +19,9 @@ def add(due_at: str, text: str, announce: bool = False, person: str | None = Non
     with store._conn() as c:
         cur = c.execute("INSERT INTO reminders(due_at,text,created_at,announce,person) VALUES(?,?,?,?,?)",
                         (due_at, text, store._now(), 1 if announce else 0, person or None))
-        return cur.lastrowid
+        rid = cur.lastrowid
+    _wake_phones(person or None)
+    return rid
 
 
 def pending(limit: int = 50) -> list[dict]:
@@ -47,8 +49,25 @@ def mark_fired(rid: int, when_iso: str) -> None:
 def cancel(rid: int) -> bool:
     """Drop a pending reminder; True if one was removed (already-fired ones are left alone)."""
     with store._conn() as c:
+        row = c.execute("SELECT person FROM reminders WHERE id=? AND fired_at IS NULL", (rid,)).fetchone()
         cur = c.execute("DELETE FROM reminders WHERE id=? AND fired_at IS NULL", (rid,))
-        return cur.rowcount > 0
+        removed = cur.rowcount > 0
+    if removed:
+        _wake_phones(row["person"] if row else None)
+    return removed
+
+
+def _wake_phones(person: str | None) -> None:
+    """A reminder was added or cancelled, by any writer (the tool, the MCP server, the breeding
+    follow-ups): wake the closed apps that sync it, with the content-free ping (push.py), so a
+    phone schedules a new one or drops a cancelled one before it fires. The text never leaves."""
+    try:
+        import phone
+        import push
+        if push.active():
+            push.notify_later("reminder", every_device=True, only=phone.devices_for(person))
+    except Exception as e:  # noqa: BLE001 - the row is written; a missed ping must not undo that
+        print(f"[reminders] push failed: {type(e).__name__}", flush=True)
 
 
 def unfired() -> list[dict]:

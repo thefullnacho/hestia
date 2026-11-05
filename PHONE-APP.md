@@ -178,7 +178,9 @@ GET /v1/phone/reminders?days=14          Authorization: Bearer <device token>
   operator ties a device to a person with `python brain/phone.py tie <device> <person>`
   (`-` unties it), kept in `data/phone_people.json`, never guessed from the name. A tied phone
   gets that person's reminders. An untied phone is a default phone: the household's reminders,
-  plus those of anyone with no phone tied, the same fallback `reminders_tick.py` uses.
+  plus those of anyone with no phone tied, the same fallback `reminders_tick.py` uses. When every
+  phone is tied, those go to all of them, so a reminder always lands somewhere. A tie for a device
+  that no longer exists is ignored, and an unreadable ties file answers 503, never "nobody is tied".
 - **Double pings.** `reminders_tick.py` still sends each due reminder through Home Assistant.
   A house that also runs the app gets both until it turns one off. Which to turn off, and how,
   is not decided yet.
@@ -198,9 +200,13 @@ A value that is not 64 to 200 hex characters is ignored. Tapping the ping only n
 app: it connects, the box drains waiting model work, and the web view syncs.
 
 When the box pings, deterministically: model work is queued (`model_jobs`) while no phone is
-connected, one ping however many jobs; or a reminder is made from another window (the MCP
-server, web chat) and that phone's app is closed, each closed phone pinged, since each syncs its
-own reminders. A phone gets at most one ping per `HESTIA_PUSH_DEBOUNCE_MIN` minutes (default 30)
+connected, one ping however many jobs; or a reminder is added or cancelled by any writer (the
+tool, the MCP server, the breeding follow-ups), pinging each closed app among the phones that sync
+it, so a cancelled one is dropped before it fires. A phone counts as connected only once it holds
+the right model; one still downloading does not stop the ping. While a phone is attached the brain
+looks for waiting work every minute, so a job a timer queues during an open app is not left until
+the next reconnect. Pings are sent beside the caller, never inline: a reminder saves and answers
+even with the WAN down. The brain clears every connection mark at startup. A phone gets at most one ping per `HESTIA_PUSH_DEBOUNCE_MIN` minutes (default 30)
 unless its app connected since. Threshold watchers are not wired to it; an operator house keeps
 Home Assistant notifications for those. The ping's words are
 fixed in code (SECURITY.md, "Phone notifications"). Apple's 410 Unregistered or BadDeviceToken

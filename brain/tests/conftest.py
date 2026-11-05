@@ -33,6 +33,18 @@ def _scratch_db(tmp_path, monkeypatch):
     return path
 
 
+@pytest.fixture(autouse=True)
+def _scratch_phones(tmp_path, monkeypatch):
+    """Phone devices and person ties in a scratch dir, for every test: reminder writes ask
+    phone.devices_for whom to wake, and the real files under data/ are private. Pings run inline
+    so a test sees them as they happen (push._spawn starts a thread outside tests)."""
+    import phone
+    import push
+    monkeypatch.setattr(phone, "DEVICES", tmp_path / "phone_devices.json")
+    monkeypatch.setattr(phone, "PEOPLE", tmp_path / "phone_people.json")
+    monkeypatch.setattr(push, "_spawn", lambda fn: fn())
+
+
 @pytest.fixture
 def db(_scratch_db):
     """A fresh, empty records DB for this test. Schema is created lazily on first _conn."""

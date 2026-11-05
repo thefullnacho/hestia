@@ -64,7 +64,7 @@ def _wake_a_phone(kind: str) -> None:
     debounced per device) so opening it brings the app up to drain the queue."""
     try:
         import push
-        push.notify("briefing" if kind == "briefing" else "waiting")
+        push.notify_later("briefing" if kind == "briefing" else "waiting")
     except Exception as e:  # noqa: BLE001 - the job is queued; a missed ping must not undo that
         print(f"[model_jobs] push failed: {type(e).__name__}", flush=True)
 
