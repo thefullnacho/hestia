@@ -46,7 +46,8 @@ enum EngineError: LocalizedError {
 /// llama.cpp on a string, the way llama-server's /completion runs it, so the box's parity with
 /// llama-server (benchmarks/phone-render/) holds here: the prompt is tokenized with special tokens
 /// parsed and added, the sampler chain is llama-server's default one, special tokens are not
-/// printed, stop words are cut and never streamed, and a shared prompt prefix is reused.
+/// printed, stop words are cut and never streamed, and a shared prompt prefix is reused through
+/// context checkpoints.
 actor Engine {
     nonisolated let path: String
     private let model: OpaquePointer
@@ -54,6 +55,7 @@ actor Engine {
     private let vocab: OpaquePointer
     private let nCtx: Int
     private let nBatch: Int
+    private let nUbatch: Int
     private var cached: [llama_token] = []
 
     private static let backend: Void = { llama_backend_init() }()
@@ -84,6 +86,7 @@ actor Engine {
         self.vocab = llama_model_get_vocab(model)
         self.nCtx = Int(llama_n_ctx(ctx))
         self.nBatch = Int(llama_n_batch(ctx))
+        self.nUbatch = Int(llama_n_ubatch(ctx))
     }
 
     deinit {
@@ -103,21 +106,19 @@ actor Engine {
         guard !tokens.isEmpty else { throw EngineError.tokenize }
         guard tokens.count < nCtx else { throw EngineError.tooLong(tokens.count, nCtx) }
 
-        // Reuse the cached prefix. A recurrent model (LFM3 is hybrid) may refuse a partial
-        // removal; then the cache starts over.
         let t0 = Date()
-        var keep = zip(cached, tokens).prefix { $0 == $1 }.count
-        keep = min(keep, tokens.count - 1)                  // always decode one, for its logits
-        let mem = llama_get_memory(ctx)
-        if keep < cached.count && !llama_memory_seq_rm(mem, 0, Int32(keep), -1) {
-            llama_memory_clear(mem, true)
-            keep = 0
-        }
-        cached = Array(tokens[..<keep])
+        let keep = rewind(to: tokens)
+
+        // Read the rest of the prompt, stopping to checkpoint 4 + n_ubatch and 4 tokens before
+        // its end, as llama-server does: the next call in a turn re-renders the last few tokens
+        // (the assistant header), so a checkpoint just short of them is the one that gets reused.
+        let marks = Set([tokens.count - 4 - nUbatch, tokens.count - 4].filter { $0 > keep })
         var start = keep
         while start < tokens.count {
             try Task.checkCancellation()
-            let end = min(start + nBatch, tokens.count)
+            if marks.contains(start) { saveCheckpoint() }
+            var end = min(start + nBatch, tokens.count)
+            if let mark = marks.filter({ $0 > start && $0 < end }).min() { end = mark }
             try decode(Array(tokens[start..<end]))
             start = end
         }
@@ -166,13 +167,78 @@ actor Engine {
                       generateSeconds: Date().timeIntervalSince(t1))
     }
 
+    // MARK: - context reuse
+
+    /// The recurrent half of the cache at a point in an earlier prompt. A hybrid model like
+    /// LFM3 cannot cut its recurrent state back to an earlier position, so reuse restores one
+    /// of these and trims the attention half to match (llama-server's context checkpoints).
+    private struct Checkpoint { let nTokens: Int; let data: [UInt8] }
+    private var checkpoints: [Checkpoint] = []
+    private static let maxCheckpoints = 8
+    private static let partial = llama_state_seq_flags(LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY)
+
+    /// Bring the cache back to the longest prefix it shares with `tokens` and return its length.
+    /// At least one token is always left to read, for the logits of the last.
+    private func rewind(to tokens: [llama_token]) -> Int {
+        let shared = zip(cached, tokens).prefix { $0 == $1 }.count
+        let target = min(shared, tokens.count - 1)
+        let mem = llama_get_memory(ctx)
+        // checkpoints past the shared prefix hold tokens this prompt does not have
+        checkpoints.removeAll { $0.nTokens > target }
+
+        if target == cached.count { return target }                // a pure extension
+        if target > 0 && llama_memory_seq_rm(mem, 0, Int32(target), -1) {
+            cached.removeLast(cached.count - target)               // attention-only, or a short rollback
+            return target
+        }
+        for cp in checkpoints.reversed() where cp.nTokens > 0 {
+            let restored = cp.data.withUnsafeBufferPointer {
+                llama_state_seq_set_data_ext(ctx, $0.baseAddress, $0.count, 0, Self.partial)
+            }
+            // the recurrent state now ends at nTokens - 1; drop the attention cells after it
+            if restored == cp.data.count && llama_memory_seq_rm(mem, 0, Int32(cp.nTokens), -1) {
+                cached.removeLast(cached.count - cp.nTokens)
+                return cp.nTokens
+            }
+        }
+        llama_memory_clear(mem, true)
+        cached = []
+        checkpoints = []
+        return 0
+    }
+
+    /// Keep the recurrent state as it stands after `cached`, before reading on.
+    private func saveCheckpoint() {
+        let n = cached.count
+        guard n > 0, !checkpoints.contains(where: { $0.nTokens == n }) else { return }
+        let size = llama_state_seq_get_size_ext(ctx, 0, Self.partial)
+        guard size > 0 else { return }
+        var data = [UInt8](repeating: 0, count: size)
+        let got = data.withUnsafeMutableBufferPointer {
+            llama_state_seq_get_data_ext(ctx, $0.baseAddress, size, 0, Self.partial)
+        }
+        guard got == size else { return }
+        checkpoints.append(Checkpoint(nTokens: n, data: data))
+        checkpoints.sort { $0.nTokens < $1.nTokens }
+        if checkpoints.count > Self.maxCheckpoints { checkpoints.removeFirst() }
+    }
+
     // MARK: - llama.cpp
 
+    /// Decode tokens at the positions after `cached`, with logits for the last one only.
     private func decode(_ batchTokens: [llama_token]) throws {
-        var toks = batchTokens
-        let rc = toks.withUnsafeMutableBufferPointer { buf in
-            llama_decode(ctx, llama_batch_get_one(buf.baseAddress, Int32(buf.count)))
+        var batch = llama_batch_init(Int32(batchTokens.count), 0, 1)
+        defer { llama_batch_free(batch) }
+        let base = cached.count
+        for (i, token) in batchTokens.enumerated() {
+            batch.token[i] = token
+            batch.pos[i] = llama_pos(base + i)
+            batch.n_seq_id[i] = 1
+            batch.seq_id[i]![0] = 0
+            batch.logits[i] = i == batchTokens.count - 1 ? 1 : 0
         }
+        batch.n_tokens = Int32(batchTokens.count)
+        let rc = llama_decode(ctx, batch)
         guard rc == 0 else { throw EngineError.decode(rc) }
         cached += batchTokens
     }

@@ -73,7 +73,13 @@ Known differences, for the step 2 gate:
 - **`json_schema`** is honored as "any JSON object", not the schema itself. The schema to
   grammar converter is C++ outside the framework; the box validates every call's arguments.
   The box only sends a schema to repair one tool call.
-- **No prompt reuse with LFM3.** It is a hybrid model, so llama.cpp cannot trim its cache to a
-  shared prefix and every request reads its whole prompt (about 2 s for 3,000 tokens on a
-  17 Pro). llama-server keeps checkpoints for this; the app does not yet.
+- **Prompt reuse goes through checkpoints, as in llama-server.** LFM3 is hybrid: its recurrent
+  half cannot be cut back to an earlier position. So while reading a prompt the engine saves
+  that half 4 + n_ubatch and 4 tokens before the end, and the next request restores the latest
+  checkpoint inside the prefix it shares, trims the attention half to match, and reads only
+  the rest. Within a turn the second call reads its new tokens, not the whole prompt. In the
+  simulator a two-call turn's 5,065-token second prompt took 1.6 s reused against 133 s from
+  scratch (CPU only there). As llama-server warns for `cache_prompt`, results are not bit for
+  bit those of a fresh read, since the prompt goes through in different batches; at
+  temperature 0 the reused and fresh answers to that turn were worded differently.
 - **The model downloads only in the foreground.** Leaving the app mid-download starts it over.
