@@ -143,6 +143,8 @@ reading "model ready", the sync (`200`, then `304`), a scheduled reminder delive
 and the push token stored under the device. In the simulator CoreAudio stalled bringing up the
 input, so the microphone and voice were checked on an iPhone 17 Pro: a spoken command came back
 as a final transcript, went to the model, and the answer was spoken through to `speak_finished`.
+A ping from the box through the APNs sandbox arrived too; tapping it opened the app, which
+connected and finished the queued work.
 
 A page the box answers with an error status (tailscale serve gives `502` and an empty body when
 the brain behind it is down) shows as "Can't reach the box" with Retry, not as a blank page.
