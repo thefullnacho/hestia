@@ -44,13 +44,13 @@ the brain on its private address.
 2. Put HTTPS in front of it, pointing at the brain's root, **with no path**:
 
    ```bash
-   tailscale serve --bg --https=8444 http://<box tailnet address>:8734
+   tailscale serve --bg --https=8443 http://<box tailnet address>:8734
    ```
 
    A path on the target doubles every request: tailscale serve joins the target's path to the
    request's, so the socket arrives as `/v1/model/socket/v1/model/socket` and the model
    download as `/v1/model/socket/v1/model/info`. `tailscale serve status` shows the target.
-3. In the app, enter `https://<box MagicDNS name>:8444` and the token, then Save and connect.
+3. In the app, enter `https://<box MagicDNS name>:8443` and the token, then Save and connect.
    A `wss://` address, with or without `/v1/model/socket`, works too; the app adds the paths
    itself.
 
