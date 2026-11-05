@@ -72,3 +72,14 @@ or the wrong way (the kitchen was switched 0 times; before, 4 tries turned it of
 the outside"). A refused call the model doesn't fix on its retry ends the turn with "I haven't
 completed the requested action", so a miss now does nothing instead of the wrong thing. Gemma
 lands where it was (92.1% recorded), so the check costs the resident nothing.
+
+## Ready for a real phone (same day)
+
+`heldout_turn.py --serve <host:port>` hosts `/v1/model/socket` in the scorer's own process, waits
+for a phone with the box's model to connect, and runs every held-out turn through it, timing each
+one. `test_box.sh` starts a separate phone-mode brain for developing the app (own port, scratch
+household, refuses 0.0.0.0). Checked with `fake_phone.py` answering from a llama-server on the
+4060 Ti: 57/63 exact (90.5%, inside the phone path's 56 to 60 per pass), 269 prompts over the
+socket, turn median 2.6 s and 90th percentile 6.0 s. The iPhone generates about a third as fast as
+that GPU, so its turns will be slower; the run on the 17 Pro will say by how much, and whether
+it throttles over 315 turns.
