@@ -23,12 +23,14 @@ HEADER = "X-Hestia-Memory"
 MAX_BODY = 16 * 1024
 
 
-async def body_json(request: Request) -> dict:
-    if request.headers.get(HEADER) != "1":
-        raise ValueError("Use the app to review what Hestia remembers.")
+async def body_json(request: Request, header: str = HEADER, what: str = "review what Hestia remembers") -> dict:
+    """The guard on the app's review writes (memory here, receipts in receipts_api): the page's own
+    header, the same origin, a JSON object of bounded size."""
+    if request.headers.get(header) != "1":
+        raise ValueError(f"Use the app to {what}.")
     origin = request.headers.get("origin")
     if origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
-        raise ValueError("Memory review must come from this Hestia page.")
+        raise ValueError("That must come from this Hestia page.")
     if request.headers.get("content-type", "").split(";")[0] != "application/json":
         raise ValueError("Expected JSON from the app.")
     raw = await request.body()

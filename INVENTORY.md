@@ -40,9 +40,25 @@ chemical, fertilizer, batteries, canned food, pantry) with the years it usually 
 looks at the oldest purchase still on hand: seeds bought in 2023 and again in 2026 warn about the
 2023 packets until those are used. An item in no category gets no warning, never a guessed one.
 
+## Receipts
+
+Built 2026-11-05 (`brain/receipts.py`, `brain/receipts_api.py`). The phone reads a receipt with
+Apple's on-device text recognition and sends only its lines (PHONE-APP.md, "Receipts"). Code
+reads them, no model:
+
+- Item lines are the ones that end in a price; totals, tax, payment, cashier and thank-you lines
+  are skipped. A count or weight on the line below ("3 @ 3.49", "2.31 lb @ 0.54/lb") belongs to
+  the item above, whether or not that line had its own price. Product codes and tax flags come
+  off the name; sizes read plainly ("16 oz"). The same item rung up twice is one proposal.
+- The receipt's own date dates the purchase (not an estimate); the store is the first header line.
+- Each item waits on the Today page: Keep, Edit (name and amount), Not this, and Keep all for a
+  long receipt. Nothing reaches the inventory until a person keeps it. Keep adds to the item on
+  record whose words are all in the line ("NEEM OIL 16OZ" adds to "Neem oil"); the card says
+  which, or "new item".
+- An abbreviation the store printed ("BNLS CHKN BRST") stays as printed for the person to fix.
+  A model could expand it, but a wrong guess would be filed as a fact, so v1 leaves it to Edit.
+
 ## Not yet
 
-- **Receipts:** the phone reads a receipt on the device; each line becomes a proposed item on a
-  review card (Keep, Edit, Not this), and Keep adds to an existing item of the same name.
 - **The grounded answer:** library passages joined with what is on hand ("how do I treat pests
   on garlic" answered from the extension leaflets and the neem oil in the garage).

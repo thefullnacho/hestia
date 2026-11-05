@@ -267,6 +267,27 @@ screen lists what phones filed (swipe to remove) and the operator's shelf, and h
 Add a PDF from Files. After reading, the person checks the title and sees the page count, how
 many pages had no text, and the start of the text before anything is sent.
 
+## Receipts
+
+Built 2026-11-05 (box side; the app's half is not). The same capture as documents, for a
+receipt: the app reads it on the phone and sends only the lines of text (INVENTORY.md,
+"Receipts"). The box reads the items in code and puts each on the Today page for a person to
+keep; the app shows nothing new, since review happens in the web view.
+
+- Capture with `VNDocumentCameraViewController` (one page), read with `VNRecognizeTextRequest`
+  (`.accurate`, language correction ON), and send the **lines** top to bottom as recognized,
+  one string per line. Keep a recognized line whole: the box needs the price at its end.
+
+```
+POST /v1/phone/receipts                   Authorization: Bearer <device token>
+     {"id": "<UUID>", "lines": ["TRACTOR SUPPLY CO", "11/03/2026 10:42 AM", "NEEM OIL 16OZ 12.99 T", ...]}
+200  {"id", "store", "bought": "2026-11-03"|null, "items": [{"name", "qty", "unit"}]}
+400  bad shape                            401  no or unknown device token        413  too long
+```
+
+- At most 400 lines. The same id again replaces the items still waiting from that receipt.
+- After a 200, show how many items were read and open the Today page, where they wait.
+
 ## Speech
 
 The web view's mic and speaker buttons call into the app through a native bridge instead of the

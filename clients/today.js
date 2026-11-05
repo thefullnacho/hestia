@@ -1,13 +1,18 @@
 // Today view: what is due, read straight from the stores by GET /today. No model, no GPU.
 // Each section can fail on its own (HA down, calendar unreachable) without blanking the rest.
 // On top, while the note-taker has proposals waiting, a card to keep or drop each one: nothing
-// is remembered until a person taps Keep (POST /api/memory/inbox, memory_api.py).
+// is remembered until a person taps Keep (POST /api/memory/inbox, memory_api.py). Below it, items a
+// receipt proposed (receipts.py), kept into the inventory the same way (receipts_api.py).
 'use strict';
 
 (() => {
   const body = () => document.getElementById('todayBody');
   const MEMORY_HEADERS = { 'Content-Type': 'application/json', 'X-Hestia-Memory': '1' };
   let inbox = null;   // GET /memory/inbox, or null when it could not be read
+  const INV_HEADERS = { 'Content-Type': 'application/json', 'X-Hestia-Inventory': '1' };
+  let receiptItems = null;   // GET /api/inventory/receipt-items, or null
+  const amountOf = (r) => r.qty == null ? 'some' : (r.unit ? r.qty + ' ' + r.unit : String(r.qty));
+  const day = (iso) => iso ? new Date(iso + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 
   const time = (iso) => {
     const d = new Date(iso);
@@ -33,6 +38,72 @@
       '<p class="meta" style="margin:0 0 10px">From recent conversations. Nothing is remembered until you keep it' +
       (n > inbox.proposals.length ? '; showing ' + inbox.proposals.length + ' of ' + n : '') + '.</p>' +
       '<ul class="mem-list">' + inbox.proposals.map(memoryItem).join('') + '</ul></div>';
+  }
+
+  function receiptCards() {
+    if (!receiptItems || !receiptItems.length) return '';
+    const groups = new Map();
+    receiptItems.forEach(r => { if (!groups.has(r.receipt)) groups.set(r.receipt, []); groups.get(r.receipt).push(r); });
+    let h = '';
+    for (const [rid, rows] of groups) {
+      const head = [rows[0].store, day(rows[0].bought)].filter(Boolean).join(', ');
+      h += '<div class="card rc-card" data-receipt="' + esc(rid) + '"><h2>From a receipt' + (head ? ': ' + esc(head) : '') + '</h2>' +
+        '<p class="meta" style="margin:0 0 10px">Nothing goes into the inventory until you keep it. Fix a name or amount with Edit.</p>' +
+        '<ul class="mem-list">' + rows.map(r =>
+          '<li class="mem-item rc-item" data-pid="' + r.id + '"><div class="mem-text"><span class="rc-name">' + esc(r.name) +
+          '</span> · <span class="rc-amount">' + esc(amountOf(r)) + '</span></div>' +
+          '<div class="meta">' + (r.adds_to ? 'adds to ' + esc(r.adds_to) : 'new item') + ' · ' + esc(r.line) + '</div>' +
+          '<p class="t-err" data-err hidden></p>' +
+          '<div class="mem-actions"><button class="btn" data-rc="discard">Not this</button>' +
+          '<button class="btn" data-rc="edit">Edit</button><button class="btn primary" data-rc="keep">Keep</button></div></li>').join('') +
+        '</ul>' + (rows.length > 1 ? '<div class="mem-actions"><button class="btn primary" data-rc="keep-all">Keep all ' + rows.length + '</button></div>' : '') +
+        '</div>';
+    }
+    return h;
+  }
+
+  async function receiptPost(path, payload) {
+    const r = await fetch(path, { method: 'POST', headers: INV_HEADERS, body: JSON.stringify(payload || {}) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+
+  async function onReceipt(e) {
+    const btn = e.target.closest('button[data-rc]');
+    if (!btn) return;
+    const card = btn.closest('.rc-card');
+    const li = btn.closest('.rc-item');
+    const act = btn.dataset.rc;
+    const err = (li || card).querySelector('[data-err]');
+    if (act === 'edit') {
+      const name = li.querySelector('.rc-name'), amount = li.querySelector('.rc-amount');
+      li.querySelector('.mem-text').innerHTML =
+        '<label class="g-label">Item<input class="g-input" data-f="name" value="' + esc(name.textContent) + '"></label>' +
+        '<label class="g-label">Amount<input class="g-input" data-f="amount" value="' + esc(amount.textContent) + '"></label>';
+      btn.hidden = true;
+      return;
+    }
+    const buttons = (li || card).querySelectorAll('button');
+    buttons.forEach(b => { b.disabled = true; });
+    try {
+      if (act === 'keep-all') {
+        await receiptPost('/api/inventory/receipts/' + encodeURIComponent(card.dataset.receipt) + '/keep-all');
+        receiptItems = receiptItems.filter(r => r.receipt !== card.dataset.receipt);
+        card.remove();
+        return;
+      }
+      const pid = Number(li.dataset.pid);
+      const f = (n) => li.querySelector('[data-f="' + n + '"]');
+      const payload = act === 'keep' && f('name') ? { name: f('name').value, amount: f('amount').value } : {};
+      await receiptPost('/api/inventory/receipt-items/' + pid + '/' + (act === 'keep' ? 'keep' : 'discard'), payload);
+      receiptItems = receiptItems.filter(r => r.id !== pid);
+      li.remove();
+      if (!card.querySelector('.rc-item')) card.remove();
+    } catch (ex) {
+      buttons.forEach(b => { b.disabled = false; });
+      if (err) { err.textContent = ex.message; err.hidden = false; } else alert(ex.message);
+    }
   }
 
   async function memoryPost(id, act, payload) {
@@ -79,7 +150,7 @@
   }
 
   function render(t) {
-    let h = memoryCard();
+    let h = memoryCard() + receiptCards();
 
     const rem = t.reminders || {};
     h += card('Reminders', failed(rem) || list((rem.items || []).map(r =>
@@ -141,11 +212,13 @@
   async function refresh() {
     // The review queue loads beside /today, never instead of it: either can fail alone.
     const inboxReq = fetch('/memory/inbox?limit=20').then(r => r.ok ? r.json() : null).catch(() => null);
+    const receiptReq = fetch('/api/inventory/receipt-items').then(r => r.ok ? r.json() : null).catch(() => null);
     try {
       const r = await fetch('/today');
       if (!r.ok) throw new Error('today ' + r.status);
       const t = await r.json();
       inbox = await inboxReq;
+      receiptItems = (await receiptReq)?.items || null;
       render(t);
     } catch (e) {
       body().innerHTML = '<div class="empty">Couldn’t load today: ' + esc(e.message) +
@@ -157,5 +230,6 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('todayRefresh').addEventListener('click', refresh);
     body().addEventListener('click', onMemory);
+    body().addEventListener('click', onReceipt);
   });
 })();

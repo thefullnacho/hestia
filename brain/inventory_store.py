@@ -205,7 +205,8 @@ def _say(name: str, s: dict) -> str:
         return f"some {name} (no count given)"
     about = "about " if s["approx"] else ""
     extra = ", and some more uncounted" if s["some"] and s["qty"] is not None else ""
-    return f"{about}{_amount(s['qty'], s['unit'])} of {name}{extra}"
+    joint = " of " if s["unit"] else " "          # "2 bags of mulch", but "3 Mulch Black 2 cf"
+    return f"{about}{_amount(s['qty'], s['unit'])}{joint}{name}{extra}"
 
 
 def _age_note(name: str, s: dict, item: dict, today: dt.date) -> str:

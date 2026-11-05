@@ -182,6 +182,8 @@ served by `GET /app/{name}` and cached network-first by the service worker. No b
   `/api/memory/inbox/<id>/keep|discard` (`memory_api.py`, behind the goals page's header,
   same-origin and JSON guard), which calls the same `review_notes.promote()`/`discard()` as the
   terminal. Edited words pass the note-taker's own filter. The model has no way to keep a fact.
+  Below it, one card per receipt the phone filed: each item with what it adds to, and Keep,
+  Edit, Not this, or Keep all (`/api/inventory/...`, `receipts_api.py`, the same guard).
 - **Status** is the `/status` snapshot plus maintenance and the memory inbox. The inbox is
   shown read-only there and points at Today and `review_notes.py`; no buttons on this page.
   It polls every 15 seconds only while visible and the app is in the foreground.

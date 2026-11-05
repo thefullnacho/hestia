@@ -58,6 +58,8 @@ import records_store  # noqa: E402
 import reminders_store  # noqa: E402
 import goals_api  # noqa: E402
 import memory_api  # noqa: E402
+import receipts  # noqa: E402
+import receipts_api  # noqa: E402
 import library_store  # noqa: E402
 import goals_store  # noqa: E402
 import review_notes  # noqa: E402
@@ -1024,6 +1026,28 @@ async def phone_library_add(request: Request):
     return out
 
 
+@app.post("/v1/phone/receipts")
+async def phone_receipt(request: Request):
+    """File a receipt the phone read on the device: its lines of text, never the photo. Code reads
+    the items into proposals for the Today page (receipts.py); nothing reaches the inventory until
+    a person keeps it. Body: {"id": the app's id for it, "lines": [text...]}. A resend replaces."""
+    device = _phone_device(request)
+    if not device:
+        return JSONResponse({"error": "device token required"}, status_code=401)
+    raw = await request.body()
+    if len(raw) > 256_000:
+        return JSONResponse({"error": "that receipt is too long"}, status_code=413)
+    try:
+        data = json.loads(raw or b"{}")
+        if not isinstance(data, dict):
+            raise ValueError("expected an object")
+        out = await asyncio.to_thread(receipts.file_receipt, data.get("id"), data.get("lines"))
+    except (ValueError, TypeError) as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    print(f"[receipts] {device} filed a receipt: {len(out['items'])} items to review", flush=True)
+    return out
+
+
 @app.get("/v1/phone/library")
 async def phone_library_list(request: Request):
     """What the library holds: the documents phones filed (which the phone may remove) and the
@@ -1718,3 +1742,4 @@ async def _organize_recipe_source(source: str) -> dict:
 app.include_router(recipe_review.router(_organize_recipe_source))
 app.include_router(goals_api.router())
 app.include_router(memory_api.router())
+app.include_router(receipts_api.router())
