@@ -80,7 +80,10 @@ def test_overdue_and_due_today_are_date_comparisons(db):
     goals_store.approve(g["id"], "Garage", [{"id": s["id"], "text": s["text"], "due": s["due"]} for s in g["steps"]])
     assert [(s["text"], s["days"]) for s in goals_store.overdue()] == [("Sort the shelves", 2)]
     assert [s["text"] for s in goals_store.due_on()] == ["Haul the scrap"]
-    assert reminders_store.pending() == []   # past and today's 9am already gone: no stale pushes
+    # Past steps get no reminder (no stale pushes); today's 9am one only while 9am is still ahead.
+    still_ahead = dt.datetime.now().hour < goals_store.REMINDER_HOUR
+    assert [r["text"] for r in reminders_store.pending()] == (
+        ["Haul the scrap (goal: Garage)"] if still_ahead else [])
 
 
 def test_discard_keeps_the_row_for_the_record(db):
