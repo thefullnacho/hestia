@@ -1,0 +1,56 @@
+<!-- The app icon, full bleed: iOS rounds the corners. Rendered to Hestia/Assets.xcassets/AppIcon.appiconset/icon-1024.png (phone/README.md, "The icon"). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="1024" height="1024">
+  <defs>
+    <pattern id="hestia-bricks-contrast" width="128" height="64" patternUnits="userSpaceOnUse" patternTransform="scale(1.5)">
+      <rect width="128" height="64" fill="#141210" />
+      <rect x="4" y="4" width="120" height="24" rx="4" fill="#2a2521" stroke="#2e2825" stroke-width="1.5" />
+      <line x1="8" y1="5.5" x2="120" y2="5.5" stroke="rgba(232, 106, 58, 0.4)" stroke-width="1" stroke-linecap="round" />
+      <rect x="-60" y="36" width="120" height="24" rx="4" fill="#2a2521" stroke="#2e2825" stroke-width="1.5" />
+      <line x1="-56" y1="37.5" x2="56" y2="37.5" stroke="rgba(232, 106, 58, 0.4)" stroke-width="1" stroke-linecap="round" />
+      <rect x="68" y="36" width="120" height="24" rx="4" fill="#2a2521" stroke="#2e2825" stroke-width="1.5" />
+      <line x1="72" y1="37.5" x2="184" y2="37.5" stroke="rgba(232, 106, 58, 0.4)" stroke-width="1" stroke-linecap="round" />
+    </pattern>
+    <radialGradient id="hestia-glow" cx="50%" cy="55%" r="55%">
+      <stop offset="0%" stop-color="#e86a3a" stop-opacity="0.42" />
+      <stop offset="65%" stop-color="#e86a3a" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#141210" stop-opacity="0.55" />
+    </radialGradient>
+    <linearGradient id="flame-outer" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#e86a3a" />
+      <stop offset="55%" stop-color="#f07c4e" />
+      <stop offset="100%" stop-color="#e0a23c" />
+    </linearGradient>
+    <linearGradient id="flame-inner" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#f3a27a" />
+      <stop offset="65%" stop-color="#f0be87" />
+      <stop offset="100%" stop-color="#fffbf5" />
+    </linearGradient>
+  </defs>
+  <g>
+    <rect width="512" height="512" fill="url(#hestia-bricks-contrast)" />
+    <rect width="512" height="512" fill="url(#hestia-glow)" />
+    <g transform="translate(256 300) scale(1.3) translate(-256 -290)"><path d="M 106 380 L 106 270 A 150 150 0 0 1 406 270 L 406 380 Z" fill="#1e1b18" stroke="#141210" stroke-width="12" />
+    <path d="M 112 374 L 112 270 A 144 144 0 0 1 400 270 L 400 374" fill="none" stroke="rgba(232, 106, 58, 0.4)" stroke-width="3" />
+    <path d="M 138 380 L 138 274 A 118 118 0 0 1 374 274 L 374 380 Z" fill="#141210" stroke="#e86a3a" stroke-opacity="0.55" stroke-width="4" />
+    <circle cx="256" cy="285" r="110" fill="url(#hestia-glow)" />
+    <g id="hestia-ember">
+      <path d="M 256 348 
+               C 202 348, 178 298, 204 248 
+               C 210 235, 222 225, 224 238 
+               C 225 245, 232 248, 236 240 
+               C 242 226, 258 202, 248 176 
+               C 278 192, 294 226, 282 256 
+               C 279 264, 289 268, 295 256 
+               C 299 248, 302 238, 302 238 
+               C 320 264, 316 348, 256 348 Z" fill="url(#flame-outer)" />
+      <path d="M 256 348 
+               C 224 348, 214 314, 232 286 
+               C 242 272, 256 258, 254 244 
+               C 268 256, 274 274, 268 290 
+               C 266 296, 274 298, 278 288 
+               C 288 308, 282 348, 256 348 Z" fill="url(#flame-inner)" />
+    </g>
+    <rect x="82" y="366" width="348" height="44" rx="12" fill="#2e2825" stroke="#141210" stroke-width="12" />
+    <line x1="98" y1="374" x2="414" y2="374" stroke="rgba(232, 106, 58, 0.4)" stroke-width="4" stroke-linecap="round" />
+  </g></g>
+</svg>

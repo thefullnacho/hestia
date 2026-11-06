@@ -36,6 +36,11 @@ Copy `Local.xcconfig.example` to `Local.xcconfig` and set your signing team, the
 `Hestia.xcodeproj`. Sources sit in a synchronized folder: a new `.swift` file in `Hestia/` is
 part of the target without touching the project file.
 
+The icon's source is `icon/hestia-icon.svg`, full bleed since iOS rounds the corners. The app
+uses a 1,024 px PNG of it with no transparency, in `Hestia/Assets.xcassets/AppIcon.appiconset`;
+after changing the SVG, render it again (Quick Look's `qlmanage -t -s 1024` draws it) and
+flatten it, since an icon with an alpha channel is refused.
+
 The shared scheme turns off Metal API validation and frame capture, which halved the speed in
 the iPhone bench (`benchmarks/RESULTS.md`). For speed numbers, still launch from the home screen.
 
