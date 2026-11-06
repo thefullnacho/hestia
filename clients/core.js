@@ -114,12 +114,30 @@ function announce(text) {
 }
 
 async function health() {
-  const dot = document.getElementById('dot');
   let ok = false;
   try { ok = (await fetch('/health')).ok; } catch {}
-  dot.className = 'dot ' + (ok ? 'ok' : 'err');
-  dot.setAttribute('aria-label', ok ? 'Brain is up' : 'Brain is not answering');
+  ember.set('brain', ok);
 }
+
+// The ember in the top bar: one state from three sources. The brain answering /health and, in
+// the iPhone app, the phone's model socket (bridge.js) decide offline; the chat turn decides
+// thinking (sent, no words yet) and answering (words arriving). Anything else is idle.
+const ember = {
+  brain: true, phone: null, turn: 'idle',
+  set(part, value) { this[part] = value; this.paint(); },
+  paint() {
+    const el = document.getElementById('ember');
+    if (!el) return;
+    const state = !this.brain || this.phone === false ? 'offline' : this.turn;
+    el.dataset.state = state;
+    el.setAttribute('aria-label', {
+      idle: 'Hestia is ready',
+      thinking: 'Hestia is thinking',
+      answering: 'Hestia is answering',
+      offline: !this.brain ? 'Hestia: the brain is not answering' : 'Hestia: the phone is not connected, so chat waits for it',
+    }[state]);
+  },
+};
 
 // Ask-once tokens. The capture endpoints keep their own credentials; this phone remembers the
 // one the operator typed, and forgets it the moment the brain rejects it.
@@ -139,7 +157,7 @@ function getToken(kind, { ask = true } = {}) {
 function forgetToken(kind) { store.del(TOKENS[kind].key); }
 
 // --- Views and #hash routing. Each view file registers { enter, leave, title }. ---
-const Hestia = { views: {}, current: null };
+const Hestia = { views: {}, current: null, ember };
 const VIEW_NAMES = ['chat', 'today', 'goals', 'status', 'library'];
 
 function route() {

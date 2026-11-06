@@ -19,17 +19,20 @@ NODE = shutil.which("node")
 
 # Runs bridge.js in a fresh context. In "browser" mode window has no webkit and document is a
 # proxy that records any access. In "app" mode a fake handler records posted messages and a fake
-# #phoneTag records what the bridge shows; then each message in `incoming` is delivered.
+# #phoneTag records what the bridge shows, and a fake Hestia.ember what it was told; then each
+# message in `incoming` is delivered.
 HARNESS = r"""
 const vm = require('vm');
 const [src, mode, incoming] = [process.argv[1], process.argv[2], JSON.parse(process.argv[3])];
-const touched = [], posted = [], tag = { hidden: true, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
+const touched = [], posted = [], embers = [], tag = { hidden: true, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
 const document = mode === 'browser'
   ? new Proxy({}, { get(_, k) { touched.push(String(k)); return undefined; } })
   : { readyState: 'interactive', getElementById: (id) => id === 'phoneTag' ? tag : null,
       addEventListener() {} };
 const window = mode === 'browser' ? {} : { webkit: { messageHandlers: { hestia: { postMessage: (m) => posted.push(m) } } } };
-const ctx = vm.createContext({ window, document, JSON, Math, Object });
+const Hestia = { ember: { set: (k, v) => embers.push([k, v]) } };
+const ctx = vm.createContext(mode === 'browser' ? { window, document, JSON, Math, Object }
+  : { window, document, JSON, Math, Object, Hestia });
 vm.runInContext(src, ctx);
 const b = window.hestiaBridge;
 const seen = [];
@@ -37,7 +40,7 @@ b.on('transcript', (m) => seen.push(m));
 const sentBefore = b.send({ type: 'speak', id: '1', text: 'hi' });
 for (const m of incoming) b.receive(m);
 console.log(JSON.stringify({
-  active: b.active, speech: b.speech, mismatch: b.mismatch, v: b.v, sentBefore, posted, touched, seen,
+  active: b.active, speech: b.speech, mismatch: b.mismatch, v: b.v, sentBefore, posted, touched, seen, embers,
   tag: { hidden: tag.hidden, className: tag.className, text: tag.textContent },
 }));
 """
@@ -81,7 +84,15 @@ def test_messages_reach_listeners_and_strings_are_accepted():
     r = _run("app", [json.dumps({"v": 1, "type": "transcript", "text": "lights off", "final": True}),
                      {"v": 1, "type": "connection", "state": "disconnected"}])
     assert r["seen"] == [{"v": 1, "type": "transcript", "text": "lights off", "final": True}]
-    assert r["tag"]["className"] == "phone-tag bad" and r["tag"]["text"] == "model offline"
+    assert r["tag"]["hidden"] is True              # not connected is the ember's to show
+    assert r["embers"] == [["phone", False]]
+
+
+def test_connected_puts_the_ember_on_and_hides_the_tag():
+    r = _run("app", [{"v": 1, "type": "connection", "state": "downloading", "progress": 0.5},
+                     {"v": 1, "type": "connection", "state": "connected"}])
+    assert r["embers"] == [["phone", False], ["phone", True]]
+    assert r["tag"]["hidden"] is True
 
 
 def test_a_version_mismatch_turns_the_bridge_off():

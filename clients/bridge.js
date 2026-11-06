@@ -43,7 +43,7 @@
   window.hestiaBridge = bridge;
   if (!handler) return;
 
-  // The phone's model socket, shown as a small tag beside the brain's dot.
+  // The phone's model socket, shown as a small tag beside the ember.
   function tag() { return document.getElementById('phoneTag'); }
   function setTag(cls, label, title) {
     const el = tag();
@@ -54,17 +54,20 @@
     el.title = title;
     el.setAttribute('aria-label', title);
   }
+  // Connected or not is the ember's to show (core.js); the tag stays only for what the ember
+  // can't say: download progress, and an app on another bridge version.
   function showConnection(msg) {
     const detail = msg.detail ? ' (' + msg.detail + ')' : '';
+    if (typeof Hestia !== 'undefined') Hestia.ember.set('phone', msg.state === 'connected');
     if (msg.state === 'connected') {
-      setTag('ok', 'model ready', 'The phone is running the model' + detail);
+      if (tag()) tag().hidden = true;
     } else if (msg.state === 'downloading') {
       const p = typeof msg.progress === 'number' ? Math.max(0, Math.min(1, msg.progress)) : null;
       setTag('warn', p === null ? 'model …' : 'model ' + Math.floor(p * 100) + '%',
         'The phone is downloading the model' + (p === null ? '' : ', ' + Math.floor(p * 100) + ' percent') +
         '. Keep the app open' + detail);
-    } else {
-      setTag('bad', 'model offline', 'The phone is not connected to the box, so chat waits for it' + detail);
+    } else if (tag()) {
+      tag().hidden = true;
     }
   }
   function versionMismatch(appV) {

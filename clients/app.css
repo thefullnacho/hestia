@@ -15,12 +15,6 @@ body::before {
 @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
 
 .topbar { position: sticky; z-index: 30; }
-.dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  background: var(--muted); transition: background .3s, box-shadow .3s;
-}
-.dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok-line); }
-.dot.err { background: var(--bad); box-shadow: 0 0 8px var(--bad-line); }
 .view-title { font-size: 13px; color: var(--muted); font-weight: 500; }
 .thread-tag {
   font-size: 11px; font-weight: 500; letter-spacing: 0;
@@ -132,11 +126,6 @@ main { flex: 1; min-height: 0; display: flex; flex-direction: column; position: 
   color: var(--muted); font-size: 13px; border-radius: 12px; white-space: pre-wrap; box-shadow: none;
 }
 .msg.you.pending { color: var(--muted); font-style: italic; white-space: pre-wrap; }
-.msg.you.pending::before {
-  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--accent); margin-right: 8px; vertical-align: middle;
-  animation: pulse 1.2s ease-in-out infinite;
-}
 .msg-content p { margin: 0 0 10px; }
 .msg-content p:last-child { margin-bottom: 0; }
 .msg-content ul, .msg-content ol { margin: 6px 0 10px; padding-left: 20px; }
@@ -376,3 +365,55 @@ dialog input, dialog select {
 .mem-item:first-child { border-top: 0; padding-top: 0; }
 .mem-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
 .mem-edit { width: 100%; box-sizing: border-box; font: inherit; }
+
+/* --- The ember: Hestia's face (2026-11-06). The flame from the app icon, one image for the top
+   bar and every Hestia message. States: idle breathes, thinking flickers, answering burns
+   steady and bright, offline (brain down, or the phone not connected) goes to grey ash.
+   core.js owns the header's state; a message's ember follows its own turn. */
+:root { --ember-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='172 170 156 184'%3E%3Cdefs%3E%3ClinearGradient id='o' x1='0' y1='1' x2='0' y2='0'%3E%3Cstop offset='0' stop-color='%23e86a3a'/%3E%3Cstop offset='.55' stop-color='%23f07c4e'/%3E%3Cstop offset='1' stop-color='%23e0a23c'/%3E%3C/linearGradient%3E%3ClinearGradient id='i' x1='0' y1='1' x2='0' y2='0'%3E%3Cstop offset='0' stop-color='%23f3a27a'/%3E%3Cstop offset='.65' stop-color='%23f0be87'/%3E%3Cstop offset='1' stop-color='%23fffbf5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url%28%23o%29' d='M256 348C202 348 178 298 204 248C210 235 222 225 224 238C225 245 232 248 236 240C242 226 258 202 248 176C278 192 294 226 282 256C279 264 289 268 295 256C299 248 302 238 302 238C320 264 316 348 256 348Z'/%3E%3Cpath fill='url%28%23i%29' d='M256 348C224 348 214 314 232 286C242 272 256 258 254 244C268 256 274 274 268 290C266 296 274 298 278 288C288 308 282 348 256 348Z'/%3E%3C/svg%3E"); }
+.ember {
+  width: 22px; height: 26px; flex-shrink: 0; display: inline-block;
+  background: var(--ember-img) center bottom / contain no-repeat;
+  transform-origin: 50% 90%;
+  transition: filter .6s, opacity .6s;
+}
+.ember, .ember[data-state="idle"] { animation: ember-breathe 4.2s ease-in-out infinite; }
+.ember[data-state="thinking"] { animation: ember-flicker 1.1s linear infinite; }
+.ember[data-state="answering"] { animation: ember-burn 1.6s ease-in-out infinite; }
+.ember[data-state="offline"] { animation: none; filter: grayscale(1) brightness(.75); opacity: .45; }
+
+@keyframes ember-breathe {
+  0%, 100% { filter: drop-shadow(0 0 1px rgba(232, 106, 58, .25)); transform: scale(.97); }
+  50% { filter: drop-shadow(0 0 6px rgba(232, 106, 58, .55)); transform: scale(1.02); }
+}
+@keyframes ember-flicker {
+  0% { filter: drop-shadow(0 0 3px rgba(232, 106, 58, .45)) brightness(1); transform: scale(1, 1); }
+  18% { filter: drop-shadow(0 0 7px rgba(240, 124, 78, .7)) brightness(1.15); transform: scale(.97, 1.06); }
+  33% { filter: drop-shadow(0 0 2px rgba(232, 106, 58, .35)) brightness(.9); transform: scale(1.02, .95); }
+  52% { filter: drop-shadow(0 0 8px rgba(224, 162, 60, .7)) brightness(1.2); transform: scale(.98, 1.08); }
+  70% { filter: drop-shadow(0 0 4px rgba(232, 106, 58, .5)) brightness(1); transform: scale(1.01, .98); }
+  100% { filter: drop-shadow(0 0 3px rgba(232, 106, 58, .45)) brightness(1); transform: scale(1, 1); }
+}
+@keyframes ember-burn {
+  0%, 100% { filter: drop-shadow(0 0 7px rgba(240, 124, 78, .75)) brightness(1.15); transform: scale(1.04) rotate(-1deg); }
+  50% { filter: drop-shadow(0 0 10px rgba(224, 162, 60, .85)) brightness(1.25); transform: scale(1.07) rotate(1deg); }
+}
+
+/* Each Hestia message wears the ember to its left. Past messages hold still; the one being
+   written thinks, then answers. */
+.msg.you { position: relative; margin-left: 32px; }
+.msg.you::after {
+  content: ""; position: absolute; left: -32px; bottom: 0; width: 22px; height: 26px;
+  background: var(--ember-img) center bottom / contain no-repeat; transform-origin: 50% 90%;
+  filter: drop-shadow(0 0 2px rgba(232, 106, 58, .3));
+}
+.msg.you.pending::after { animation: ember-flicker 1.1s linear infinite; }
+.msg.you.streaming::after { animation: ember-burn 1.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* No movement: the state shows in the glow alone. */
+  .ember, .ember[data-state], .msg.you::after { animation: none !important; transform: none; }
+  .ember[data-state="idle"] { filter: drop-shadow(0 0 3px rgba(232, 106, 58, .4)); }
+  .ember[data-state="thinking"], .msg.you.pending::after { filter: drop-shadow(0 0 5px rgba(232, 106, 58, .6)) brightness(.9); }
+  .ember[data-state="answering"], .msg.you.streaming::after { filter: drop-shadow(0 0 9px rgba(240, 124, 78, .85)) brightness(1.2); }
+}

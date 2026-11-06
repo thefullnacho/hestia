@@ -308,6 +308,7 @@ async function submit({ viaVoice = false, text: given = null } = {}) {
   pending.className = 'msg you pending';
   pending.textContent = 'Thinking…';
   log.appendChild(pending);
+  Hestia.ember.set('turn', 'thinking');
   log.scrollTop = log.scrollHeight;
   let contentEl = null;
   const here = () => activeId === threadId;
@@ -315,6 +316,8 @@ async function submit({ viaVoice = false, text: given = null } = {}) {
     if (!here()) return;
     if (!contentEl) {
       pending.classList.remove('pending');
+      pending.classList.add('streaming');
+      Hestia.ember.set('turn', 'answering');
       pending.textContent = '';
       contentEl = document.createElement('div');
       contentEl.className = 'msg-content';
@@ -384,7 +387,7 @@ async function submit({ viaVoice = false, text: given = null } = {}) {
     if (inApp() && (receipts || []).some(r => r.tool === 'reminder' && r.status === 'succeeded')) {
       hestiaBridge.send({ type: 'sync_notifications' });   // the app schedules the new reminder now
     }
-    $('dot').className = 'dot ok';
+    Hestia.ember.set('brain', true);
     loadThreads().catch(() => {});      // titles and counts are the brain's to set
   } catch (e) {
     if (here()) {
@@ -392,8 +395,10 @@ async function submit({ viaVoice = false, text: given = null } = {}) {
       bubble('err', 'Could not get the reply: ' + e.message + '. Press Send to retry this same request safely.');
       if (!box.value.trim()) box.value = text;
     }
-    $('dot').className = 'dot err';
+    Hestia.ember.set('brain', false);
   } finally {
+    pending.classList.remove('pending', 'streaming');
+    Hestia.ember.set('turn', 'idle');
     inFlight = false;
     sendBtn.disabled = false;
   }

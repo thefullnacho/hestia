@@ -360,8 +360,10 @@ speech. The app should answer any page message whose `v` it does not speak with 
 | `speak_finished` | `id` string, `error` string (optional) | That `id` finished, was stopped, was replaced, or failed. Send it in every case, so a Stop button never sticks. |
 | `connection` | `state` string, `progress` number (optional), `detail` string (optional) | The phone's model socket to the box. `state` is `connected`, `disconnected` or `downloading`; `progress` is 0 to 1 while downloading. `detail` is a short reason, added to the tag's accessible label. Send it after `hello` and on every change. |
 
-The page shows `connection` as a small tag beside the brain's dot: "model ready", "model 42%"
-or "model offline". It appears only inside the app.
+The page shows `connection` through the ember in its top bar: connected leaves it lit,
+anything else greys it out (HARNESS.md, "The app"). A small tag beside it appears only for what
+the ember can't say: "model 42%" while downloading, and "update app" on a bridge mismatch. Only
+inside the app. (Until 2026-11-06 a tag read "model ready" or "model offline".)
 
 ## The pilot box
 

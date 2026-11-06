@@ -206,8 +206,15 @@ home screen app.
 Inside the iPhone app the page is the same; `bridge.js` notices the app's message handler and
 sends the mic and speaker through Apple's on-device recognition and voice instead of the box's
 STT and TTS, asks the app to resync reminders after the reminder tool runs, and shows the
-phone's model socket as a tag beside the brain's dot. In a browser it does nothing. The
+phone's model socket through the ember. In a browser it does nothing. The
 contract is in PHONE-APP.md, "The web view".
+
+The ember (2026-11-06) is Hestia's face: the flame from the app icon, in the top bar where a
+status dot used to be and beside each Hestia message. It breathes when idle, flickers while
+thinking (sent, no words yet), burns bright while answering, and goes to grey ash when offline:
+the brain not answering `/health`, or inside the app the phone's model socket not connected.
+`core.js` holds that one state; past messages hold still. With reduced motion it does not move
+and the state shows in the glow alone.
 
 The theme follows the phone's light or dark setting. Replies and tool progress are announced
 through one polite live region, every control has a text label, and keyboard focus is visible.
