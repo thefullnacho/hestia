@@ -196,6 +196,13 @@ the app, since the app's scope covers them and a standalone app has no back butt
 ingest token. The app asks for each token once, keeps it in that phone's localStorage, and
 forgets it when the brain answers 401. Nothing about who may write changes.
 
+A standalone app has no browser back button, so the plain pages the app opens (`/recipes`
+and `/queue`) carry the app's top bar: a menu button that lands on `/app?menu=1` (the app opens
+its menu and drops the flag) and a back button that returns to the opening page, or to
+Library or Today when there is none. Each sets `viewport-fit=cover`, without which the
+notch inset reads as zero and the bar sits under the status bar in the iPhone app and the
+home screen app.
+
 Inside the iPhone app the page is the same; `bridge.js` notices the app's message handler and
 sends the mic and speaker through Apple's on-device recognition and voice instead of the box's
 STT and TTS, asks the app to resync reminders after the reminder tool runs, and shows the

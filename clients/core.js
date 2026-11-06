@@ -206,5 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMenu();
   window.addEventListener('hashchange', route);
   route();
+  // A plain page's menu button lands here with ?menu=1: open the menu, then drop the flag
+  // so a reload doesn't open it again.
+  const q = new URLSearchParams(location.search);
+  if (q.has('menu')) {
+    q.delete('menu');
+    history.replaceState(null, '', location.pathname + (q.size ? '?' + q : '') + location.hash);
+    document.getElementById('menuBtn').click();
+  }
   health();
 });

@@ -735,13 +735,14 @@ def queue_page(now: dt.datetime | None = None, token: str = "") -> str:
         sections.append(f'<section><h2>{name.upper()} <span class="n">{len(rows)}</span></h2><ul>{items}</ul></section>')
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Hestia queue</title>
+<link rel="stylesheet" href="/app/theme.css">
 <style>
-  :root {{ --bg:#f6f4ef; --fg:#1b1b1b; --mid:#6b6b6b; --line:#d9d5cc; --hot:#1b1b1b; }}
-  @media (prefers-color-scheme: dark) {{ :root {{ --bg:#14171a; --fg:#ececec; --mid:#9aa0a6; --line:#2b3035; --hot:#ececec; }} }}
-  body {{ margin:0; padding:20px 16px 48px; background:var(--bg); color:var(--fg);
-         font:17px/1.35 -apple-system, system-ui, sans-serif; }}
+  /* The app's palette from theme.css, which also pads the body for the notch. */
+  :root {{ --fg:var(--text); --mid:var(--muted); }}
+  body {{ font-size:17px; line-height:1.35; }}
+  #board {{ padding:20px 16px 48px; }}
   header {{ margin-bottom:18px; }}
   h1 {{ font-size:1.35rem; margin:0; }}
   .head {{ color:var(--mid); margin-top:2px; }}
@@ -764,6 +765,9 @@ def queue_page(now: dt.datetime | None = None, token: str = "") -> str:
   li button:disabled {{ opacity:.4; }}
 </style></head>
 <body>
+<header class="topbar"><a class="icon-btn" href="/app?menu=1" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></a>
+<a class="icon-btn" href="/app#today" data-back aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></a>
+<a class="brand" href="/app"><b>H</b>estia</a><span class="page-title">Queue</span></header>
 <div id="board">
 <header><h1>{when.strftime("%A, %B ")}{when.day}</h1>
 <div class="head {snap["mood"]}">{html.escape(snap["headline"])}</div></header>
@@ -771,6 +775,10 @@ def queue_page(now: dt.datetime | None = None, token: str = "") -> str:
 <footer>{"Done moves a row to Shipped." if token else "Read-only."} Updated {when.strftime("%H:%M")}; refreshes every minute.</footer>
 </div>
 <script>
+// Back returns to the page that opened this one when it was ours, else to Today.
+document.querySelector("[data-back]").addEventListener("click", (e) => {{
+  try {{ if (history.length > 1 && new URL(document.referrer).origin === location.origin) {{ e.preventDefault(); history.back(); }} }} catch (_) {{}}
+}});
 // Swap in a fresh copy every minute without a full reload, so the page keeps its scroll.
 async function refresh() {{
   try {{

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Hestia recipes</title>
 <meta name="theme-color" content="#0c0d12" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@ body{font-size:16px;line-height:1.5}main{max-width:1100px;margin:auto;padding:22
 </style><link rel="manifest" href="/manifest.json">
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}</script>
 </head><body>
-<header class="topbar"><a class="brand" href="/app"><b>H</b>estia</a><span class="muted">Recipes</span><span class="spacer"></span><a class="pill-btn" href="/app#library">Library</a><a class="pill-btn" href="/app#chat">Chat</a></header>
+<header class="topbar"><a class="icon-btn" href="/app?menu=1" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></a><a class="icon-btn" href="/app#library" data-back aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></a><a class="brand" href="/app"><b>H</b>estia</a><span class="page-title">Recipes</span></header>
 <main>
 <h1>Recipe collection</h1>
 <p>Import a source, check the draft, then approve your household version.</p>
@@ -37,6 +37,8 @@ body{font-size:16px;line-height:1.5}main{max-width:1100px;margin:auto;padding:22
 </section></main>
 <script>
 'use strict';
+// Back returns to the page that opened this one when it was ours, else to the Library.
+document.querySelector('[data-back]').addEventListener('click',e=>{try{if(history.length>1&&new URL(document.referrer).origin===location.origin){e.preventDefault();history.back();}}catch(_){}});
 const $=id=>document.getElementById(id);
 let draft=null,target=null,targetName='',selected=false;
 function notice(text){$('notice').textContent=text;$('notice').hidden=!text;}

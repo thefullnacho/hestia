@@ -118,6 +118,10 @@ a { color: var(--accent); text-underline-offset: 3px; }
 }
 .topbar .brand b { color: var(--accent); font-weight: 600; }
 .topbar .spacer { flex: 1; }
+.topbar .page-title { font-size: 13px; color: var(--muted); font-weight: 500; }
+/* A plain page's way home: back where it came from, and the menu opens the app's own menu.
+   The same bar is in recipes.html and board.queue_page(). */
+.topbar a.icon-btn { text-decoration: none; }
 
 .pill-btn {
   background: var(--hover); border: 1px solid var(--line-subtle); color: var(--muted);
