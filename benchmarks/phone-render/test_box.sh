@@ -38,7 +38,8 @@ fi
 mkdir -p "$DIR/data" "$DIR/memory"
 export HESTIA_DATA_DIR="$DIR/data" HESTIA_DB="$DIR/data/hestia.db" HESTIA_MEMORY_DIR="$DIR/memory" \
   HESTIA_BACKEND=phone HESTIA_PHONE_MODEL="$MODELS/LFM3-1.7B-QAD-Q4_0.gguf" \
-  HESTIA_CHAT_TEMPLATE="$MODELS/chat_template.jinja" HESTIA_BOS_TOKEN='<|startoftext|>'
+  HESTIA_CHAT_TEMPLATE="$MODELS/chat_template.jinja" HESTIA_BOS_TOKEN='<|startoftext|>' \
+  HESTIA_RECEIPT_SAMPLES=1   # keep each receipt as read, for tuning the reader (PHONE-APP.md, Receipts)
 cd "$REPO/brain"
 if [ ! -s "$DIR/data/phone_devices.json" ]; then
   echo "device token for the app (shown once):"

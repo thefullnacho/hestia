@@ -20,24 +20,35 @@ enum ReceiptReader {
         }
     }
 
-    /// The receipt's lines top to bottom, one string per printed line. Vision often returns an
-    /// item's name and its price as two pieces, with the gap between them; pieces on the same
-    /// row are put back together left to right, so the price stays at the end of its item.
-    static func lines(_ image: CGImage, orientation: CGImagePropertyOrientation = .up) throws -> [String] {
+    /// One piece of text as Vision found it, before rows: which shot, where, what it says.
+    /// Sent with the lines so the box can keep real receipts for tuning the row joining
+    /// (only a box with HESTIA_RECEIPT_SAMPLES=1 keeps them).
+    struct Piece: Sendable { let page: Int; let box: CGRect; let text: String }
+
+    /// What a receipt read gives: the lines the box reads, and the pieces they came from.
+    struct Reading: Sendable {
+        let source: String               // "scan" (the document camera) or "photo"
+        let lines: [String]
+        let pieces: [Piece]
+    }
+
+    static func pieces(_ image: CGImage, orientation: CGImagePropertyOrientation = .up, page: Int = 0) throws -> [Piece] {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
         try VNImageRequestHandler(cgImage: image, orientation: orientation).perform([request])
-        let pieces = (request.results ?? []).compactMap { o in
-            o.topCandidates(1).first.map { (box: o.boundingBox, text: $0.string) }
+        return (request.results ?? []).compactMap { o in
+            o.topCandidates(1).first.map { Piece(page: page, box: o.boundingBox, text: $0.string) }
         }
-        return rows(pieces)
     }
 
+    /// The receipt's lines top to bottom, one string per printed line. Vision often returns an
+    /// item's name and its price as two pieces, with the gap between them; pieces on the same
+    /// row are put back together left to right, so the price stays at the end of its item.
     /// Group pieces whose middles sit within half a line height of the row's first piece.
     /// Vision's origin is the bottom left, so a higher y is higher on the receipt.
-    static func rows(_ pieces: [(box: CGRect, text: String)]) -> [String] {
-        var rows: [[(box: CGRect, text: String)]] = []
+    static func rows(_ pieces: [Piece]) -> [String] {
+        var rows: [[Piece]] = []
         for p in pieces.sorted(by: { $0.box.midY > $1.box.midY }) {
             if let first = rows.last?.first,
                abs(first.box.midY - p.box.midY) < min(first.box.height, p.box.height) / 2 {
@@ -54,18 +65,23 @@ enum ReceiptReader {
     }
 
     /// A long receipt can take more than one shot: the pages' lines, in order.
-    static func lines(scan: VNDocumentCameraScan) throws -> [String] {
-        var out: [String] = []
+    static func reading(scan: VNDocumentCameraScan) throws -> Reading {
+        var lines: [String] = []
+        var all: [Piece] = []
         for i in 0..<scan.pageCount {
             let image = scan.imageOfPage(at: i)
-            if let cg = image.cgImage { out += try lines(cg, orientation: .init(image.imageOrientation)) }
+            guard let cg = image.cgImage else { continue }
+            let found = try pieces(cg, orientation: .init(image.imageOrientation), page: i)
+            all += found
+            lines += rows(found)
         }
-        return try checked(out)
+        return Reading(source: "scan", lines: try checked(lines), pieces: all)
     }
 
-    static func lines(photo data: Data) throws -> [String] {
+    static func reading(photo data: Data) throws -> Reading {
         guard let image = UIImage(data: data), let cg = image.cgImage else { throw ReadError.notAnImage }
-        return try checked(try lines(cg, orientation: .init(image.imageOrientation)))
+        let found = try pieces(cg, orientation: .init(image.imageOrientation))
+        return Reading(source: "photo", lines: try checked(rows(found)), pieces: found)
     }
 
     private static func checked(_ lines: [String]) throws -> [String] {
@@ -94,7 +110,7 @@ final class Receipts: ObservableObject {
     @Published var phase = Phase.idle
     /// Set after a 200: the web view goes to the Today page, where the items wait.
     var onFiled: (() -> Void)?
-    private var pending: (id: String, lines: [String])?
+    private var pending: (id: String, reading: ReceiptReader.Reading)?
     private var clearing: Task<Void, Never>?
     let link: Link
 
@@ -110,7 +126,7 @@ final class Receipts: ObservableObject {
     func scanned(_ scan: VNDocumentCameraScan?) {
         camera = false
         guard let scan else { return }
-        read { try ReceiptReader.lines(scan: scan) }
+        read { try ReceiptReader.reading(scan: scan) }
     }
 
     func picked(_ item: PhotosPickerItem?) {
@@ -120,20 +136,20 @@ final class Receipts: ObservableObject {
         Task {
             do {
                 guard let data = try await item.loadTransferable(type: Data.self) else { throw ReceiptReader.ReadError.notAnImage }
-                read { try ReceiptReader.lines(photo: data) }
+                read { try ReceiptReader.reading(photo: data) }
             } catch {
                 phase = .failed(error.localizedDescription)
             }
         }
     }
 
-    private func read(_ work: @escaping @Sendable () throws -> [String]) {
+    private func read(_ work: @escaping @Sendable () throws -> ReceiptReader.Reading) {
         clearing?.cancel()
         phase = .reading
         Task {
             do {
-                let lines = try await Task.detached(priority: .userInitiated) { try work() }.value
-                pending = (UUID().uuidString, lines)
+                let reading = try await Task.detached(priority: .userInitiated) { try work() }.value
+                pending = (UUID().uuidString, reading)
                 await send()
             } catch {
                 phase = .failed(error.localizedDescription)
@@ -152,7 +168,14 @@ final class Receipts: ObservableObject {
             r.timeoutInterval = 60
             r.setValue("Bearer \(link.deviceToken)", forHTTPHeaderField: "Authorization")
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            r.httpBody = try JSONSerialization.data(withJSONObject: ["id": pending.id, "lines": pending.lines])
+            let round = { (v: CGFloat) in (Double(v) * 10_000).rounded() / 10_000 }
+            let pieces: [[String: Any]] = pending.reading.pieces.map {
+                ["page": $0.page, "text": $0.text,
+                 "box": [round($0.box.minX), round($0.box.minY), round($0.box.width), round($0.box.height)]]
+            }
+            r.httpBody = try JSONSerialization.data(withJSONObject: [
+                "id": pending.id, "lines": pending.reading.lines,
+                "source": pending.reading.source, "pieces": pieces])
             let (data, response) = try await URLSession.shared.data(for: r)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard status == 200 else {
@@ -165,7 +188,7 @@ final class Receipts: ObservableObject {
             }
             let filed = try JSONDecoder().decode(Filed.self, from: data)
             self.pending = nil
-            link.note("receipt: \(pending.lines.count) lines, \(filed.items.count) items")   // counts only
+            link.note("receipt: \(pending.reading.lines.count) lines, \(filed.items.count) items")   // counts only
             let n = filed.items.count
             phase = .filed(n == 0 ? "No items found on that receipt"
                                   : "\(n) item\(n == 1 ? "" : "s") read, waiting on Today")

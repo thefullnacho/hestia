@@ -281,11 +281,16 @@ keep; the app shows nothing new, since review happens in the web view.
 ```
 POST /v1/phone/receipts                   Authorization: Bearer <device token>
      {"id": "<UUID>", "lines": ["TRACTOR SUPPLY CO", "11/03/2026 10:42 AM", "NEEM OIL 16OZ 12.99 T", ...]}
+      + optional "source": "scan"|"photo", "pieces": [{"page": 0, "text": "NEEM OIL 16OZ", "box": [x, y, w, h]}, ...]
 200  {"id", "store", "bought": "2026-11-03"|null, "items": [{"name", "qty", "unit"}]}
 400  bad shape                            401  no or unknown device token        413  too long
 ```
 
 - At most 400 lines. The same id again replaces the items still waiting from that receipt.
+- `pieces` are Vision's own text pieces before the app joins them into rows, with Vision's
+  normalized box (origin bottom left), so real receipts can tune the row joining. The box reads
+  only `lines`; it keeps the rest, with what it read, in `data/receipt-samples/` only when
+  `HESTIA_RECEIPT_SAMPLES=1` (the test box sets it; a household box does not). Added 2026-11-06.
 - After a 200, show how many items were read and open the Today page, where they wait.
 
 **Where it lives in the app:** Scan a receipt and Read a receipt photo in the app's settings, or

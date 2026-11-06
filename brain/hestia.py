@@ -1030,12 +1030,14 @@ async def phone_library_add(request: Request):
 async def phone_receipt(request: Request):
     """File a receipt the phone read on the device: its lines of text, never the photo. Code reads
     the items into proposals for the Today page (receipts.py); nothing reaches the inventory until
-    a person keeps it. Body: {"id": the app's id for it, "lines": [text...]}. A resend replaces."""
+    a person keeps it. Body: {"id": the app's id for it, "lines": [text...]}. A resend replaces.
+    Optional "pieces" ([{page, text, box: [x, y, w, h]}], Vision's own, before the phone joined
+    them into rows) and "source" ("scan" or "photo") are kept only with HESTIA_RECEIPT_SAMPLES=1."""
     device = _phone_device(request)
     if not device:
         return JSONResponse({"error": "device token required"}, status_code=401)
     raw = await request.body()
-    if len(raw) > 256_000:
+    if len(raw) > 1_000_000:
         return JSONResponse({"error": "that receipt is too long"}, status_code=413)
     try:
         data = json.loads(raw or b"{}")
@@ -1044,6 +1046,9 @@ async def phone_receipt(request: Request):
         out = await asyncio.to_thread(receipts.file_receipt, data.get("id"), data.get("lines"))
     except (ValueError, TypeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
+    if receipts.keeps_samples():
+        await asyncio.to_thread(receipts.keep_sample, out["id"], data.get("lines"),
+                                data.get("pieces"), data.get("source"), out)
     print(f"[receipts] {device} filed a receipt: {len(out['items'])} items to review", flush=True)
     return out
 

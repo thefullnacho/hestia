@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import re
 
+import config
 import inventory_store as inv
 import records_store as store
 
@@ -190,6 +192,32 @@ def file_receipt(receipt_id: str, lines: list) -> dict:
              for it in got["items"]])
     return {"id": receipt_id, "store": got["store"], "bought": got["bought"],
             "items": [{"name": it["name"], "qty": it["qty"], "unit": it["unit"]} for it in got["items"]]}
+
+
+def keeps_samples() -> bool:
+    """HESTIA_RECEIPT_SAMPLES=1 keeps each receipt as the phone read it, for tuning the reader
+    against real receipts. Off by default: a household's box does not hoard its shopping."""
+    return os.environ.get("HESTIA_RECEIPT_SAMPLES") == "1"
+
+
+def keep_sample(receipt_id: str, lines: list, pieces, source, filed: dict) -> None:
+    """One file per receipt under data/receipt-samples: the lines, the pieces of text Vision found
+    with their boxes (before the phone joined them into rows), and what the reader made of them.
+    A resend replaces it. Bad pieces are dropped, never an error: the receipt still files."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{7,63}", receipt_id or ""):
+        return
+    good = []
+    for p in pieces if isinstance(pieces, list) else []:
+        box = p.get("box") if isinstance(p, dict) else None
+        if isinstance(p.get("text") if isinstance(p, dict) else None, str) and isinstance(box, list) \
+                and len(box) == 4 and all(isinstance(v, (int, float)) for v in box):
+            good.append({"page": int(p.get("page") or 0) if isinstance(p.get("page"), int) else 0,
+                         "text": p["text"][:500], "box": [float(v) for v in box]})
+    folder = config.DATA_DIR / "receipt-samples"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{receipt_id}.json").write_text(json.dumps({
+        "id": receipt_id, "at": store._now(), "source": source if isinstance(source, str) else None,
+        "lines": lines, "pieces": good[:4000], "filed": filed}, indent=1))
 
 
 def match_for(name: str) -> dict | None:

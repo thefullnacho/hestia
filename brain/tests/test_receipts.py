@@ -146,3 +146,21 @@ def test_ocr_reading_an_o_as_a_zero_and_a_count_line_that_belongs_below():
 def test_a_count_line_with_its_own_total_stays_with_the_item_above():
     got = receipts.parse(["NEEM OIL 12.99 T", "2 @ 3.49 6.98 T", "GARDEN TWINE 6.98 T"])
     assert names(got) == [("Neem Oil", 2, None), ("Garden Twine", 1, None)]
+
+
+def test_samples_are_kept_only_when_asked(box, tmp_path, monkeypatch):
+    import config
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    pieces = [{"page": 0, "text": "NEEM OIL", "box": [0.1, 0.8, 0.3, 0.02]},
+              {"page": 0, "text": "12.99", "box": [0.8, 0.79, 0.1, 0.02]}, {"text": 5}, "junk"]
+    body = {"id": RID, "lines": FARM, "pieces": pieces, "source": "photo"}
+    post = lambda: box["client"].post("/v1/phone/receipts", content=json.dumps(body), headers=box["auth"])
+    monkeypatch.delenv("HESTIA_RECEIPT_SAMPLES", raising=False)
+    assert post().status_code == 200
+    assert not (tmp_path / "receipt-samples").exists()
+    monkeypatch.setenv("HESTIA_RECEIPT_SAMPLES", "1")
+    assert post().status_code == 200
+    kept = json.loads((tmp_path / "receipt-samples" / f"{RID}.json").read_text())
+    assert kept["source"] == "photo" and kept["lines"] == FARM
+    assert [p["text"] for p in kept["pieces"]] == ["NEEM OIL", "12.99"]
+    assert kept["filed"]["items"]
