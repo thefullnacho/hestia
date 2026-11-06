@@ -7,7 +7,7 @@ import WebKit
 /// The page posts {v, type, ...} to the "hestia" handler; the app answers through
 /// window.hestiaBridge.receive. Nothing goes to the page before its hello.
 @MainActor
-final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNavigationDelegate {
+final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
     static let version = 1
 
     @Published var loadError: String?
@@ -161,6 +161,53 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         webView.reload()
     }
+
+    // MARK: the page's dialogs
+
+    // A web view with no UI delegate drops alert(), confirm() and prompt(): confirm() answers
+    // false and prompt() answers null, so every "Delete this?" quietly said no. These show
+    // them as native alerts instead.
+
+    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo) async {
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+            a.addAction(UIAlertAction(title: "OK", style: .default) { _ in done.resume() })
+            if !present(a, over: webView) { done.resume() }
+        }
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo) async -> Bool {
+        await withCheckedContinuation { (done: CheckedContinuation<Bool, Never>) in
+            let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+            a.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in done.resume(returning: false) })
+            a.addAction(UIAlertAction(title: "OK", style: .default) { _ in done.resume(returning: true) })
+            if !present(a, over: webView) { done.resume(returning: false) }
+        }
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String,
+                 defaultText: String?, initiatedByFrame frame: WKFrameInfo) async -> String? {
+        await withCheckedContinuation { (done: CheckedContinuation<String?, Never>) in
+            let a = UIAlertController(title: nil, message: prompt, preferredStyle: .alert)
+            a.addTextField { $0.text = defaultText }
+            a.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in done.resume(returning: nil) })
+            a.addAction(UIAlertAction(title: "OK", style: .default) { [weak a] _ in
+                done.resume(returning: a?.textFields?.first?.text ?? "")
+            })
+            if !present(a, over: webView) { done.resume(returning: nil) }
+        }
+    }
+
+    /// On top of whatever is showing, since a sheet may be over the web view. False when there
+    /// is nothing to present from, so the page's call still gets an answer.
+    private func present(_ alert: UIAlertController, over webView: WKWebView) -> Bool {
+        guard var top = webView.window?.rootViewController else { return false }
+        while let next = top.presentedViewController { top = next }
+        top.present(alert, animated: true)
+        return true
+    }
 }
 
 /// Keeps the user content controller from holding the bridge strongly.
@@ -194,6 +241,7 @@ struct WebContainer: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = bridge
+        web.uiDelegate = bridge                                   // alert, confirm, prompt
         web.allowsBackForwardNavigationGestures = true
         web.scrollView.contentInsetAdjustmentBehavior = .never   // the page pads for the notch itself
 #if DEBUG

@@ -111,7 +111,9 @@ Known differences, for the step 2 gate:
 The app shows `/app` from the saved box address once it has an address and a token; until then
 it shows its settings. Inside the page, a **two-finger long press** opens the settings again,
 and a page that will not load offers Retry and Settings. Links to the box's own pages stay in
-the app; anything else opens in Safari.
+the app; anything else opens in Safari. The page's `alert()`, `confirm()` and `prompt()`
+show as native alerts (the web view's UI delegate); without one a web view drops them, so
+`confirm()` answers false and nothing asking "Delete this?" could ever go through.
 
 The bridge follows PHONE-APP.md, "The web view", version 1. The app sends nothing until the
 page says `hello`, answers with `hello` and the current `connection`, and sends `connection`
