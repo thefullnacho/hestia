@@ -151,3 +151,29 @@ with the top 5 unchanged at 128 of 128. The 0.38 floor still loses no real quest
 Wild food is now code-backed like medication: an edibility question gets a fixed line that the
 identification must be confirmed in person. End to end, "how do I bug in" (read as a break-in
 before the preparedness sources) now answers from FEMA and the medical-needs sheet.
+
+## Cleaning and scale, 2026-11-07
+
+A pass comparing every passage with every other (`library_store.py overlap`, no model) found
+three problems in the 75-document shelf:
+
+- **Junk passages:** 82 of 1,799 were page numbers, figure captions, title scraps and tables
+  of contents, embedded like real text. A passage now needs 60 letters and no run of dot
+  leaders to be kept. Phone scans are exempt: a short certificate is the whole document.
+- **A missing character mapping:** pdftotext writes U+FFFD where a font maps no character, and
+  in the canning guides that was every space in the process-time tables (140 passages).
+  `clean_pages` reads it as a space.
+- **A book split into files:** the canning guide is 8 PDFs, so it could fill every result slot.
+  The manifest's `source` names them one source, and the two-per-source limit counts sources.
+
+Re-indexing the whole shelf after the change took 27 seconds on the GPU box. On the 200
+questions: vectors unchanged (145 of 178 first, 177 in the top five), keyword one better.
+
+Search was one Python loop over every passage per question: 45 ms here at 1,800 passages, but
+about 0.8 s and over a gigabyte at 50,000 (a shelf of books), several times that on a Pi. It is
+now one float32 matrix product: 13 ms and 154 MB at 50,000.
+
+The overlap report also shows where the shelf repeats itself (two bee guides, two composting
+guides, two tick guides, drought and irrigation, the bedding-plant pest and fungicide guides,
+the survival manual and the drinking-water sheet). Those pairs seed the multi-source questions
+for the answer eval: a good answer there needs both guides.

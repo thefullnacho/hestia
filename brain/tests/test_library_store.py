@@ -10,7 +10,8 @@ def _web_pages():
     return [
         f"{HEADER}\nGarlic Cultivation\nPublication EXT037 | October 2023\nPlant cloves in fall.\n"
         "10/23/26, 22:50\n1 of 3",
-        f"{HEADER}\nMulch with straw after the ground freezes.\n10/23/26, 22:50\n2 of 3",
+        f"{HEADER}\nMulch with straw after the ground freezes, four to six inches deep, and pull it\n"
+        "back in spring when shoots appear.\n10/23/26, 22:50\n2 of 3",
         f"{HEADER}\nHarvest when lower leaves brown.\nReferences\nSmith, J. (2020). Garlic.\n"
         "10/23/26, 22:50\n3 of 3",
     ]
@@ -70,7 +71,7 @@ def test_reindex_replaces_and_one_document_cannot_flood_results(db):
 
 
 def test_question_text_is_never_fts_syntax(db):
-    lib.index_doc("a.pdf", ["ticks on dogs"], "Ticks here")
+    lib.index_doc("a.pdf", ["Check for ticks on dogs after every walk in tall grass and brush, then again at bedtime."], "Ticks here")
     assert lib.fts_query('ticks" OR NEAR(* -dogs') == '"ticks" OR "near" OR "dogs"'
     assert lib.search('ticks" OR NEAR(* -dogs')
     assert lib.search("the and of") == []
@@ -93,3 +94,29 @@ def test_manifest_fixes_title_and_year_and_skips_unreadable_files(db, tmp_path, 
     report = lib.ingest(tmp_path)
     assert report["skipped"] == ["b.pdf"]
     assert [(d["title"], d["year"]) for d in lib.docs()] == [("Real Title", 2015)]
+
+
+def test_junk_passages_are_not_kept_but_a_phone_scan_always_is(db):
+    pages = ["12", "Figure 2. CORRECT CUT 11",
+             "Contents Composting ........ 3 Mulch ........ 5 Watering ........ 7 Pests ........ 9",
+             "Turn the pile every two weeks so the middle heats and the outside gets its turn too."]
+    lib.index_doc("guide.pdf", pages, "Guide here")
+    assert [p["page"] for p in lib.search("turn the pile", k=5)] == [4]
+    assert lib.docs()[0]["passages"] == 1
+    lib.index_doc(lib.SCAN_PREFIX + "abcdef12", ["Cert 42"], fix={"title": "Shares"})
+    assert next(d for d in lib.docs() if d["scanned"])["passages"] == 1
+
+
+def test_a_missing_character_mapping_reads_as_a_space():
+    assert lib.clean_pages(["Recommended\ufffdprocess\ufffdtime for Tuna"]) == \
+        ["Recommended process time for Tuna"]
+
+
+def test_a_book_in_several_files_is_one_source(db):
+    text = ["garlic " * 80]
+    for f in ("guide1.pdf", "guide2.pdf", "guide3.pdf"):
+        lib.index_doc(f, text, f"{f} title here", fix={"source": "Canning Book"})
+    lib.index_doc("other.pdf", text, "Other garlic guide")
+    got = lib.search("garlic", k=5)
+    assert len(got) == lib.PER_DOC + 1          # the book counts once, the other guide too
+    assert {d["source"] for d in lib.docs()} == {"Canning Book", None}

@@ -8,3 +8,9 @@ year = 2015
 
 ["scanned-handout.pdf"]
 skip = true   # no readable text layer; needs OCR before it can be searched
+
+# A book split across several files is one source: search lets one source fill at most two
+# result slots, so the book can't crowd out every other guide. `ingest` applies a source
+# without re-indexing.
+["guide2-fruit.pdf"]
+source = "Complete Guide to Home Canning"

@@ -55,8 +55,8 @@ def test_embedder_down_falls_back_to_keyword(shelf, monkeypatch):
 
 
 def test_partial_vectors_are_never_used(shelf):
-    lib.index_doc("new.pdf", ["Ticks on dogs. " * 5], "Tick Control | Ext")   # no vector yet
-    assert lib._load_vectors() == {}
+    lib.index_doc("new.pdf", ["Ticks on dogs. " * 10], "Tick Control | Ext")   # no vector yet
+    assert lib._load_vectors() is None
     assert lib.search("tick", 2)[0]["mode"] == "keyword"
 
 
@@ -138,3 +138,12 @@ def test_new_subjects_route_to_the_library():
     for q in ("how long do I boil water at altitude", "what headspace for jelly jars",
               "how do i shut down the evaporator", "snake bite first aid", "how do I bug in"):
         assert re.search(pattern, q), q
+
+
+def test_overlap_finds_sources_that_say_the_same_thing(shelf):
+    lib.index_doc("garlic2.pdf", ["Plant garlic cloves in October. " * 5], "Garlic Again | Ext")
+    lib.embed_missing()
+    got = lib.overlap(min_sim=0.9)
+    assert got["junk"] == []
+    assert [(p["a"], p["b"]) for p in got["pairs"]] == [("Garlic Again | Ext", "Growing Garlic | Ext")] \
+        or [(p["a"], p["b"]) for p in got["pairs"]] == [("Garlic Again", "Growing Garlic")]

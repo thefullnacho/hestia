@@ -11,6 +11,7 @@ passages, so a question costs one small embedding call and an in-memory cosine p
     cd brain && uv run python library_store.py ingest
     cd brain && uv run python library_store.py search "squash vine borer"
     cd brain && uv run python library_store.py docs
+    cd brain && uv run python library_store.py overlap   # passages that say the same thing
 
 Documents can also come from a household's phone (add_scanned): the app reads the pages with
 Apple's on-device text recognition and sends only the text, so nobody hands the operator their
@@ -30,6 +31,7 @@ from collections import Counter
 from pathlib import Path
 
 import httpx
+import numpy as np
 
 import config
 import records_store as store
@@ -41,7 +43,8 @@ LIBRARY_DIR = Path(os.environ.get("HESTIA_LIBRARY_DIR") or config.DATA_DIR / "li
 CHUNK_WORDS = 220
 OVERLAP_WORDS = 40
 MIN_TAIL_WORDS = 60   # a page's last scrap shorter than this joins the chunk before it
-PER_DOC = 2           # most passages one document may contribute to a result
+PER_DOC = 2           # most passages one source may contribute to a result (a book split
+                      # into files is one source when the manifest names it: `source = "..."`)
 REFS_FROM = 0.6       # a reference-list heading only ends the text in the last 40% of pages
 OLLAMA = os.environ.get("HESTIA_OLLAMA", "http://127.0.0.1:11434").rstrip("/")
 EMBED_MODEL = os.environ.get("HESTIA_EMBED_MODEL", "embeddinggemma")
@@ -61,7 +64,13 @@ CREATE VIRTUAL TABLE IF NOT EXISTS library_fts USING fts5(
 CREATE TABLE IF NOT EXISTS library_vecs (chunk_id INTEGER PRIMARY KEY, vec BLOB NOT NULL);
 """
 _ready: set[str] = set()
-_vectors: dict = {}   # (db path, passage count) -> {chunk_id: unit vector}
+_vectors: dict = {}   # (db path, passage count) -> (chunk ids, unit vectors as one float32 matrix)
+
+# Passages with nothing to say: a page number, a figure caption, a title page scrap, or a table
+# of contents. They were embedded like real text and could win a search; at book scale (front
+# matter, indexes) there would be far more. A passage needs this many letters to be kept.
+MIN_LETTERS = 60
+_LEADERS = re.compile(r"\.{5,}")       # "Composting .......... 12", twice or more = a contents page
 
 # Browser print furniture that changes per page, so the repeated-line pass can't catch it.
 _STAMP = re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4},? \d{1,2}:\d{2}( ?[AP]M)?$|^\d+ of \d+$|^https?://\S+$")
@@ -83,8 +92,16 @@ def _conn():
     key = str(store.DB_PATH)
     if key not in _ready:
         c.executescript(_SCHEMA)
+        if "source" not in {r[1] for r in c.execute("PRAGMA table_info(library_docs)")}:
+            c.execute("ALTER TABLE library_docs ADD COLUMN source TEXT")   # added 2026-11-07
         _ready.add(key)
     return c
+
+
+def is_junk(text: str) -> bool:
+    """A passage with nothing to say (MIN_LETTERS, _LEADERS). Phone scans are never judged by
+    this: a short certificate or receipt is the whole document."""
+    return len(re.findall(r"[^\W\d_]", text)) < MIN_LETTERS or len(_LEADERS.findall(text)) >= 2
 
 
 def clean_pages(pages: list[str]) -> list[str]:
@@ -93,7 +110,9 @@ def clean_pages(pages: list[str]) -> list[str]:
 
     A reference list only counts in the back of the document: a "Resources" heading in a table
     of contents or an early section once cut a 102-page guide down to 3 passages."""
-    lines = [[ln.strip() for ln in p.splitlines()] for p in pages]
+    # pdftotext writes U+FFFD where a font has no mapping for a character; in the canning
+    # guides that is every space in the process-time tables ("Recommended\ufffdprocess\ufffdtime").
+    lines = [[ln.replace("\ufffd", " ").strip() for ln in p.splitlines()] for p in pages]
     seen = Counter(ln for page in lines for ln in set(page) if ln)
     repeated = {ln for ln, n in seen.items() if len(pages) > 1 and n >= max(2, len(pages) / 2)}
     back = int(len(pages) * REFS_FROM) if len(pages) > 2 else 0
@@ -211,12 +230,15 @@ def index_doc(file: str, pages: list[str], pdf_title: str | None = None,
     title = fix.get("title") or title_of(file, pdf_title)
     year = fix.get("year", year)
     parts = chunks(clean_pages(pages))
+    if not file.startswith(SCAN_PREFIX):
+        parts = [(page, text) for page, text in parts if not is_junk(text)]
+    source = " ".join(str(fix.get("source") or "").split()) or None
     with _conn() as c:
         _drop(c, file)
         doc_id = c.execute(
-            "INSERT INTO library_docs (file, size, mtime, title, pub, year, pages) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (file, size, mtime, title, pub, year, len(pages))).lastrowid
+            "INSERT INTO library_docs (file, size, mtime, title, pub, year, pages, source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (file, size, mtime, title, pub, year, len(pages), source)).lastrowid
         for page, text in parts:
             cid = c.execute("INSERT INTO library_chunks (doc_id, page, text) VALUES (?, ?, ?)",
                             (doc_id, page, text)).lastrowid
@@ -275,17 +297,21 @@ def embed_missing(batch: int = 32) -> int:
     return len(rows)
 
 
-def _load_vectors() -> dict[int, list[float]]:
-    """All passage vectors, cached per process until the passage count changes. Empty when
-    any passage lacks a vector: a partial index would silently hide documents."""
+def _load_vectors() -> tuple[np.ndarray, np.ndarray] | None:
+    """All passage vectors as (chunk ids, one float32 matrix), cached per process until the
+    passage count changes, so a question is one matrix product however big the shelf grows.
+    None when any passage lacks a vector: a partial index would silently hide documents."""
     c = _conn()
     chunks = c.execute("SELECT COUNT(*) FROM library_chunks").fetchone()[0]
     key = (str(store.DB_PATH), chunks)
     if key not in _vectors:
-        rows = c.execute("SELECT chunk_id, vec FROM library_vecs").fetchall()
+        rows = c.execute("SELECT chunk_id, vec FROM library_vecs ORDER BY chunk_id").fetchall()
         _vectors.clear()
-        _vectors[key] = ({r["chunk_id"]: array.array("f", r["vec"]).tolist() for r in rows}
-                         if rows and len(rows) == chunks else {})
+        _vectors[key] = None
+        if rows and len(rows) == chunks:
+            _vectors[key] = (np.array([r["chunk_id"] for r in rows], dtype=np.int64),
+                             np.frombuffer(b"".join(r["vec"] for r in rows), dtype=np.float32)
+                             .reshape(len(rows), -1))
     return _vectors[key]
 
 
@@ -310,6 +336,9 @@ def ingest(folder: Path = LIBRARY_DIR, force: bool = False) -> dict:
         st = path.stat()
         if not force and known.get(name) == (st.st_size, st.st_mtime):
             report["unchanged"] += 1
+            with _conn() as c:            # a source named in the manifest needs no re-index
+                c.execute("UPDATE library_docs SET source = ? WHERE file = ?",
+                          (" ".join(str((fixes.get(name) or {}).get("source") or "").split()) or None, name))
             continue
         pages, pdf_title = _read_pdf(path)
         n = index_doc(name, pages, pdf_title, st.st_size, st.st_mtime, fixes.get(name))
@@ -335,15 +364,19 @@ def search(question: str, k: int = 5) -> list[dict]:
     back to keyword search when there are no vectors or the embedder is down; every result
     says which (`mode`), and vector results carry their cosine similarity (`score`)."""
     vecs = _load_vectors()
-    if vecs:
+    if vecs is not None:
         try:
             qv = embed([QUERY + question])[0]
         except Exception:  # noqa: BLE001 — an Ollama restart must not cost the answer
             qv = None
         if qv:
-            sims = {cid: sum(a * b for a, b in zip(qv, v)) for cid, v in vecs.items()}
-            ranked = sorted(sims, key=lambda cid: -sims[cid])[:k * 6]
-            return _passages(ranked, k, "vector", sims)
+            ids, matrix = vecs
+            scores = matrix @ np.asarray(qv, dtype=np.float32)
+            pool = min(k * 6, len(ids))
+            top = np.argpartition(-scores, pool - 1)[:pool]
+            top = top[np.argsort(-scores[top])]
+            ranked = [int(ids[i]) for i in top]
+            return _passages(ranked, k, "vector", {int(ids[i]): float(scores[i]) for i in top})
     return keyword_search(question, k)
 
 
@@ -361,15 +394,15 @@ def _passages(ranked: list[int], k: int, mode: str, sims: dict) -> list[dict]:
     if not ranked:
         return []
     found = {r["id"]: r for r in _conn().execute(
-        "SELECT ch.id, ch.page, ch.text, d.title, d.pub, d.year, d.file FROM library_chunks ch "
+        "SELECT ch.id, ch.page, ch.text, d.title, d.pub, d.year, d.file, d.source FROM library_chunks ch "
         f"JOIN library_docs d ON d.id = ch.doc_id WHERE ch.id IN ({','.join('?' * len(ranked))})",
         ranked).fetchall()}
     rows = [found[c] for c in ranked if c in found]
     out, per = [], Counter()
     for r in rows:
-        if per[r["file"]] >= PER_DOC:
+        if per[r["source"] or r["file"]] >= PER_DOC:
             continue
-        per[r["file"]] += 1
+        per[r["source"] or r["file"]] += 1
         out.append({"title": r["title"], "pub": r["pub"], "year": r["year"], "page": r["page"],
                     "text": r["text"], "file": r["file"], "mode": mode,
                     "score": round(sims[r["id"]], 4) if r["id"] in sims else None})
@@ -380,7 +413,7 @@ def _passages(ranked: list[int], k: int, mode: str, sims: dict) -> list[dict]:
 
 def docs() -> list[dict]:
     rows = _conn().execute(
-        "SELECT d.title, d.pub, d.year, d.pages, d.file, COUNT(ch.id) AS passages "
+        "SELECT d.title, d.pub, d.year, d.pages, d.file, d.source, COUNT(ch.id) AS passages "
         "FROM library_docs d LEFT JOIN library_chunks ch ON ch.doc_id = d.id "
         "GROUP BY d.id ORDER BY d.title").fetchall()
     out = []
@@ -393,6 +426,43 @@ def docs() -> list[dict]:
     return out
 
 
+def overlap(min_sim: float = 0.66, top: int = 25) -> dict:
+    """Where the shelf repeats itself: pairs of sources whose passages say nearly the same thing,
+    by cosine between passage vectors (no model), plus any passage that looks like junk. Shows a
+    household which guides will compete for the same questions, and where an answer may need to
+    draw on two of them. Sources are the manifest's `source`, else the file."""
+    c = _conn()
+    vecs = _load_vectors()
+    rows = {r["id"]: r for r in c.execute(
+        "SELECT ch.id, ch.page, ch.text, d.title, d.file, d.source FROM library_chunks ch "
+        "JOIN library_docs d ON d.id = ch.doc_id")}
+    junk = [{"title": r["title"], "page": r["page"], "text": r["text"][:100]}
+            for r in rows.values() if not r["file"].startswith(SCAN_PREFIX) and is_junk(r["text"])]
+    if vecs is None:
+        return {"junk": junk, "pairs": [], "note": "no vectors yet: run ingest"}
+    ids, matrix = vecs
+    name = {int(i): rows[int(i)]["source"] or rows[int(i)]["title"] for i in ids}
+    group = np.array([hash(name[int(i)]) for i in ids])
+    pairs: dict[tuple, dict] = {}
+    for start in range(0, len(ids), 1024):           # in blocks, so a big shelf stays in memory
+        sims = matrix[start:start + 1024] @ matrix.T
+        for a, b in zip(*np.nonzero(sims > min_sim)):
+            i, j = start + int(a), int(b)
+            if i >= j or group[i] == group[j]:
+                continue
+            key = tuple(sorted((name[int(ids[i])], name[int(ids[j])])))
+            p = pairs.setdefault(key, {"a": key[0], "b": key[1], "close": 0, "best": 0.0})
+            p["close"] += 1
+            if sims[a, b] > p["best"]:
+                x, y = rows[int(ids[i])], rows[int(ids[j])]
+                if name[int(ids[i])] != key[0]:
+                    x, y = y, x
+                p.update(best=round(float(sims[a, b]), 3),
+                         example=[f"{x['title']} p.{x['page']}: {x['text'][:110]}",
+                                  f"{y['title']} p.{y['page']}: {y['text'][:110]}"])
+    return {"junk": junk, "pairs": sorted(pairs.values(), key=lambda p: -p["close"])[:top]}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -402,9 +472,21 @@ def main():
     s.add_argument("question")
     s.add_argument("-k", type=int, default=5)
     sub.add_parser("docs", help="list indexed documents")
+    o = sub.add_parser("overlap", help="sources that say the same thing, and junk passages")
+    o.add_argument("--min", type=float, default=0.66, help="cosine for two passages to count as close")
+    o.add_argument("--top", type=int, default=25)
     a = ap.parse_args()
     if a.cmd == "ingest":
         print(ingest(force=a.all))
+    elif a.cmd == "overlap":
+        got = overlap(a.min, a.top)
+        print(f"{len(got['junk'])} junk passages" + (": " + got["note"] if got.get("note") else ""))
+        for j in got["junk"][:20]:
+            print(f"  {j['title'][:50]} p.{j['page']}: {j['text']}")
+        for p in got["pairs"]:
+            print(f"\n{p['close']:4} close  {p['a']}  <->  {p['b']}  (best {p['best']})")
+            for line in p["example"]:
+                print(f"       {line}")
     elif a.cmd == "search":
         for r in search(a.question, a.k):
             print(f"\n## {r['title']} ({r['year'] or 'n.d.'}), p.{r['page']}\n{r['text'][:600]}")
