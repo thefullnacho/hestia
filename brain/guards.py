@@ -93,6 +93,42 @@ EDIBLE_REFERRAL = ("Never eat a wild plant, berry or mushroom on a written descr
                    "identification confirmed in person by someone who knows the species.")
 
 
+_RESULT = re.compile(r"^\d+\. (.*)\n +(https?://\S+)$", re.M)
+_READ = re.compile(r"^Readable text from (https?://\S+):", re.M)
+
+
+def web_sources(result: str) -> list[tuple[str, str]]:
+    """(title, url) from a search tool result: the page it read, or the results it listed.
+    Errors and "no results" give none."""
+    read = _READ.findall(result)
+    if read:
+        return [("", u) for u in read]
+    return [(t.strip(), u) for t, u in _RESULT.findall(result)]
+
+
+def web_addendum(answer: str, sources: list) -> str:
+    """Code's line after an answer that used the web: where it came from, when the reply names
+    no source itself. A page that was read outranks a list of results; at most three."""
+    if not sources:
+        return ""
+    low = answer.lower()
+    hosts = {re.sub(r"^www\.", "", re.sub(r"^https?://([^/]+).*", r"\1", u.lower())) for _, u in sources}
+    if any(u.lower() in low for _, u in sources) or any(h in low for h in hosts):
+        return ""
+    if re.search(r"\b(?:could ?n[o']t|could not|didn't|did not|was unable to) (?:find|open|read|reach)\b|"
+                 r"no (?:web )?results", answer, re.I):
+        return ""
+    read = [s for s in sources if not s[0]]
+    picked, seen = [], set()
+    for title, url in (read or sources):
+        if url not in seen:
+            seen.add(url)
+            picked.append(f"{title} ({url})" if title else url)
+        if len(picked) == 3:
+            break
+    return "Sources: " + "; ".join(picked) + "."
+
+
 def library_addendum(answer: str, citations: list, question: str) -> str:
     """Code's lines after a library answer: the source when the reply names none of the
     passages it was given, and the pharmacist line for any dose or stopping question."""

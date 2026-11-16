@@ -28,6 +28,7 @@ const ICONS = {
   stop: '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>',
   speakerOn: svg('<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>', 17),
   speakerMute: svg('<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>', 17),
+  think: svg('<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/>', 17),
   mic: svg('<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>', 17),
   send: svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>', 16, ' stroke-width="2.5"'),
   camera: svg('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>', 17),
@@ -114,9 +115,18 @@ function announce(text) {
 }
 
 async function health() {
-  let ok = false;
-  try { ok = (await fetch('/health')).ok; } catch {}
+  let ok = false, info = null;
+  try {
+    const r = await fetch('/health');
+    ok = r.ok;
+    info = ok ? await r.json().catch(() => null) : null;
+  } catch {}
   ember.set('brain', ok);
+  // Which model server the brain runs on; chat shows the thinking button only for Ollama.
+  if (info && info.backend) {
+    Hestia.backend = info.backend;
+    document.dispatchEvent(new CustomEvent('hestia:backend', { detail: info.backend }));
+  }
 }
 
 // The ember in the top bar: one state from three sources. The brain answering /health and, in

@@ -19,7 +19,7 @@ const QUICK = [
 ];
 
 const $ = (id) => document.getElementById(id);
-let log, box, sendBtn, narrateBtn;
+let log, box, sendBtn, narrateBtn, thinkBtn;
 let threads = [];
 let messages = [];            // the active thread's messages, as the brain last returned them
 let activeId = store.get(ACTIVE_KEY) || 'main';
@@ -297,7 +297,8 @@ async function submit({ viaVoice = false, text: given = null } = {}) {
     retryTurn = {
       text, msg, threadId,
       key: rawKey.replace(/[^A-Za-z0-9_-]/g, ''),
-      payload: { thread_id: threadId, messages: [msg], stream: true, hestia_events: true },
+      payload: { thread_id: threadId, messages: [msg], stream: true, hestia_events: true,
+                 ...(thinkNext() ? { hestia_think: true } : {}) },
     };
   }
   const turn = retryTurn;
@@ -637,6 +638,17 @@ Hestia.views.chat = {
   leave() { $('threadTag').hidden = true; },
 };
 
+function setThink(on) {
+  thinkBtn.setAttribute('aria-pressed', String(on));
+  thinkBtn.setAttribute('aria-label', on ? 'Next message will think harder (tap to cancel)' : 'Think harder on the next message');
+}
+// True once for a send with the button on, and turns it off.
+function thinkNext() {
+  if (!thinkBtn || thinkBtn.hidden || thinkBtn.getAttribute('aria-pressed') !== 'true') return false;
+  setThink(false);
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   log = $('log'); box = $('box'); sendBtn = $('send'); narrateBtn = $('narrateBtn');
   updateNarrateUI();
@@ -655,6 +667,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateNarrateUI();
     if (!autoNarrate) stopSpeaking();
   });
+  // Thinking: the next message only, then off, so a slow turn never happens by accident.
+  // Shown only when the brain runs Gemma on Ollama (the phone's model gets worse with it).
+  thinkBtn = $('thinkBtn');
+  const showThink = (b) => { thinkBtn.hidden = b !== 'ollama'; if (thinkBtn.hidden) setThink(false); };
+  document.addEventListener('hestia:backend', (e) => showThink(e.detail));
+  if (Hestia.backend) showThink(Hestia.backend);
+  thinkBtn.addEventListener('click', () => setThink(thinkBtn.getAttribute('aria-pressed') !== 'true'));
   $('mic').addEventListener('click', toggleMic);
   $('headerNewBtn').addEventListener('click', newThread);
   $('menuNewThreadBtn').addEventListener('click', () => { Hestia.closeMenu(); go('chat'); newThread(); });

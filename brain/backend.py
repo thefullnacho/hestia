@@ -35,6 +35,9 @@ NUM_CTX = int(os.environ.get("HESTIA_NUM_CTX", "32768"))
 # qwen3 thinking mode: off by default (fast, no eval gain). HESTIA_THINK=1 to enable.
 THINK = os.environ.get("HESTIA_THINK", "0") not in ("0", "", "false", "False")
 OUTPUT_TOKENS = int(os.environ.get("HESTIA_OUTPUT_TOKENS", "768"))
+# A turn the person asked to think (the app's thinking button, Ollama only): the thinking is
+# counted against num_predict, so 768 would leave no room for the answer itself.
+THINK_OUTPUT_TOKENS = int(os.environ.get("HESTIA_THINK_OUTPUT_TOKENS", "4096"))
 # "completion": the box renders the prompt with the model's chat template and sends plain text
 # to a llama.cpp-style /completion endpoint, then reads the tool calls back out (chat_format.py).
 # The phone backend does the same over its socket; this runs it against a llama-server on the
@@ -181,6 +184,10 @@ async def chat(messages: list[dict], schemas: list | None = None) -> dict:
     return await ollama_chat(messages, schemas)
 
 
+def body_think(trace) -> bool:
+    return trace.think if trace else THINK
+
+
 async def ollama_chat(messages: list[dict], schemas: list | None = None) -> dict:
     # think=False keeps qwen3 in fast mode (thinking on cost ~4s/turn for no eval gain;
     # see brain/eval_models.py — qwen3:14b no-think scored 100%/100% English at 1.5s).
@@ -188,7 +195,8 @@ async def ollama_chat(messages: list[dict], schemas: list | None = None) -> dict
     body = {"model": trace.model if trace else MODEL, "messages": messages,
             "tools": tools.SCHEMAS if schemas is None else schemas,
             "stream": False, "think": trace.think if trace else THINK,
-            "options": {"temperature": 0.3, "num_ctx": NUM_CTX, "num_predict": OUTPUT_TOKENS}}
+            "options": {"temperature": 0.3, "num_ctx": NUM_CTX,
+                        "num_predict": THINK_OUTPUT_TOKENS if body_think(trace) else OUTPUT_TOKENS}}
     repair = trace.repair_tool if trace else ''
     if trace:
         trace.repair_tool = ''

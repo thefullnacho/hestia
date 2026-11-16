@@ -84,6 +84,9 @@ MAX_STEPS = int(os.environ.get("HESTIA_MAX_STEPS", "6"))
 # any single tool call. Blocking tool work cannot be safely killed in Python, so the bounded
 # pool below also prevents timed-out workers from multiplying until they starve the service.
 TURN_BUDGET = float(os.environ.get("HESTIA_TURN_BUDGET", "45"))
+# A turn the person asked to think gets more time: Gemma's thinking runs to a few thousand
+# tokens before the answer starts.
+THINK_TURN_BUDGET = float(os.environ.get("HESTIA_THINK_TURN_BUDGET", "150"))
 TOOL_BUDGET = float(os.environ.get("HESTIA_TOOL_BUDGET", "20"))
 TOOL_WORKERS = max(1, int(os.environ.get("HESTIA_TOOL_WORKERS", "8")))
 # Where this turn's changing context goes. "head" (default): the whole assembled prompt is the
@@ -131,6 +134,7 @@ class TurnTrace:
     failure: str = ""
     repair_tool: str = ""
     citations: list = field(default_factory=list)   # library passages this turn, as "title, year, p.N"
+    web_sources: list = field(default_factory=list)  # (title, url) the search tool showed this turn
     addendum: str = ""                              # code-written lines after the model's answer
 
     def usage(self) -> dict:
@@ -385,7 +389,7 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
     prepared_token = _prepared.set(None)
     source_token = _recipe_source.set(json.dumps([m for m in messages if m.get("role")=="user"][-6:],ensure_ascii=False))
     started = time.monotonic()
-    trace.deadline = started + TURN_BUDGET
+    trace.deadline = started + (THINK_TURN_BUDGET if trace.think else TURN_BUDGET)
     admitted = False
     try:
         if guards.link_only(messages):
@@ -421,7 +425,9 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
             if trace.emitted:  # already on screen: correct it in place rather than hide it
                 return trace.streamed_text + "\n" + guards.UNDONE_CLAIM
             return guards.UNDONE_CLAIM
-        if answer not in _NO_LEARN and (extra := guards.library_addendum(answer, trace.citations, messages[-1]['content'])):
+        if answer not in _NO_LEARN and (extra := "\n".join(filter(None, (
+                guards.library_addendum(answer, trace.citations, messages[-1]['content']),
+                guards.web_addendum(answer, trace.web_sources))))):
             trace.addendum = extra
             return (trace.streamed_text if trace.emitted else answer) + "\n" + extra
         return answer
@@ -619,6 +625,8 @@ async def _agent_loop(messages: list[dict]) -> str:
                 trace.tools.append({"name": name, "mutation": mutation(name, args), "seconds": time.monotonic() - ts})
                 if name == "library" and outcome == "ok":
                     trace.citations += re.findall(r"^\[\d+\] (.+)$", str(result), re.M)
+                if name == "search" and outcome == "ok":
+                    trace.web_sources += guards.web_sources(str(result))
             fact = receipt(name, args, result, outcome,
                            operation_store.digest([trace.request_id, name, args]) if trace else '')
             if trace and mutation(name, args):
@@ -1127,6 +1135,10 @@ async def chat_completions(request: Request):
     if key and not re.fullmatch(r'[A-Za-z0-9_-]{8,128}', key):
         return JSONResponse(status_code=400, content={'error': 'Invalid Idempotency-Key.'})
     trace = TurnTrace(request_id=key or uuid.uuid4().hex)
+    # The app's thinking button: this one turn thinks. Only Ollama has the switch; the phone's
+    # model loses accuracy with thinking on (PHONE-APP.md), so other backends ignore it.
+    if body.get('hestia_think') is True and backend.BACKEND == 'ollama':
+        trace.think = True
     # Only a client-supplied key can be retried, so only keyed requests enter the ledger.
     state, saved = 'new', None
     if key:

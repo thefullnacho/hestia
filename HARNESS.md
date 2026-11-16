@@ -216,6 +216,16 @@ the brain not answering `/health`, or inside the app the phone's model socket no
 `core.js` holds that one state; past messages hold still. With reduced motion it does not move
 and the state shows in the glow alone.
 
+The chat bar's lightbulb (2026-11-16) makes the next message think: Gemma's thinking mode for
+that one turn, with room for it (4,096 tokens and 150 seconds instead of 768 and 45), then the
+button switches itself off so a slow turn never happens by accident. It shows only when
+`/health` says the brain runs on Ollama: the phone's model scored 85.7% with thinking on against
+92.7% off (PHONE-APP.md), so other backends ignore the `hestia_think` flag.
+
+An answer that used the `search` tool ends with its sources when the reply names none, the
+same move as the library's citation: the page it read, or else up to three of the results it
+was shown (`guards.web_addendum`). Code writes the line; the model can't drop it.
+
 The theme follows the phone's light or dark setting. Replies and tool progress are announced
 through one polite live region, every control has a text label, and keyboard focus is visible.
 
