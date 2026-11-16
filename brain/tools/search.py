@@ -1,8 +1,9 @@
 """`search` tool — private web lookup for the brain.
 
 Grounds questions about the world (and Hestia's own software) instead of guessing.
-Backed by a self-hosted SearXNG meta-search on the appliance box, so the brain's
-queries never leave the user's hardware — no API keys, no third party in the loop.
+Backed by a self-hosted SearXNG meta-search on the appliance box: no API keys and no account,
+and the engines see SearXNG's requests rather than the house's. The query text itself does
+reach those upstream engines, and `fetch` is a plain GET to the page's own site (SECURITY.md).
 Two actions: `search` (results + snippets) and `fetch` (read one page as text).
 Both are read-only — no safety-gate concerns. `fetch` is egress-restricted to public,
 globally-routable hosts and never follows redirects, so a prompt-injected page can't
