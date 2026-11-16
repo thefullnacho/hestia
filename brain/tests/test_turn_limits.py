@@ -139,7 +139,7 @@ def test_mixed_read_and_write_preserves_information(monkeypatch):
 
 
 def test_interrupted_stream_receipt_matches_visible_partial_text(monkeypatch):
-    async def loop(messages):
+    async def loop(messages, **_):
         trace = hestia._trace.get()
         trace.emitted = True
         trace.streamed_text = 'Partial answer'

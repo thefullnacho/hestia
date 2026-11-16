@@ -15,10 +15,11 @@ import re
 UNDONE_CLAIM = ("I didn't actually do that: nothing was saved or set. "
                 "Please say it again, for example \"remind me to ... on ...\".")
 # A message that is only a link. Chat can't read a page, so code answers without the model.
-LINK_ONLY_REPLY = ("I can't open a link from chat. If it's a recipe, open Recipes in the app, "
-                   "choose \"Recipe or PDF URL\" under Import a recipe, paste the link and press "
-                   "Prepare a draft. Facebook and Instagram links usually can't be read: choose "
-                   "\"Paste recipe text\" and paste the recipe itself instead.")
+LINK_ONLY_REPLY = ("I can't read Facebook or Instagram links: they only show a login page. If it's "
+                   "a recipe, open Recipes in the app, choose \"Paste recipe text\" under Import a "
+                   "recipe, and paste the recipe itself.")
+_RECIPE_IMPORT = ("If it's a recipe or a PDF, open Recipes in the app, choose \"Recipe or PDF URL\" "
+                  "under Import a recipe, paste the link and press Prepare a draft.")
 _URL = re.compile(r"https?://\S+", re.I)
 _ASKS = re.compile(r"\b(?:save|import|add|keep|draft|read|summar\w*|open|what|how|why|can|could|would|"
                    r"please|recipe|tell|look|check)\b|\?", re.I)
@@ -52,6 +53,27 @@ _SAID_DONE = re.compile(
     rf"[^.!?]*\b(?:for you|now|it|that)\b"
     rf"|\b(?:it's|it is|they're|they are)\s+(?:now\s+)?(?:queued|downloading|saved|logged|recorded|stored)\b",
     re.I)
+
+
+# Sites that answer a plain request with a login page: reading them would hand the model a
+# login screen to summarize, so a link to one keeps the fixed reply below.
+_LOGIN_WALLED = re.compile(r"^https?://(?:[\w-]+\.)*(?:facebook\.com|fb\.watch|fb\.me|instagram\.com)(?:[/:?#]|$)", re.I)
+MAX_LINKS = 2
+
+
+def pasted_links(text: str) -> list[str]:
+    """The links in a person's own message that Hestia reads: at most MAX_LINKS, never a
+    login-walled site, trailing punctuation dropped."""
+    out = []
+    for u in _URL.findall(text or ""):
+        u = u.rstrip(".,;:!?)]}'\"")
+        if not _LOGIN_WALLED.match(u) and u not in out:
+            out.append(u)
+    return out[:MAX_LINKS]
+
+
+def link_unreadable_reply(reason: str) -> str:
+    return f"I couldn't read that page: {reason}. " + _RECIPE_IMPORT
 
 
 def link_only(messages: list[dict]) -> bool:

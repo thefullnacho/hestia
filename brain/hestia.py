@@ -392,15 +392,22 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
     trace.deadline = started + (THINK_TURN_BUDGET if trace.think else TURN_BUDGET)
     admitted = False
     try:
-        if guards.link_only(messages):
-            return guards.LINK_ONLY_REPLY
+        asked = messages                       # what the person sent; routing and guards read this
+        bare = guards.link_only(messages)
+        links = guards.pasted_links(messages[-1].get("content") if messages else "")
+        if bare and not links:
+            return guards.LINK_ONLY_REPLY      # a Facebook or Instagram link: nothing to read
+        if links:
+            messages, unreadable = await _read_pasted(messages, links, bare, trace)
+            if bare and unreadable:
+                return guards.link_unreadable_reply(unreadable)
         if _turn_slots.locked():
             return _BUSY
         await _turn_slots.acquire()
         admitted = True
         try:
-            async with asyncio.timeout(TURN_BUDGET):
-                answer = await _agent_loop(messages)
+            async with asyncio.timeout(max(0.001, trace.deadline - time.monotonic())):
+                answer = await _agent_loop(messages, asked=asked, tools_off=bool(bare and links))
         except TimeoutError:
             answer = _TOO_SLOW
         if answer in _NO_LEARN:
@@ -410,7 +417,7 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
                                  f"{a.status.capitalize()}: {a.data}" for a in trace.actions)
             # Preserve informational answers in successful mixed read/write requests.
             # Known failures always take precedence over model-authored completion claims.
-            question = messages[-1]['content'] if messages else ''
+            question = asked[-1]['content'] if asked else ''
             if (all(a.status == 'succeeded' for a in trace.actions) and not trace.failure
                     and guards.QUESTION.search(question)
                     and answer != receipts):
@@ -426,7 +433,7 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
                 return trace.streamed_text + "\n" + guards.UNDONE_CLAIM
             return guards.UNDONE_CLAIM
         if answer not in _NO_LEARN and (extra := "\n".join(filter(None, (
-                guards.library_addendum(answer, trace.citations, messages[-1]['content']),
+                guards.library_addendum(answer, trace.citations, asked[-1]['content']),
                 guards.web_addendum(answer, trace.web_sources))))):
             trace.addendum = extra
             return (trace.streamed_text if trace.emitted else answer) + "\n" + extra
@@ -445,7 +452,48 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
         _prepared.reset(prepared_token)
 
 
-async def _agent_loop(messages: list[dict]) -> str:
+async def _read_pasted(messages: list[dict], links: list[str], bare: bool, trace) -> tuple[list[dict], str]:
+    """Read the links in the person's newest message, once, before the model sees it
+    (SECURITY.md, "A link a person pastes"). The page text joins this turn's copy of the
+    message; the thread keeps only what the person typed. Returns the messages and, when a
+    link could not be read, the reason."""
+    from tools import search
+    parts, reason = [], ""
+    # The pages share what the 24,000-byte message limit leaves after what the person typed, and
+    # the phone's small model gets less, so a page never fails the turn or crowds out the prompt.
+    room = 22_000 - len(str(messages[-1].get("content", "")).encode())
+    share = max(0, room // len(links) - 400)
+    chars = 2500 if backend.BACKEND in ("phone", "completion") else 5000
+    for url in links:
+        try:
+            page = await asyncio.wait_for(asyncio.to_thread(search.read_link, url, chars), timeout=TOOL_BUDGET)
+            page["text"] = page["text"].encode()[:share].decode(errors="ignore")
+            if len(page["text"]) < 200:
+                raise search.Unreadable("there's no room left in the message for the page")
+        except search.Unreadable as e:
+            reason = str(e)
+            parts.append(f"[Hestia could not read {url}: {reason}.]")
+            continue
+        except Exception:  # noqa: BLE001 — a dead site or slow DNS: say so, never stall the turn
+            reason = "the site didn't answer"
+            parts.append(f"[Hestia could not read {url}: {reason}.]")
+            continue
+        trace.web_sources.append(("", page["url"]))
+        parts.append(f"[The page at {page['url']}, read by Hestia just now"
+                     + (f", titled \"{page['title']}\"" if page['title'] else "") + f":]\n{page['text']}")
+        _log(f"pasted link read: {len(page['text'])} chars")
+    if not parts:
+        return messages, reason
+    ask = ("\n\n[The message was only the link. Say in a few sentences what the page is about. "
+           "If it is a recipe, say so and mention that Recipes, Import a recipe, makes it a draft "
+           "to approve.]") if bare else ""
+    newest = dict(messages[-1])
+    newest["content"] = f"{newest['content']}\n\n" + "\n\n".join(parts) + ask
+    return [*messages[:-1], newest], reason
+
+
+async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
+                      tools_off: bool = False) -> str:
     """Recall memory, then loop tool-calls against Ollama until a final answer.
 
     Hard-bounded so a hung backend can't hang the request (2026-06-11: a stuck SearXNG made one
@@ -456,12 +504,17 @@ async def _agent_loop(messages: list[dict]) -> str:
     """
     if error := context_budget.validate_messages(messages):
         return error
-    user_text = messages[-1]['content']
-    routing_text = routing.routing_text(messages)
+    # A pasted page's text rides in messages; which tools and context a turn gets is decided by
+    # what the person typed (asked), never by the page. A message that was only a link gets no
+    # tools at all: it's a request to read, and a page must not be able to talk the model into
+    # acting.
+    asked = asked or messages
+    user_text = asked[-1]['content']
+    routing_text = routing.routing_text(asked)
     context_started = time.monotonic()
     convo = [m for m in messages if m.get("role") != "system"]
     convo = _layout(await _build_system_prompt(routing_text), convo)
-    schemas = routing.request_schemas(user_text)
+    schemas = [] if tools_off else routing.request_schemas(user_text)
     if trace := _trace.get():
         trace.context_seconds = time.monotonic() - context_started
 

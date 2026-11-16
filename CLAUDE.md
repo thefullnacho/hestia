@@ -85,6 +85,10 @@ because the service runs with `WorkingDirectory=brain`. Keep it that way.
    outside the pilot (SECURITY.md, "Pilot problem reports").
    A fourth, decided 2026-10-30: phone notifications through Apple's push service, saying
    only that something is waiting, never what (SECURITY.md, "Phone notifications").
+   A fifth, decided 2026-11-16, recording what the `search` tool has always done: queries
+   through the house's own SearXNG to its upstream engines, and plain GETs of public pages,
+   including a link a person pastes into chat, read once by code (SECURITY.md, "A link a
+   person pastes").
    Anything beyond those needs a decision, not a commit.
 
 ## This repo is public

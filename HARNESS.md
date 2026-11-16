@@ -222,6 +222,11 @@ button switches itself off so a slow turn never happens by accident. It shows on
 `/health` says the brain runs on Ollama: the phone's model scored 85.7% with thinking on against
 92.7% off (PHONE-APP.md), so other backends ignore the `hestia_think` flag.
 
+A link pasted into chat is read by code before the model answers (SECURITY.md, "A link a
+person pastes"): a message that's only a link gets a short summary of the page with no tools
+offered, a link with a question gets its answer from the page, and both cite it. Facebook and
+Instagram links, and pages that can't be read, get a fixed reply from code saying why.
+
 An answer that used the `search` tool ends with its sources when the reply names none, the
 same move as the library's citation: the page it read, or else up to three of the results it
 was shown (`guards.web_addendum`). Code writes the line; the model can't drop it.

@@ -2,10 +2,13 @@
 unauthenticated because the network boundary is the auth boundary, and the box runs
 unauthenticated internal endpoints (Ollama, the brain's own /memory/inbox, hl-relay
 services). A model-directed fetcher with no host restriction turns a prompt-injected web
-page into a reader of all of them, so fetch is pinned to public hosts, no redirects.
+page into a reader of all of them, so fetch is pinned to public hosts, every redirect hop
+included.
 Network is stubbed everywhere; httpx.get is monkeypatched and asserts it is NOT called
 on the blocked paths."""
 from __future__ import annotations
+
+import httpx
 
 import tools.search as search
 
@@ -26,6 +29,11 @@ def _no_http(monkeypatch):
     def boom(*a, **k):
         raise AssertionError("httpx.get was called for a URL that must be blocked")
     monkeypatch.setattr(search.httpx, "get", boom)
+
+    class NoClient:                     # fetch opens a client per page; it must never get one
+        def __init__(self, *a, **k):
+            raise AssertionError("an HTTP client was opened for a URL that must be blocked")
+    monkeypatch.setattr(search.httpx, "Client", NoClient)
 
 
 def _public_dns(monkeypatch):
@@ -53,20 +61,29 @@ def test_fetch_blocks_tailnet_addresses(monkeypatch):
     assert "public" in search.execute("fetch", url="http://100.64.1.2:8730/memory/inbox").lower()
 
 
-def test_fetch_does_not_follow_redirects(monkeypatch):
+def _serve(monkeypatch, routes):
+    def handler(request):
+        status, headers, body = routes[str(request.url)]
+        return httpx.Response(status, headers=headers, content=body)
+    real = httpx.Client
+    monkeypatch.setattr(search.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+
+
+def test_fetch_never_follows_a_redirect_onto_a_private_host(monkeypatch):
+    """Redirects are followed one hop at a time, each held to the public-only rule: a public
+    page can't bounce the brain onto loopback (2026-11-16; before, redirects were refused)."""
     _public_dns(monkeypatch)
-    monkeypatch.setattr(search.httpx, "get",
-                        lambda *a, **k: _Resp(status_code=302, headers={"location": "http://127.0.0.1/x"}))
+    _serve(monkeypatch, {"https://example.com/redirect": (302, {"location": "http://127.0.0.1/x"}, b"")})
     out = search.execute("fetch", url="https://example.com/redirect")
-    assert "redirect" in out.lower()
+    assert out.startswith("Error:") and "private" in out
 
 
 def test_fetch_public_page_extracts_text(monkeypatch):
     """The guard must not break the intended use: a public page still reads as text."""
     _public_dns(monkeypatch)
-    html = "<html><head><style>body{color:red}</style></head><body>" \
-           "<h1>Banana Bread</h1><script>var x=1;</script><p>Bake at 350F.</p></body></html>"
-    monkeypatch.setattr(search.httpx, "get", lambda *a, **k: _Resp(text=html))
+    html = (b"<html><head><style>body{color:red}</style></head><body>"
+            b"<h1>Banana Bread</h1><script>var x=1;</script><p>Bake at 350F.</p></body></html>")
+    _serve(monkeypatch, {"https://example.com/banana-bread": (200, {"content-type": "text/html"}, html)})
     out = search.execute("fetch", url="https://example.com/banana-bread")
     assert "Banana Bread" in out and "Bake at 350F" in out
     assert "var x=1" not in out and "color:red" not in out

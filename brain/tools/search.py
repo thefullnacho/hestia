@@ -11,16 +11,19 @@ steer the model into reading loopback/LAN/tailnet services through it (see SECUR
 """
 from __future__ import annotations
 
+import html as htmllib
 import ipaddress
 import os
 import re
 import socket
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
 SEARX_URL = os.environ.get("SEARXNG_URL", "http://hl-relay:8095").rstrip("/")
-_UA = "Hestia/0.4 (+local agent)"
+# Names the software and where it lives, as sites like Wikipedia require; the same for every
+# household, so it identifies no one.
+_UA = "Hestia/0.4 (+https://github.com/thefullnacho/hestia)"
 
 SCHEMA = {
     "type": "function",
@@ -45,7 +48,7 @@ SCHEMA = {
 }
 
 _TAG = re.compile(r"<[^>]+>")
-_DROP = re.compile(r"<(script|style|noscript|svg)[^>]*>.*?</\1>", re.S | re.I)
+_DROP = re.compile(r"<(script|style|noscript|svg|nav|header|footer|aside|form)\b[^>]*>.*?</\1>", re.S | re.I)
 _WS = re.compile(r"[ \t]*\n\s*\n\s*", re.S)
 
 # Tailscale's CGNAT range. is_global already excludes loopback/RFC1918/link-local, but
@@ -90,26 +93,80 @@ def _search(query: str, n: int = 6) -> str:
     return "\n".join(lines)
 
 
-def _fetch(url: str, limit: int = 3500) -> str:
-    if not re.match(r"^https?://", url):
-        return "Error: fetch needs a full http(s) URL (get one from a search result first)."
-    if not _public_only(url):
-        return "Error: fetch is limited to public web pages (that host is local or unresolvable)."
-    # Redirects are not followed: a public URL must not be able to bounce the brain to an
-    # internal one. The model can re-issue fetch with the redirect target if it's public.
-    r = httpx.get(url, headers={"User-Agent": _UA}, timeout=12, follow_redirects=False)
-    if r.is_redirect:
-        return f"Error: that page redirects (to {r.headers.get('location', '?')}); redirects are not followed."
-    r.raise_for_status()
-    html = r.text
-    text = _DROP.sub(" ", html)
+MAX_HOPS = 5
+MAX_PAGE_BYTES = 3_000_000
+_TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
+_MAIN = re.compile(r"<(article|main)\b[^>]*>(.*)</\1>", re.I | re.S)
+
+
+class Unreadable(Exception):
+    """A page that can't be read, with the reason in words a person can act on."""
+
+
+def _get_public(url: str) -> tuple[str, str]:
+    """(final url, html) for a public page. Redirects are followed by hand, at most MAX_HOPS,
+    and every hop is held to the public-only rule, so a public link can't bounce the brain onto
+    loopback, the LAN or the tailnet. A plain GET: no cookies, no login, no identifiers."""
+    def check(u: str) -> None:
+        if not re.match(r"^https?://", u):
+            raise Unreadable("it isn't a web address")
+        if not _public_only(u):
+            raise Unreadable("Hestia reads only public web pages, and that one points at a private or unknown host")
+
+    check(url)                          # before any connection exists
+    with httpx.Client(headers={"User-Agent": _UA}, timeout=12, follow_redirects=False) as client:
+        for hop in range(MAX_HOPS + 1):
+            if hop:
+                check(url)
+            with client.stream("GET", url) as r:
+                if r.is_redirect:
+                    url = urljoin(url, r.headers.get("location", ""))
+                    continue
+                if r.status_code != 200:
+                    raise Unreadable(f"the site answered {r.status_code}")
+                kind = r.headers.get("content-type", "")
+                if kind and "html" not in kind and "text" not in kind:
+                    raise Unreadable(f"it isn't a web page ({kind.split(';')[0]})")
+                body = b""
+                for chunk in r.iter_bytes():
+                    body += chunk
+                    if len(body) > MAX_PAGE_BYTES:
+                        raise Unreadable("the page is too large")
+                return url, body.decode(r.encoding or "utf-8", errors="replace")
+    raise Unreadable(f"it redirects more than {MAX_HOPS} times")
+
+
+def page_text(html: str) -> tuple[str, str]:
+    """(title, readable text): the <article> or <main> when the page has one, else the body."""
+    t = _TITLE.search(html)
+    title = " ".join(htmllib.unescape(t.group(1)).split()) if t else ""
+    main = _MAIN.search(html)
+    text = _DROP.sub(" ", main.group(2) if main else html)
     text = _TAG.sub(" ", text)
-    text = re.sub(r"&nbsp;", " ", text)
-    text = re.sub(r"[ \t]+", " ", text)
-    text = _WS.sub("\n\n", text).strip()
+    text = htmllib.unescape(text)
+    text = re.sub(r"[ \t\xa0]+", " ", text)
+    return title[:200], _WS.sub("\n\n", text).strip()
+
+
+def read_link(url: str, limit: int = 5000) -> dict:
+    """A page a person pasted, read once: {url, title, text} or raises Unreadable."""
+    final, html = _get_public(url)
+    title, text = page_text(html)
+    if len(text) < 200:
+        raise Unreadable("the page has almost no text (it may need a login or run on scripts)")
+    return {"url": final, "title": title,
+            "text": text if len(text) <= limit else text[:limit] + "\n…[truncated]"}
+
+
+def _fetch(url: str, limit: int = 3500) -> str:
+    try:
+        final, html = _get_public(url)
+    except Unreadable as e:
+        return f"Error: couldn't read that page: {e}."
+    _, text = page_text(html)
     if len(text) > limit:
         text = text[:limit] + "\n…[truncated]"
-    return f"Readable text from {url}:\n{text}"
+    return f"Readable text from {final}:\n{text}"
 
 
 def execute(action: str, query: str | None = None, url: str | None = None) -> str:

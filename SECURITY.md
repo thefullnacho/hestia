@@ -32,10 +32,31 @@ search, shopping, status, weather`) and nothing that runs free-form commands. Th
 you own that risk — and you should not run that fork anywhere reachable by an untrusted network.
 
 **The `search` tool's page fetch cannot read your network.** `fetch` is restricted to public,
-globally-routable hosts (loopback, LAN, link-local and tailnet addresses are refused) and never
-follows redirects. Without this, a prompt-injected web page could tell the model to fetch
+globally-routable hosts (loopback, LAN, link-local and tailnet addresses are refused), and since
+2026-11-16 follows redirects only hop by hop, every hop held to the same rule. Without this, a prompt-injected web page could tell the model to fetch
 unauthenticated internal endpoints (Ollama, the brain's own inbox, media admin panels) and repeat
 the contents back.
+
+**A link a person pastes is read once, through the same guarded fetch.** (Decided 2026-11-16.)
+When a person's own message contains a link, code reads that page before the model is called,
+with the `search` tool's fetch: public sites only (the box's own services, the home network and
+the tailnet are refused, checked before any connection opens), redirects followed one hop at a
+time with every hop held to that rule (at most five), a plain GET with no cookies, login or
+identifiers (the user agent names the software and its repository, the same for every
+household), text pulled out by code and capped. Only links the person sent, at most two per
+message; Facebook and Instagram answer with a login page, so those keep a fixed reply and are
+never fetched. Which tools the turn gets is decided by what the person typed, never by the page,
+and a message that is only a link gets no tools at all, so a page can't talk the model into
+acting. The answer cites the page (code appends it when the reply names none). Nothing is kept:
+the page text lives only in that turn's copy of the message, and the thread stores what the
+person typed. Saving anything from it goes through the existing gates (a recipe becomes a draft
+to approve, a fact goes to the memory inbox). What leaves the house: one request, from the box,
+to the site the person named.
+
+**The search tool's queries reach SearXNG's upstream engines.** SearXNG runs on the house's own
+box, with no account or key, but it is a meta-search: the query text goes on to the engines it
+uses. The model writes the query; keep that in mind before asking it to search for anything
+private.
 
 **The feed fetcher is a scheduled reader of public pages, not a new door.** Once a night,
 `feed.py` runs a fixed list of interest queries through the house's own SearXNG, fetches the top

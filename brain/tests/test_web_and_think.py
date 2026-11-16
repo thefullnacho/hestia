@@ -80,3 +80,123 @@ def test_the_button_turns_thinking_on_for_ollama_only(db, monkeypatch):
     assert _think_seen(monkeypatch, "ollama", None) == [backend.THINK]
     assert _think_seen(monkeypatch, "ollama", "yes") == [backend.THINK]     # only a real true
     assert _think_seen(monkeypatch, "phone", True) == [backend.THINK]
+
+
+# --- links a person pastes (SECURITY.md, "A link a person pastes") ------------------------------
+
+import httpx
+import pytest
+import routing
+
+PAGE = {"url": "https://example.org/garlic", "title": "Garlic in winter",
+        "text": "Plant garlic cloves in mid October, pointy end up, two inches deep. " * 5}
+
+
+def _turn(monkeypatch, text, reply="It's about planting garlic in fall.", page=PAGE):
+    async def prompt(_):
+        return ""
+    monkeypatch.setattr(hestia, "_build_system_prompt", prompt)
+    seen = {"convos": [], "schemas": [], "routed": []}
+
+    def read(url, limit=5000):
+        if isinstance(page, Exception):
+            raise page
+        return page
+    monkeypatch.setattr(search, "read_link", read)
+    real = routing.request_schemas
+    monkeypatch.setattr(routing, "request_schemas", lambda t: seen["routed"].append(t) or real(t))
+
+    async def fake_chat(convo, schemas):
+        seen["convos"].append(convo)
+        seen["schemas"].append(schemas)
+        return {"content": reply}
+    monkeypatch.setattr(backend, "ollama_chat", fake_chat)
+    out = asyncio.run(hestia.run_agent([{"role": "user", "content": text}]))
+    return out, seen
+
+
+def test_a_bare_link_is_read_summarized_with_no_tools_and_cited(monkeypatch):
+    out, seen = _turn(monkeypatch, "https://example.org/garlic")
+    last = seen["convos"][0][-1]["content"]
+    assert "Plant garlic cloves" in last and "only the link" in last
+    assert seen["schemas"] == [[]]
+    assert out == "It's about planting garlic in fall.\nSources: https://example.org/garlic."
+
+
+def test_facebook_keeps_the_fixed_reply_and_nothing_is_fetched(monkeypatch):
+    out, seen = _turn(monkeypatch, "https://www.facebook.com/share/r/19Z9cwYhxX/", page=AssertionError("fetched"))
+    assert out == guards.LINK_ONLY_REPLY and seen["convos"] == []
+
+
+def test_an_unreadable_bare_link_is_explained_by_code(monkeypatch):
+    out, seen = _turn(monkeypatch, "https://example.org/x", page=search.Unreadable("the site answered 404"))
+    assert out.startswith("I couldn't read that page: the site answered 404.") and seen["convos"] == []
+
+
+def test_a_link_with_a_question_routes_on_what_was_typed_not_the_page(monkeypatch):
+    page = dict(PAGE, text="Remind me to turn off the kitchen lights and take my medication dose. " * 5)
+    out, seen = _turn(monkeypatch, "what does this say about garlic? https://example.org/garlic", page=page)
+    assert seen["routed"] == ["what does this say about garlic? https://example.org/garlic"]
+    assert "pharmacist" not in out.lower()          # the page's dose words don't trigger the referral
+
+
+def test_pasted_links_are_capped_trimmed_and_skip_login_walls():
+    text = "see https://a.org/x, and https://instagram.com/p/1 and (https://b.org/y) and https://c.org/z"
+    assert guards.pasted_links(text) == ["https://a.org/x", "https://b.org/y"]
+
+
+def _serve(monkeypatch, routes):
+    def handler(request):
+        status, headers, body = routes[str(request.url)]
+        return httpx.Response(status, headers=headers, content=body)
+    real = httpx.Client
+    monkeypatch.setattr(httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.setattr(search, "_public_only", lambda u: "internal" not in u)
+
+
+def test_redirects_are_followed_hop_by_hop_and_a_private_hop_is_refused(monkeypatch):
+    html = b"<html><title>T</title><main>" + b"Real article text here. " * 20 + b"</main></html>"
+    _serve(monkeypatch, {
+        "https://short.link/a": (301, {"location": "https://example.org/real"}, b""),
+        "https://example.org/real": (200, {"content-type": "text/html"}, html),
+        "https://short.link/b": (302, {"location": "http://internal.lan/admin"}, b""),
+    })
+    page = search.read_link("https://short.link/a")
+    assert page["url"] == "https://example.org/real" and page["title"] == "T"
+    assert page["text"].startswith("Real article text here.")
+    with pytest.raises(search.Unreadable, match="private"):
+        search.read_link("https://short.link/b")
+
+
+def test_too_many_redirects_and_non_pages_are_refused(monkeypatch):
+    loop = {f"https://l.org/{i}": (302, {"location": f"https://l.org/{i + 1}"}, b"") for i in range(10)}
+    loop["https://pdf.org/f"] = (200, {"content-type": "application/pdf"}, b"%PDF")
+    _serve(monkeypatch, loop)
+    with pytest.raises(search.Unreadable, match="redirects more than"):
+        search.read_link("https://l.org/0")
+    with pytest.raises(search.Unreadable, match="isn't a web page"):
+        search.read_link("https://pdf.org/f")
+
+
+def test_a_thinking_turn_is_not_cut_off_at_the_normal_limit(monkeypatch):
+    async def prompt(_):
+        return ""
+    monkeypatch.setattr(hestia, "_build_system_prompt", prompt)
+    monkeypatch.setattr(hestia, "TURN_BUDGET", 0.05)
+    monkeypatch.setattr(hestia, "THINK_TURN_BUDGET", 5.0)
+
+    async def slow_chat(convo, schemas):
+        await asyncio.sleep(0.3)
+        return {"content": "thought it through"}
+    monkeypatch.setattr(backend, "ollama_chat", slow_chat)
+    t = hestia.TurnTrace()
+    t.think = True
+    assert asyncio.run(hestia.run_agent([{"role": "user", "content": "hard one"}], trace=t)) == "thought it through"
+    assert asyncio.run(hestia.run_agent([{"role": "user", "content": "hard one"}])) == hestia._TOO_SLOW
+
+
+def test_a_long_message_leaves_the_page_less_room_and_never_fails_validation(monkeypatch):
+    typed = "notes " * 3000 + " https://example.org/garlic"      # about 18 KB typed
+    out, seen = _turn(monkeypatch, typed, page=dict(PAGE, text="ж" * 5000))   # 10 KB of page
+    assert seen["convos"], out
+    assert len(seen["convos"][0][-1]["content"].encode()) <= 24000
