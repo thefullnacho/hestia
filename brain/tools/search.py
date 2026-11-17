@@ -154,7 +154,7 @@ def read_link(url: str, limit: int = 5000) -> dict:
     title, text = page_text(html)
     if len(text) < 200:
         raise Unreadable("the page has almost no text (it may need a login or run on scripts)")
-    return {"url": final, "title": title,
+    return {"url": final, "title": title, "html": html, "full_text": text,
             "text": text if len(text) <= limit else text[:limit] + "\n…[truncated]"}
 
 

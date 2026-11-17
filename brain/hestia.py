@@ -58,6 +58,8 @@ import records_store  # noqa: E402
 import reminders_store  # noqa: E402
 import goals_api  # noqa: E402
 import memory_api  # noqa: E402
+import recipe_import  # noqa: E402
+import recipe_drafts  # noqa: E402
 import receipts  # noqa: E402
 import receipts_api  # noqa: E402
 import library_store  # noqa: E402
@@ -135,6 +137,7 @@ class TurnTrace:
     repair_tool: str = ""
     citations: list = field(default_factory=list)   # library passages this turn, as "title, year, p.N"
     web_sources: list = field(default_factory=list)  # (title, url) the search tool showed this turn
+    draft_line: str = ""                             # code's line when a pasted recipe became a draft
     addendum: str = ""                              # code-written lines after the model's answer
 
     def usage(self) -> dict:
@@ -397,17 +400,21 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
         links = guards.pasted_links(messages[-1].get("content") if messages else "")
         if bare and not links:
             return guards.LINK_ONLY_REPLY      # a Facebook or Instagram link: nothing to read
+        wants_draft = bool(links) and len(links) == 1 and (bare or bool(_WANTS_RECIPE.search(
+            guards._URL.sub(" ", str(messages[-1].get("content", ""))))))
         if links:
-            messages, unreadable = await _read_pasted(messages, links, bare, trace)
+            messages, unreadable, pages = await _read_pasted(messages, links, bare, trace)
             if bare and unreadable:
                 return guards.link_unreadable_reply(unreadable)
+            if wants_draft and pages:
+                await _recipe_draft(pages[0], trace)
         if _turn_slots.locked():
             return _BUSY
         await _turn_slots.acquire()
         admitted = True
         try:
             async with asyncio.timeout(max(0.001, trace.deadline - time.monotonic())):
-                answer = await _agent_loop(messages, asked=asked, tools_off=bool(bare and links))
+                answer = await _agent_loop(messages, asked=asked, tools_off=bool(links and (bare or wants_draft)))
         except TimeoutError:
             answer = _TOO_SLOW
         if answer in _NO_LEARN:
@@ -434,7 +441,7 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
             return guards.UNDONE_CLAIM
         if answer not in _NO_LEARN and (extra := "\n".join(filter(None, (
                 guards.library_addendum(answer, trace.citations, asked[-1]['content']),
-                guards.web_addendum(answer, trace.web_sources))))):
+                guards.web_addendum(answer, trace.web_sources), trace.draft_line)))):
             trace.addendum = extra
             return (trace.streamed_text if trace.emitted else answer) + "\n" + extra
         return answer
@@ -452,13 +459,13 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
         _prepared.reset(prepared_token)
 
 
-async def _read_pasted(messages: list[dict], links: list[str], bare: bool, trace) -> tuple[list[dict], str]:
+async def _read_pasted(messages: list[dict], links: list[str], bare: bool, trace) -> tuple[list[dict], str, list[dict]]:
     """Read the links in the person's newest message, once, before the model sees it
     (SECURITY.md, "A link a person pastes"). The page text joins this turn's copy of the
     message; the thread keeps only what the person typed. Returns the messages and, when a
     link could not be read, the reason."""
     from tools import search
-    parts, reason = [], ""
+    parts, reason, pages = [], "", []
     # The pages share what the 24,000-byte message limit leaves after what the person typed, and
     # the phone's small model gets less, so a page never fails the turn or crowds out the prompt.
     room = 22_000 - len(str(messages[-1].get("content", "")).encode())
@@ -479,17 +486,58 @@ async def _read_pasted(messages: list[dict], links: list[str], bare: bool, trace
             parts.append(f"[Hestia could not read {url}: {reason}.]")
             continue
         trace.web_sources.append(("", page["url"]))
+        pages.append(page)
         parts.append(f"[The page at {page['url']}, read by Hestia just now"
                      + (f", titled \"{page['title']}\"" if page['title'] else "") + f":]\n{page['text']}")
         _log(f"pasted link read: {len(page['text'])} chars")
     if not parts:
-        return messages, reason
-    ask = ("\n\n[The message was only the link. Say in a few sentences what the page is about. "
-           "If it is a recipe, say so and mention that Recipes, Import a recipe, makes it a draft "
-           "to approve.]") if bare else ""
+        return messages, reason, pages
+    # 2026-11-16: asked to "mention" the recipe import, Gemma said it had imported the recipe.
+    # The model only describes; code makes any draft and writes that line itself.
+    ask = ("\n\n[The message was only the link. Say in a few sentences what the page is about.]"
+           if bare else "")
+    ask += ("\n\n[Never say you saved, imported, drafted or added anything from this page: "
+            "Hestia adds any next step itself.]")
     newest = dict(messages[-1])
     newest["content"] = f"{newest['content']}\n\n" + "\n\n".join(parts) + ask
-    return [*messages[:-1], newest], reason
+    return [*messages[:-1], newest], reason, pages
+
+
+# A recipe print view ("/wprm_print/...", "?print=1"): the recipe and nothing else, so its text
+# can be organized like pasted text. A full blog page without recipe data is not guessed at.
+_PRINT_VIEW = re.compile(r"/(?:wprm_print|print|print-recipe)(?:/|$)|[?&]print(?:=|&|$)", re.I)
+_WANTS_RECIPE = re.compile(r"\b(?:import|save|add|keep|draft)\b.*\brecipe\b|"
+                           r"\brecipe\b.*\b(?:import|save|add|keep|draft)\b", re.I | re.S)
+
+
+async def _recipe_draft(page: dict, trace) -> None:
+    """A pasted recipe becomes a draft to approve, made by code the way the Recipes page's
+    "Prepare a draft" makes one, from the page already read: the page's own recipe data when it
+    has some, or a print view's text organized like pasted text. Never saved to the collection;
+    a person approves it on the review page. Sets the line code adds to the answer."""
+    try:
+        raw = page["html"].encode()
+        source = await asyncio.to_thread(recipe_import.extract, raw, "text/html", page["url"])
+        if not source["candidates"]:
+            text = page["full_text"]
+            if not _PRINT_VIEW.search(page["url"]) or not 0 < len(text.encode()) <= 14000:
+                return
+            source["text"] = text
+            try:
+                source["candidates"] = [await _organize_recipe_source(text)]
+                source["warnings"] = ["Hestia organized this print view. Verify every quantity "
+                                      "and step against the original."]
+            except Exception:  # noqa: BLE001 — the draft still holds the text to edit by hand
+                source["candidates"] = [{"name": page.get("title", ""), "content": text, "servings": "",
+                                         "aliases": "", "method": "unorganized source"}]
+                source["warnings"] = ["Automatic organization was unavailable. Edit the text into "
+                                      "ingredients and steps."]
+        entry = await asyncio.to_thread(recipe_drafts.create, source, raw)
+    except Exception as e:  # noqa: BLE001 — a failed draft must not cost the answer
+        _log(f"recipe draft from pasted link failed: {type(e).__name__}")
+        return
+    trace.draft_line = f"I made a recipe draft from it: [review and approve it](/recipes/review/{entry['id']})."
+    _log("recipe draft made from pasted link")
 
 
 async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,

@@ -224,7 +224,12 @@ button switches itself off so a slow turn never happens by accident. It shows on
 
 A link pasted into chat is read by code before the model answers (SECURITY.md, "A link a
 person pastes"): a message that's only a link gets a short summary of the page with no tools
-offered, a link with a question gets its answer from the page, and both cite it. Facebook and
+offered, a link with a question gets its answer from the page, and both cite it. A recipe link
+(alone, or with "save this recipe") becomes a draft made by code, the same draft Recipes'
+"Prepare a draft" makes, and the reply ends with the review link: from the page's own recipe
+data, or a print view (`/wprm_print/`, `?print=`) organized like pasted text. A blog page with
+no recipe data is not guessed at. The model is told it may only describe the page: asked to
+"mention" the import, Gemma once said it had imported the recipe. Facebook and
 Instagram links, and pages that can't be read, get a fixed reply from code saying why.
 
 An answer that used the `search` tool ends with its sources when the reply names none, the

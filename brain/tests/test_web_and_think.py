@@ -200,3 +200,68 @@ def test_a_long_message_leaves_the_page_less_room_and_never_fails_validation(mon
     out, seen = _turn(monkeypatch, typed, page=dict(PAGE, text="ж" * 5000))   # 10 KB of page
     assert seen["convos"], out
     assert len(seen["convos"][0][-1]["content"].encode()) <= 24000
+
+
+# --- a pasted recipe becomes a draft to approve, made by code ------------------------------------
+
+import json as _json
+
+from tools import recipe as recipe_tool
+
+_LD = {"@context": "https://schema.org", "@type": "Recipe", "name": "The Best Zucchini Bread",
+       "recipeYield": "2 loaves", "recipeIngredient": ["2 cups zucchini", "3 cups flour"],
+       "recipeInstructions": [{"@type": "HowToStep", "text": "Bake at 350F for 55 minutes."}]}
+_BODY = "A story about zucchini season and why this bread is the best one around. " * 6
+
+
+def _recipe_page(url, html):
+    title, text = search.page_text(html)
+    return {"url": url, "title": title, "html": html, "full_text": text, "text": text}
+
+
+@pytest.fixture
+def shelf_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(recipe_tool, "RECIPES_DIR", tmp_path / "recipes")
+    return tmp_path / "recipes" / ".review" / "drafts"
+
+
+def test_a_pasted_recipe_with_recipe_data_becomes_a_draft_with_a_review_link(monkeypatch, shelf_dir):
+    html = (f'<html><title>Zucchini Bread</title><script type="application/ld+json">{_json.dumps(_LD)}'
+            f'</script><main>{_BODY}</main></html>')
+    out, seen = _turn(monkeypatch, "https://example.org/zucchini-bread",
+                      reply="It's a zucchini bread recipe.", page=_recipe_page("https://example.org/zucchini-bread", html))
+    drafts = list(shelf_dir.glob("*.json"))
+    assert len(drafts) == 1
+    draft = _json.loads(drafts[0].read_text())
+    assert draft["status"] == "pending" and draft["candidates"][0]["name"] == "The Best Zucchini Bread"
+    assert f"[review and approve it](/recipes/review/{draft['id']})" in out
+    assert seen["schemas"] == [[]]
+    assert "Never say you saved" in seen["convos"][0][-1]["content"]
+
+
+def test_a_print_view_is_organized_like_pasted_text(monkeypatch, shelf_dir):
+    async def organize(text):
+        return {"name": "The Best Zucchini Bread", "servings": "2 loaves", "aliases": "",
+                "content": "## Ingredients\n- 2 cups zucchini", "method": "model-organized source"}
+    monkeypatch.setattr(hestia, "_organize_recipe_source", organize)
+    url = "https://example.org/wprm_print/the-best-zucchini-bread"
+    out, _ = _turn(monkeypatch, url, page=_recipe_page(url, f"<html><main>{_BODY}</main></html>"))
+    draft = _json.loads(next(shelf_dir.glob("*.json")).read_text())
+    assert draft["candidates"][0]["method"] == "model-organized source"
+    assert "Verify every quantity" in draft["warnings"][0]
+    assert "review and approve it" in out
+
+
+def test_a_blog_page_without_recipe_data_is_not_guessed_into_a_draft(monkeypatch, shelf_dir):
+    url = "https://example.org/my-summer"
+    out, _ = _turn(monkeypatch, url, page=_recipe_page(url, f"<html><main>{_BODY}</main></html>"))
+    assert not shelf_dir.exists() or not list(shelf_dir.glob("*.json"))
+    assert "review and approve" not in out
+
+
+def test_asking_to_save_a_recipe_with_a_link_makes_the_draft_and_offers_no_tools(monkeypatch, shelf_dir):
+    html = f'<html><script type="application/ld+json">{_json.dumps(_LD)}</script><main>{_BODY}</main></html>'
+    url = "https://example.org/zucchini-bread"
+    out, seen = _turn(monkeypatch, f"save this recipe {url}", page=_recipe_page(url, html))
+    assert len(list(shelf_dir.glob("*.json"))) == 1 and seen["schemas"] == [[]]
+    assert "review and approve it" in out

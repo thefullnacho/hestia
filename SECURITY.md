@@ -50,7 +50,10 @@ and a message that is only a link gets no tools at all, so a page can't talk the
 acting. The answer cites the page (code appends it when the reply names none). Nothing is kept:
 the page text lives only in that turn's copy of the message, and the thread stores what the
 person typed. Saving anything from it goes through the existing gates (a recipe becomes a draft
-to approve, a fact goes to the memory inbox). What leaves the house: one request, from the box,
+to approve, a fact goes to the memory inbox). A pasted recipe is drafted by code from the page
+already read, never fetched again: from the page's own recipe data, or for a print view its text
+organized by the local model as pasted text is. The draft waits on the review page; nothing
+reaches the collection until a person approves it. What leaves the house: one request, from the box,
 to the site the person named.
 
 **The search tool's queries reach SearXNG's upstream engines.** SearXNG runs on the house's own

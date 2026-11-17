@@ -13,7 +13,7 @@ import re
 
 # A reply that claims an action when no tool ran this turn. Shown instead of the claim.
 UNDONE_CLAIM = ("I didn't actually do that: nothing was saved or set. "
-                "Please say it again, for example \"remind me to ... on ...\".")
+                "Please ask again, saying exactly what to save or set.")
 # A message that is only a link. Chat can't read a page, so code answers without the model.
 LINK_ONLY_REPLY = ("I can't read Facebook or Instagram links: they only show a login page. If it's "
                    "a recipe, open Recipes in the app, choose \"Paste recipe text\" under Import a "
