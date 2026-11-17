@@ -200,6 +200,17 @@ final class Bridge: NSObject, ObservableObject, WKScriptMessageHandler, WKNaviga
         }
     }
 
+    /// A link that asks for a new window (chat's links open with target="_blank") would do nothing
+    /// in a web view with no windows to open. Load it here instead; the navigation policy above
+    /// still keeps the box's own pages in the app and sends anything else to Safari.
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if navigationAction.targetFrame == nil {
+            webView.load(navigationAction.request)
+        }
+        return nil
+    }
+
     /// On top of whatever is showing, since a sheet may be over the web view. False when there
     /// is nothing to present from, so the page's call still gets an answer.
     private func present(_ alert: UIAlertController, over webView: WKWebView) -> Bool {

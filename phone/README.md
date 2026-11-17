@@ -113,7 +113,8 @@ it shows its settings. Inside the page, a **two-finger long press** opens the se
 and a page that will not load offers Retry and Settings. Links to the box's own pages stay in
 the app; anything else opens in Safari. The page's `alert()`, `confirm()` and `prompt()`
 show as native alerts (the web view's UI delegate); without one a web view drops them, so
-`confirm()` answers false and nothing asking "Delete this?" could ever go through.
+`confirm()` answers false and nothing asking "Delete this?" could ever go through. A link that opens a new
+window (chat's links use `target="_blank"`) loads in the same view, under the same rule.
 
 The bridge follows PHONE-APP.md, "The web view", version 1. The app sends nothing until the
 page says `hello`, answers with `hello` and the current `connection`, and sends `connection`
