@@ -314,11 +314,16 @@ def prune_images(today: dt.date, img_dir) -> int:
 
 # --- the night ----------------------------------------------------------------------------
 
+class NoCandidates(Exception):
+    """A person's searches found nothing new. One such night is normal; every person at once is
+    how a dead SearXNG looked from 2026-11-09 to 11-17 (hl-relay's containers had lost DNS after a
+    reboot), nine nights of exit 0 and no alert, so main() fails the run when all of them hit it."""
+
+
 def run_person(person: dict, day: dt.date, client: httpx.Client, *, dry: bool = False) -> int:
     cands = fetch_candidates(gather(person, feed_store.seen(person["id"], day.isoformat())), client)
     if not cands:
-        print(f"feed: {person['id']}: no candidates tonight; keeping the last set")
-        return 0
+        raise NoCandidates("no candidates tonight")
     prompt = build_prompt(person, cands, feed_store.reactions(person["id"], "heart"),
                           feed_store.reactions(person["id"], "nope"))
     if not dry and backend.deferred():
@@ -363,17 +368,25 @@ def main() -> int:
         print(f"feed: no people configured in {config.FEED_DIR / 'people.toml'}; nothing to do")
         return 0
     day = dt.date.today()
-    failed = 0
+    failed = empty = 0
     with httpx.Client(headers={"User-Agent": search._UA}, timeout=10) as client:
         for person in people:
             try:
                 run_person(person, day, client, dry=dry)
+            except NoCandidates:
+                empty += 1
+                print(f"feed: {person['id']}: no candidates tonight; keeping the last set")
             except Exception as e:  # noqa: BLE001 — one person's bad night leaves the other's alone
                 failed += 1
                 print(f"feed: {person['id']} failed ({e}); keeping the last set", file=sys.stderr)
     if not dry:
         prune_images(day, config.FEED_DIR / "img")
-    return 1 if failed == len(people) else 0
+    if failed + empty == len(people):
+        print("feed: nobody got anything tonight. If every search came back empty, check that "
+              "SearXNG can reach the internet (curl its /search?format=json and read "
+              "unresponsive_engines)", file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

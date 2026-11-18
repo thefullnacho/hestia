@@ -2,6 +2,8 @@
 Description=Hestia — nightly feed (search the interests, fetch the pages, rank, cache images)
 After=network-online.target
 Wants=network-online.target
+# A night where every search came back empty fails the run (feed.py), and this alerts on it.
+OnFailure=hestia-alert@%n.service
 
 [Service]
 Type=oneshot

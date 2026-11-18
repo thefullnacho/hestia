@@ -278,3 +278,23 @@ def test_routes_serve_the_day_without_the_model(client, feed_dir):
     assert client.post("/v1/feed/9999/react", json={"reaction": "nope"}).status_code == 404
     assert client.get("/v1/feed", params={"person": "../etc"}).status_code == 400
     assert client.get("/v1/feed", params={"person": "nobody"}).json() == {"day": None, "items": []}
+
+
+def test_a_night_where_every_search_is_empty_fails_the_run(monkeypatch, capsys):
+    """2026-11-09 to 11-17: SearXNG lost DNS, every night exited 0, and no alert fired."""
+    monkeypatch.setattr(feed, "load_people", lambda: [{"id": "a"}, {"id": "b"}])
+    monkeypatch.setattr(feed, "run_person", lambda *a, **k: (_ for _ in ()).throw(feed.NoCandidates("x")))
+    monkeypatch.setattr(feed, "prune_images", lambda *a: 0)
+    assert feed.main() == 1
+    assert "SearXNG" in capsys.readouterr().err
+
+
+def test_one_person_with_nothing_new_is_a_normal_night(monkeypatch):
+    def run(person, *a, **k):
+        if person["id"] == "a":
+            raise feed.NoCandidates("x")
+        return 3
+    monkeypatch.setattr(feed, "load_people", lambda: [{"id": "a"}, {"id": "b"}])
+    monkeypatch.setattr(feed, "run_person", run)
+    monkeypatch.setattr(feed, "prune_images", lambda *a: 0)
+    assert feed.main() == 0
