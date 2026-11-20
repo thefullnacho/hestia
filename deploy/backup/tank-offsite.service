@@ -8,6 +8,8 @@ Type=oneshot
 # REQUIRED, set for this household; no placeholder defaults (OFFSITE-RUNBOOK.md).
 Environment=RESTIC_REPOSITORY=sftp:storagebox-family:restic
 Environment=RESTIC_PASSWORD_FILE=/root/.restic-family-pass
+# A system service has no HOME, and restic without its cache re-reads the index remotely.
+Environment=RESTIC_CACHE_DIR=/var/cache/restic-tank
 Environment="DATASETS=tank/dawn tank/photos"
 Nice=10
 IOSchedulingClass=idle
