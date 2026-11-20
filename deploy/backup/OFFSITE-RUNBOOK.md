@@ -43,6 +43,17 @@ snapshots, `restic check` clean), proved by restoring a night's `hestia.db` from
 (`integrity_check` ok, all library passages present). The pull job moves to a small VPS when the
 dedi is retired; nothing else changes.
 
+## Household files (the ZFS mirror on hl-relay)
+
+The household's own files on hl-relay's ZFS mirror (`tank`) go off-site by a separate nightly job,
+`tank-offsite.sh` (+ `.service`, `.timer`, installed as system units on hl-relay). It mounts the
+newest sanoid snapshot of each dataset read-only at a fixed path and runs `restic backup` into
+the household's own storage-box sub-account, then forget/prune and a 5% read check. Time Machine
+is left out: it is a backup of a laptop whose files are already here. This one pushes, with a key
+that reaches only its sub-account; the storage box's daily snapshots are the guard against a
+compromised box erasing history. The repository password lives on hl-relay in root's
+`.restic-family-pass` and in the operator's password manager: without it the copy is unreadable.
+
 ## Components
 
 | Where | File | Role |

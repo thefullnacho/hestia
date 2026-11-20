@@ -1,0 +1,14 @@
+[Unit]
+Description=Household files off-site: newest ZFS snapshots -> encrypted restic on a storage box
+After=network-online.target zfs-mount.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# REQUIRED, set for this household; no placeholder defaults (OFFSITE-RUNBOOK.md).
+Environment=RESTIC_REPOSITORY=sftp:storagebox-family:restic
+Environment=RESTIC_PASSWORD_FILE=/root/.restic-family-pass
+Environment="DATASETS=tank/dawn tank/photos"
+Nice=10
+IOSchedulingClass=idle
+ExecStart=/usr/local/sbin/tank-offsite.sh
