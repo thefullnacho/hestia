@@ -70,4 +70,4 @@ restic forget --tag offsite --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --
 restic check --read-data-subset=10% || fail "restic check failed"
 
 [ -n "$HEALTHCHECK_URL" ] && curl -fsS -m10 --retry 3 "$HEALTHCHECK_URL" >/dev/null 2>&1 || true
-echo "offsite ok: $STAMP -> $RESTIC_REPOSITORY ($(restic snapshots --tag offsite --json 2>/dev/null | grep -c short_id || echo '?') snapshots)"
+echo "offsite ok: $STAMP -> $RESTIC_REPOSITORY ($(restic snapshots --tag offsite --json 2>/dev/null | grep -o '"short_id"' | wc -l) snapshots)"

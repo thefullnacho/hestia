@@ -29,6 +29,20 @@ dedi (youruser@offsite-host.example.net) ──03:30 ET PULL over Tailscale─�
   the config snapshot to write into *that* dir, so config + DB are always co-located and complete
   (robust to the GPU box being on ET and hl-relay on UTC).
 
+## The repository lives on a storage box (2026-11-20)
+
+The restic repository moved off the dedi's disk to a Hetzner Storage Box: sub-account `-sub1`
+(its own folder; Dawn's backups use `-sub2`, so one leaked key can't reach the other). The dedi
+still runs the pull, so home still holds no credentials. It reaches the box with a key used for
+nothing else (`~/.ssh/storagebox`, port 23, an alias `storagebox` in `~/.ssh/config`), and a
+drop-in sets `RESTIC_REPOSITORY=sftp:storagebox:restic`
+(`/etc/systemd/system/hestia-offsite-pull.service.d/storagebox.conf`; delete it to point back).
+The box's own daily snapshots are on, and they can't be deleted over SFTP, so even a
+compromised puller can't erase history. The move was an rsync of the repository as is (167
+snapshots, `restic check` clean), proved by restoring a night's `hestia.db` from the box
+(`integrity_check` ok, all library passages present). The pull job moves to a small VPS when the
+dedi is retired; nothing else changes.
+
 ## Components
 
 | Where | File | Role |
