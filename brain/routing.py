@@ -92,6 +92,12 @@ INTENT_TOOLS = {
                 r"elderberr\w*|purif\w*|boil(?:ing)? water|drinking water|water (?:filter|treatment)|"
                 r"survival|shelter|fire ?starting|start a fire|navigat\w*|first aid|snake ?bites?|"
                 r"bug (?:in|out)|evacuat\w*|prepared\w*|go ?bag|"
+                # Radio and off-grid communications, backup power, emergency medicine.
+                r"radios?|gmrs|frs|murs|cb|ham (?:radio|license)|antennas?|repeaters?|frequenc\w*|walkie|"
+                r"batter(?:y|ies)|generators?|inverters?|solar|volts?|voltage|amps?|wiring|multimeter|"
+                r"bleed\w*|tourniquet|wounds?|burns?|fractur\w*|splint\w*|sprain\w*|hypotherm\w*|"
+                r"frostbite|heat ?stroke|heat exhaustion|dehydrat\w*|cpr|chok\w*|concussion|stitch\w*|"
+                r"sutur\w*|infect\w*|toothache|abscess|childbirth|in labor|"
                 # The household's own papers, filed from the phone (library_store.add_scanned).
                 r"warrant(?:y|ies)|guarantee|manuals?|user guide|instructions|serial (?:number|no)|"
                 r"model (?:number|no))\b"),

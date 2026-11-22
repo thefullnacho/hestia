@@ -25,6 +25,14 @@ reasons over what code handed it, and cites it.
 - **Corpus:** PDFs chosen by hand, stored under `data/library/` (gitignored). Publications are
   free to read but not licensed for redistribution, so nothing from them enters the repo. A
   tracked `library.example.toml` shows the manifest format; the real manifest is gitignored.
+- **Shelf subjects grow with the prompt (2026-11-22):** radio and off-grid communications, backup
+  power and electronics basics, and emergency and austere medicine joined the extension shelf, from
+  public-domain federal manuals and openly licensed guides. A new subject is three edits: the library
+  line in `prompt.py`, the tool description in `tools/library.py`, and the words in `routing.py`.
+  Without them the model never thinks to look: on Inkling 2 Mini, "what channels can I use on
+  GMRS" searched the web 3 of 3 times before and went to the library 3 of 3 after. A book the
+  publisher splits into chapter files is joined into one PDF first, so page citations run
+  through the book.
 - **Manifest, one entry per document:** title, institution, publication number, year, region
   (state, and hardiness zone where it applies), topic, source URL. Region and year are not
   decoration: they rank results and travel with every citation.
