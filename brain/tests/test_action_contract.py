@@ -186,3 +186,50 @@ def test_ledger_prunes_old_rows(monkeypatch, tmp_path):
     with closing(operation_store._connect()) as conn:
         assert conn.execute('SELECT COUNT(*) FROM requests').fetchone()[0] == 1
         assert conn.execute('SELECT COUNT(*) FROM operations').fetchone()[0] == 0
+
+
+def _scripted_turn(monkeypatch, tmp_path, replies, dispatch, text):
+    monkeypatch.setattr(hestia.config, 'DATA_DIR', tmp_path)
+    async def prompt(_):
+        return ''
+    monkeypatch.setattr(hestia, '_build_system_prompt', prompt)
+    monkeypatch.setattr(routing, 'request_schemas', lambda _: tools.SCHEMAS)
+    monkeypatch.setattr(tools, 'dispatch', dispatch)
+    async def chat(*_):
+        return replies.pop(0)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
+    return asyncio.run(hestia.run_agent([{'role': 'user', 'content': text}]))
+
+
+def test_refused_arguments_then_successful_retry_reads_as_success(monkeypatch, tmp_path):
+    # Inkling 2 Mini, 2026-11-22: `category` for `type`, refused, retried, saved. The reply
+    # read "Failed: ..." over the saved fact, and the next turn believed the write failed.
+    calls = []
+    def dispatch(name, args):
+        calls.append(args)
+        return 'Remembered (id=gmrs).'
+    replies = [
+        {'tool_calls': [{'function': {'name': 'memory', 'arguments':
+            {'op': 'write', 'content': 'Applied for a GMRS license', 'category': 'person'}}}]},
+        {'tool_calls': [{'function': {'name': 'memory', 'arguments':
+            {'op': 'write', 'content': 'Applied for a GMRS license', 'type': 'person'}}}]},
+        {'content': 'Saved.'}]
+    answer = _scripted_turn(monkeypatch, tmp_path, replies, dispatch,
+                            'remember that I applied for a GMRS license')
+    assert len(calls) == 1
+    assert 'Failed' not in answer
+    assert 'Remembered' in answer
+
+
+def test_refusal_stays_when_a_different_action_succeeds(monkeypatch, tmp_path):
+    def dispatch(name, args):
+        return 'Took off milk.'
+    replies = [
+        {'tool_calls': [{'function': {'name': 'shopping', 'arguments':
+            {'action': 'add', 'items': 'eggs', 'qty': 2}}}]},
+        {'tool_calls': [{'function': {'name': 'shopping', 'arguments':
+            {'action': 'remove', 'items': 'milk'}}}]},
+        {'content': 'Done.'}]
+    answer = _scripted_turn(monkeypatch, tmp_path, replies, dispatch,
+                            'add eggs and take milk off the shopping list')
+    assert 'Failed' in answer and 'Took off milk' in answer

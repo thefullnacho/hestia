@@ -317,11 +317,28 @@ def _short(args: dict) -> str:
     return str(sorted(args)) if isinstance(args, dict) else "invalid"
 
 
-def _act(trace: TurnTrace, name: str, result: ToolResult) -> None:
+def _act(trace: TurnTrace, name: str, result: ToolResult, kind: str = '') -> None:
     """Record one action outcome, keeping the tool's name beside it for the client's receipts.
-    ToolResult itself stays name-free because its JSON is what the model reads back."""
+    ToolResult itself stays name-free because its JSON is what the model reads back.
+
+    `kind` is the call's op or action. A call refused for its arguments never ran, so when a
+    later call of the same tool and kind succeeds, the refusal is dropped: otherwise the reply
+    reads "Failed: ..." over a write that landed, and the model, reading that back next turn,
+    believes it failed (Inkling 2 Mini, 2026-11-22: `category` for `type`, retried, saved)."""
+    if result.status == 'succeeded':
+        keep = [i for i, r in enumerate(trace.receipts)
+                if not (r.get('rejected') and r['tool'] == name and r.get('kind') == kind)]
+        trace.actions[:] = [trace.actions[i] for i in keep]
+        trace.receipts[:] = [trace.receipts[i] for i in keep]
     trace.actions.append(result)
-    trace.receipts.append({"tool": name, "status": result.status, "text": result.data})
+    entry = {"tool": name, "status": result.status, "text": result.data}
+    if result.error_code == 'invalid_arguments':
+        entry |= {"rejected": True, "kind": kind}
+    trace.receipts.append(entry)
+
+
+def _kind(args) -> str:
+    return str(args.get('op') or args.get('action') or '') if isinstance(args, dict) else ''
 
 
 _TOO_SLOW = "Sorry — that took too long to pull together (a backend was slow). Try again in a moment?"
@@ -680,6 +697,7 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
                     convo.append({"role": "tool", "tool_name": name, "content": rejected.message()})
                     continue
             error = validate(name, args, schemas)
+            code = 'invalid_arguments' if error else 'invalid_or_disallowed'
             if not error and mutation(name, args) and (trace := _trace.get()):
                 if any(a.status == 'unknown' for a in trace.actions):
                     error = 'A previous write has an unknown outcome; further writes were stopped. Check operation status.'
@@ -689,9 +707,9 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
                 if not re.fullmatch(r"(?:please )?confirm clear (?:the |my )?shopping list[.!]?", user_text.strip(), re.I):
                     error = 'To empty the list, say: confirm clear the shopping list.'
             if error:
-                rejected = ToolResult('failed', error, error_code='invalid_or_disallowed')
+                rejected = ToolResult('failed', error, error_code=code)
                 if trace := _trace.get():
-                    _act(trace, name, rejected)
+                    _act(trace, name, rejected, _kind(args))
                 convo.append({'role': 'tool', 'tool_name': name, 'content': rejected.message()})
                 continue
             sig = f"{name}|{json.dumps(args, sort_keys=True, default=str)}"
@@ -731,7 +749,7 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
             fact = receipt(name, args, result, outcome,
                            operation_store.digest([trace.request_id, name, args]) if trace else '')
             if trace and mutation(name, args):
-                _act(trace, name, fact)
+                _act(trace, name, fact, _kind(args))
             seen[sig] = fact.message()
             last_result = str(result)
             convo.append({"role": "tool", "tool_name": name, "content": context_budget.evidence("tool result " + name, fact.message(), TOOL_RESULT_BYTES)})

@@ -27,6 +27,11 @@ A light switch is held to the person's words (`guards.said_words`): said only "o
 A call that contradicts them is not run and goes back to the model, which can call again.
 Tool results carry succeeded/failed/unknown status. Writes return backend receipts,
 including partial or unknown outcomes, instead of trusting a model's success claim.
+A call refused for its arguments (a field the schema doesn't have, a wrong type) never ran,
+so when the same tool and op or action then succeeds in that turn, the refusal is dropped from
+the receipts. Before 2026-11-22 the reply read "Failed: ..." over a memory that had saved,
+and the next turn, reading that back, kept promising to retry. Guard refusals (a light against
+the person's words, an unconfirmed clear, writes stopped after an unknown outcome) always stay.
 When no tool ran at all, a reply that still claims an action ("Reminder #23 set", "imported
 into your recipe collection") is replaced with a plain "I didn't actually do that", logged as
 `UNDONE CLAIM`, and kept out of the thread so the next turn can't copy it. Advice, offers and
