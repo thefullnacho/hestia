@@ -29,9 +29,11 @@ SCHEMA = {
     "type": "function",
     "function": {
         "name": "search",
-        "description": ("Look something up on the web when the answer isn't about the house, "
-                        "media library, or saved memory — current events, facts, prices, docs, "
-                        "how-tos, anything outside your own knowledge or that may have changed. "
+        "description": ("Look something up on the web: current events, prices, regulations, "
+                        "current products, documentation, anything that may have changed or that "
+                        "you don't actually know, or whenever the user asks you to look it up. "
+                        "Not for settled general knowledge you already have, and not before the "
+                        "house's own records, memory and library. "
                         "action='search' returns top results with snippets; action='fetch' reads "
                         "the full text of one result URL when a snippet isn't enough. Prefer search "
                         "first, then fetch a promising URL only if you need detail."),

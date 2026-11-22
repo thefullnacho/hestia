@@ -82,6 +82,21 @@ question words, and treats pins as tie-breakers only after a relevant match. Inj
 memories include record ID, source and last-seen date. No embedding service was added;
 semantic retrieval remains a measured follow-up if lexical misses warrant it.
 
+### Where an answer comes from, 2026-11-22
+
+The prompt sets an order: the house first (records and memory for the household, the library
+for its subjects), then the model's own knowledge for settled general questions, and the web
+last, for things that change, things it doesn't know, or when asked. An answer from its own
+knowledge where current details could matter says so and offers to check. Until this date the
+prompt said to search "anything outside the house" and "don't guess at things you can look up";
+Gemma loosely ignored it, and Inkling 2 Mini, which follows it literally, searched "what do you
+know about off-grid radios" and hung on a slow SearXNG. On Inkling, three runs each: general
+radio questions went from search 9/9 to answered directly (or the library, for off-grid radios,
+which the emergency preparedness shelf covers); canning and water treatment stayed on the
+library; a price and a news question still searched; key-match 100% (11/11). Gemma is not yet
+re-measured on the new wording. A library lookup that comes back empty is also how holes in
+the shelf show up.
+
 ## Latency and streaming
 
 `HESTIA_TURN_BUDGET` covers context preparation and all model/tool rounds. New
