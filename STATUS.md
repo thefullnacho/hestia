@@ -7,6 +7,67 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-22 - links, thinking, a cleaner shelf, off-site on a storage box, and a house that lost its DNS
+
+All on `main`; live brain restarted after `84e7837`. Test box tree at `2d2fdca`.
+
+- **App fixes (11-06):** the iPhone app shows the page's alert/confirm/prompt (delete and clear
+  conversation were dead, `515b632`); recipe and queue pages get the app's bar with menu and back
+  and clear the notch (`bcb49b5`); the ember replaces the status dot and sits beside each reply
+  (`0858962`). Receipt pieces with their boxes go to the box, kept only with
+  `HESTIA_RECEIPT_SAMPLES=1` (test box on), for tuning the row joining on real receipts.
+- **Library (11-07):** junk passages dropped (82 of 1,799), unmapped characters read as spaces
+  (140 canning passages), a book in several files is one source, search is one matrix product
+  (book scale: 13 ms instead of ~0.8 s), `library_store.py overlap` lists sources that say the
+  same thing. 200-question eval unchanged for vectors (`ecb843d`).
+- **Chat (11-16):** a thinking button for the next message on Gemma, 4,096 tokens and 150 s
+  (`a33658b`; the turn's hard 45 s cap fixed in `21f26b6`). Web answers end with their sources.
+  A pasted link is read by code before the model answers and cited; redirects followed hop by
+  hop, each hop public-only; routing reads what was typed, never the page; a bare link gets no
+  tools (decided and recorded in SECURITY.md and CLAUDE.md invariant 5, with the search tool
+  itself). A pasted recipe becomes a draft made by code with a review link, after Gemma claimed
+  an import it never did (`84e7837`); new-window links load in the iPhone app (`230837d`).
+- **Pilot box:** Pi 5 + NVMe built, fresh OS on the SSD, 10-minute stress test clean
+  (51.6 C, never throttled, no NVMe errors). The bench Pi's work is backed up first. Intake from
+  the household's first call is in; setup waits on their Tailscale account and an enclosure.
+- **Mozilla Human-Scale AI incubator:** application submitted 11-17 (the feed found the call).
+  Answer by 2027-02-28.
+- **hl-relay incident (found 11-17):** the 11-08 reboot left `/etc/resolv.conf` linked to a file
+  that no longer existed, so every container lost outside DNS for nine days while the host and
+  house DNS looked fine. Replaced with a real file; containers restarted by name. The feed now
+  fails its run and alerts when every search comes back empty (`b9d7a17`). Also retired on
+  hl-relay: two leftover PM2 setups (one crash-looping ~410k times, one an armed Cloudflare
+  tunnel; tunnel deleted at Cloudflare and its credentials removed). A media server found
+  unclaimed was re-claimed.
+- **Storage mirror on hl-relay:** ZFS mirror for household files and laptop backups, sanoid
+  snapshots, Samba (LAN + tailnet only, SMB3, no guests), a private photos share with its own
+  login. Reboot test passed.
+- **Off-site moves to a storage box:** Hestia's restic history (167 snapshots) copied and proved
+  by restoring a night's database; the household files go nightly from their newest ZFS snapshot
+  (`tank-offsite`, `c53a616`), restore test byte-identical. The box keeps its own daily snapshots.
+- **The old rented server retires 2026-12-08:** a small VPS now runs the nightly pull and the
+  watchdog (both proven); both machines run them until the cancel date.
+
+In flight: the household's first Time Machine backup (~1 TB over Wi-Fi). The first nights of the
+VPS pull and watchdog. The feed's first clean nights since the DNS fix.
+
+Next action (mine): after the dedi's overlap, archive its ntfy setup to the storage box and stop
+its pull and watchdog; then the broader model eval (tool choice through the phone path, library
+answers that need two guides, Gemma beside LFM), seeded from the overlap pairs.
+
+`[non-production]` Build and install the iPhone app on the Mac (dialogs, receipt pieces,
+new-window links), then scan ~15 receipts (stores, invoices, long, crumpled, some that work).
+`[non-production]` Pilot household: their Tailscale account and phone type; enclosure
+measurements and print (re-run the stress test inside it); the USB drive formatted on the Pi;
+their appliance manuals pulled by label model number.
+`[non-production]` Hetzner Cloud firewall: delete the VPS's inbound SSH rule (tailnet login
+works).
+`[non-production]` After the first Time Machine backup finishes: raise the Time Machine cap to
+~2 TB; the household share at home through the `.local` name; clear laptop and external
+originals once the copy is checked.
+`[non-production]` Office UPS model and data port, for the phone-mode outage switch.
+`[non-production]` A post: the feed's results (about half the picks hearted, the grant call).
+
 ## 2026-11-05 - phone loop proven, branch merged, pilot box, and a house that knows its shelf
 
 All on `main` and deployed (live brain at `b343523`).
