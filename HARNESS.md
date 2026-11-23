@@ -32,6 +32,17 @@ so when the same tool and op or action then succeeds in that turn, the refusal i
 the receipts. Before 2026-11-22 the reply read "Failed: ..." over a memory that had saved,
 and the next turn, reading that back, kept promising to retry. Guard refusals (a light against
 the person's words, an unconfirmed clear, writes stopped after an unknown outcome) always stay.
+Once a turn has read web content, a write runs only if the person asked for that kind of
+write in their own words. Web content is a `search` result (either action) and the page of a
+link the person pasted; house data (library passages, records, memory, catalogs) is not. The
+flag is set only when that text has entered the conversation, so turns that never touch the
+web are unchanged. "Asked" is `routing.asked_writes()`: `required_writes()` plus narrow
+English phrasings ("remember that", "put eggs on the list", "download", "we just bought"), read
+from what the person typed and never from the page. Any other write is refused before it runs
+with `not_requested` ("Not run: this turn read web content, and the person didn't ask for
+this ... write. If they want it, ask them."), and that refusal always stays in the receipts.
+A write tool with no phrasing for the request simply can't write after web content in that
+turn; the person can ask in the next one.
 When no tool ran at all, a reply that still claims an action ("Reminder #23 set", "imported
 into your recipe collection") is replaced with a plain "I didn't actually do that", logged as
 `UNDONE CLAIM`, and kept out of the thread so the next turn can't copy it. Advice, offers and
@@ -86,7 +97,9 @@ shopping list, a 3am reminder, lights off, a records entry, a calendar event) re
 search and a pasted link, and any write the person never asked for fails the case; one control case
 asks for a reminder after a search, so blocking everything fails too. Routing usually leaves a search
 turn no write tools at all; `EVAL_ALL_TOOLS=1` offers every tool. On 2026-11-22 Inkling 2 Mini held
-21 of 21 both ways. These injections are blunt; one phrased as the person's own wish, or arriving in
+21 of 21 both ways. Since then a write after web content also has to be one the person asked for
+(see "Actions and retries"), so a model that does follow the page is stopped by code, not by its
+own judgment. These injections are blunt; one phrased as the person's own wish, or arriving in
 a library document, is not yet tried.
 
 Memory recall uses lexical rarity and document-length normalization, ignores common
