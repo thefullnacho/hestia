@@ -2,7 +2,8 @@
 // Each section can fail on its own (HA down, calendar unreachable) without blanking the rest.
 // On top, while the note-taker has proposals waiting, a card to keep or drop each one: nothing
 // is remembered until a person taps Keep (POST /api/memory/inbox, memory_api.py). Below it, items a
-// receipt proposed (receipts.py), kept into the inventory the same way (receipts_api.py).
+// receipt proposed (receipts.py), kept into the inventory the same way (receipts_api.py), and
+// house docs the model drafted (docs_store.py), kept into the library the same way (docs_api.py).
 'use strict';
 
 (() => {
@@ -11,6 +12,9 @@
   let inbox = null;   // GET /memory/inbox, or null when it could not be read
   const INV_HEADERS = { 'Content-Type': 'application/json', 'X-Hestia-Inventory': '1' };
   let receiptItems = null;   // GET /api/inventory/receipt-items, or null
+  const DOC_HEADERS = { 'Content-Type': 'application/json', 'X-Hestia-Docs': '1' };
+  let houseDocs = null;      // GET /api/docs/proposed, or null
+  const KIND = { guide: 'Guide', account: 'Account', note: 'Note' };
   const amountOf = (r) => r.qty == null ? 'some' : (r.unit ? r.qty + ' ' + r.unit : String(r.qty));
   const day = (iso) => iso ? new Date(iso + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 
@@ -60,6 +64,61 @@
         '</div>';
     }
     return h;
+  }
+
+  function docCards() {
+    if (!houseDocs || !houseDocs.length) return '';
+    return houseDocs.map(d =>
+      '<div class="card doc-card" data-doc="' + d.id + '"><h2>A house doc to keep</h2>' +
+      '<p class="meta" style="margin:0 0 10px">' + esc(KIND[d.kind] || d.kind) +
+      (d.about ? ' about ' + esc(d.about) : '') + (d.page_cite ? ', pinned to ' + esc(d.page_cite) : '') +
+      '. Nothing goes into the library until you keep it.' +
+      (d.revises_title ? ' Keeping it replaces “' + esc(d.revises_title) + '”.' : '') + '</p>' +
+      '<div class="doc-view"><div class="mem-text"><strong class="doc-title">' + esc(d.title) + '</strong></div>' +
+      '<div class="mem-text doc-body" style="white-space:pre-wrap;margin-top:6px">' + esc(d.body) + '</div>' +
+      (d.sources && d.sources.length ? '<div class="meta" style="margin-top:6px">Sources: ' + d.sources.map(esc).join('; ') + '</div>' : '') +
+      '</div><p class="t-err" data-err hidden></p>' +
+      '<div class="mem-actions"><button class="btn" data-doc-act="discard">Not this</button>' +
+      '<button class="btn" data-doc-act="edit">Edit</button>' +
+      '<button class="btn primary" data-doc-act="keep">Keep</button></div></div>').join('');
+  }
+
+  async function docPost(id, act, payload) {
+    const r = await fetch('/api/docs/' + id + '/' + act, { method: 'POST', headers: DOC_HEADERS, body: JSON.stringify(payload || {}) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+
+  async function onDoc(e) {
+    const btn = e.target.closest('button[data-doc-act]');
+    if (!btn) return;
+    const card = btn.closest('.doc-card');
+    const id = Number(card.dataset.doc);
+    const act = btn.dataset.docAct;
+    const err = card.querySelector('[data-err]');
+    if (act === 'edit') {
+      const d = houseDocs.find(x => x.id === id);
+      card.querySelector('.doc-view').innerHTML =
+        '<label class="g-label">Title<input class="g-input" data-f="title" value="' + esc(d.title) + '"></label>' +
+        '<label class="g-label">Doc<textarea class="g-input" data-f="body" rows="12">' + esc(d.body) + '</textarea></label>';
+      btn.hidden = true;
+      card.querySelector('[data-doc-act="keep"]').textContent = 'Keep my version';
+      return;
+    }
+    const buttons = card.querySelectorAll('button');
+    buttons.forEach(b => { b.disabled = true; });
+    try {
+      const f = (n) => card.querySelector('[data-f="' + n + '"]');
+      const payload = act === 'keep' && f('title') ? { title: f('title').value, body: f('body').value } : {};
+      await docPost(id, act === 'keep' ? 'keep' : 'discard', payload);
+      houseDocs = houseDocs.filter(x => x.id !== id);
+      card.remove();
+    } catch (ex) {
+      buttons.forEach(b => { b.disabled = false; });
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
   }
 
   async function receiptPost(path, payload) {
@@ -150,7 +209,7 @@
   }
 
   function render(t) {
-    let h = memoryCard() + receiptCards();
+    let h = memoryCard() + docCards() + receiptCards();
 
     const rem = t.reminders || {};
     h += card('Reminders', failed(rem) || list((rem.items || []).map(r =>
@@ -213,12 +272,14 @@
     // The review queue loads beside /today, never instead of it: either can fail alone.
     const inboxReq = fetch('/memory/inbox?limit=20').then(r => r.ok ? r.json() : null).catch(() => null);
     const receiptReq = fetch('/api/inventory/receipt-items').then(r => r.ok ? r.json() : null).catch(() => null);
+    const docsReq = fetch('/api/docs/proposed').then(r => r.ok ? r.json() : null).catch(() => null);
     try {
       const r = await fetch('/today');
       if (!r.ok) throw new Error('today ' + r.status);
       const t = await r.json();
       inbox = await inboxReq;
       receiptItems = (await receiptReq)?.items || null;
+      houseDocs = (await docsReq)?.docs || null;
       render(t);
     } catch (e) {
       body().innerHTML = '<div class="empty">Couldn’t load today: ' + esc(e.message) +
@@ -231,5 +292,6 @@
     document.getElementById('todayRefresh').addEventListener('click', refresh);
     body().addEventListener('click', onMemory);
     body().addEventListener('click', onReceipt);
+    body().addEventListener('click', onDoc);
   });
 })();

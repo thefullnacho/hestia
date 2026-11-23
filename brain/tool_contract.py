@@ -12,6 +12,7 @@ MUTATIONS = {
     'reminder': {'create', 'cancel'}, 'shopping': {'add', 'remove', 'clear'},
     'calendar': {'add'}, 'goals': {'propose', 'done'},
     'inventory': {'add', 'use', 'count', 'move'},
+    'doc': {'propose'},
 }
 REQUIRED = {
     ('home', 'turn_on'): ('entity_id',), ('home', 'turn_off'): ('entity_id',),
@@ -135,6 +136,7 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
         'goals': ('Drafted goal ', 'Marked done: ', 'Already done: '),
         'home': ('Done ', 'Sent '), 'media': ('Added ', 'Queued ', 'Already '),
         'inventory': ('Logged ', 'Noted: '),
+        'doc': ('Proposed house doc ',),
     }
     if (text.startswith(success.get(name, ())) or
             (name == 'media' and 'is already in the library' in text and 'search' in text)):
@@ -144,6 +146,9 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
         return ToolResult('failed', text, operation_id, 'invalid_target_or_time')
     if name == 'goals' and text.startswith(('Error', 'No open goal step', 'Which step')):
         return ToolResult('failed', text, operation_id, 'invalid_target_or_time')
+    if name == 'doc' and text.startswith('Error'):
+        # docs_store checks everything before its insert: a refusal stored nothing.
+        return ToolResult('failed', text, operation_id, 'invalid_arguments')
     return ToolResult('unknown', text, operation_id, 'unverified_write')
 
 

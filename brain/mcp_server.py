@@ -53,6 +53,7 @@ AUDIT = Path(os.environ.get("HESTIA_MCP_AUDIT") or config.DATA_DIR / "mcp_audit.
 # guards it, so adding a tool to the brain forces a decision about whether the operator gets it.
 READ_ONLY: dict[str, tuple[str, tuple[str, ...]] | None] = {
     "calendar": ("action", ("show",)),
+    "doc": ("action", ()),   # only proposes; with writes off it is not offered at all
     "goals": ("action", ("list", "show")),
     "home": ("action", ("get_state",)),
     "inventory": ("action", ("find", "list")),
@@ -104,6 +105,8 @@ def _exposed() -> list[dict]:
         gate = GATES[name]
         if gate and not writes_enabled():
             arg, allowed = gate
+            if not allowed:
+                continue              # a tool that only writes has nothing to show read-only
             schema["function"]["parameters"]["properties"][arg]["enum"] = list(allowed)
             schema["function"]["description"] = "(read-only here) " + schema["function"]["description"]
         out.append(schema)

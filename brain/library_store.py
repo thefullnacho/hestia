@@ -172,6 +172,10 @@ def meta_of(first_pages: str) -> tuple[str | None, int | None]:
 
 
 SCAN_PREFIX = "phone:"
+# House docs (docs_store.py): pages the household kept, filed by code on Keep. Like phone scans,
+# they are not files in the folder, so the folder ingest must never remove them.
+HOUSE_PREFIX = "house:"
+NOT_FILES = (SCAN_PREFIX, HOUSE_PREFIX)
 _SCAN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{7,63}")   # the app's own id for the document (a UUID)
 MAX_SCAN_PAGES = 300
 MAX_SCAN_CHARS = 2_000_000
@@ -217,6 +221,22 @@ def remove_scanned(doc_id: str) -> bool:
     return bool(found)
 
 
+def remove_house_doc(doc_id: int) -> bool:
+    """Drop a house doc's passages (a replaced version). True if there was one."""
+    file = f"{HOUSE_PREFIX}{int(doc_id)}"
+    with _conn() as c:
+        found = c.execute("SELECT 1 FROM library_docs WHERE file = ?", (file,)).fetchone()
+        _drop(c, file)
+    return bool(found)
+
+
+def file_for_title(title: str) -> str | None:
+    """The indexed file whose title is exactly this one (case-insensitive), for a page anchor."""
+    row = _conn().execute("SELECT file FROM library_docs WHERE lower(title) = lower(?) LIMIT 1",
+                          (" ".join(str(title).split()),)).fetchone()
+    return row["file"] if row else None
+
+
 def manifest(folder: Path | None = None) -> dict:
     path = (folder or LIBRARY_DIR) / "library.toml"
     return tomllib.loads(path.read_text()) if path.exists() else {}
@@ -230,7 +250,7 @@ def index_doc(file: str, pages: list[str], pdf_title: str | None = None,
     title = fix.get("title") or title_of(file, pdf_title)
     year = fix.get("year", year)
     parts = chunks(clean_pages(pages))
-    if not file.startswith(SCAN_PREFIX):
+    if not file.startswith(NOT_FILES):
         parts = [(page, text) for page, text in parts if not is_junk(text)]
     source = " ".join(str(fix.get("source") or "").split()) or None
     with _conn() as c:
@@ -325,10 +345,10 @@ def ingest(folder: Path = LIBRARY_DIR, force: bool = False) -> dict:
             del files[name]
             report["skipped"].append(name)
     with _conn() as c:
-        # Only the folder's own PDFs: documents the phone filed are not files in the folder.
+        # Only the folder's own PDFs: phone scans and house docs are not files in the folder.
         known = {r["file"]: (r["size"], r["mtime"])
                  for r in c.execute("SELECT file, size, mtime FROM library_docs")
-                 if not r["file"].startswith(SCAN_PREFIX)}
+                 if not r["file"].startswith(NOT_FILES)}
         for gone in set(known) - set(files):
             _drop(c, gone)
             report["removed"] += 1

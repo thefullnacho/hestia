@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import re
 
+import docs_store
 import library_store
 
 K = 5
@@ -100,6 +101,12 @@ def execute(query: str) -> str:
                 "you know, or search if it's something that changes. Hestia adds a note that the "
                 "shelf had nothing, so don't mention the library yourself.")
     lines = [f"[{i}] {cite(p)}\n{p['text']}" for i, p in enumerate(hits, 1)]
+    notes = docs_store.notes_for_pages([(p["file"], p["page"]) for p in hits])
+    if notes:
+        lines.append("House notes on these pages (the household's own, kept by a person; they add to "
+                     "the publication, say so when you use one):\n" + "\n".join(
+                         f"- On {n['page_cite']}, kept {n['decided'][:10]}: {n['title']}. {n['body'][:600]}"
+                         for n in notes))
     head = ("Library passages (cite as: title, page). Answer only from these; if they don't cover "
             "the question, say the library doesn't. If a passage is about a different plant, animal "
             "or situation than the one asked about, say so before drawing on it.")

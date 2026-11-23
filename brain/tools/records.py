@@ -21,6 +21,7 @@ import datetime as dt
 import json
 
 import breeding_followups
+import docs_store
 import records_store as store
 
 SCHEMA = {
@@ -320,6 +321,8 @@ def execute(action: str, name: str | None = None, kind: str | None = None,
                 out.append("  paired with: " + ", ".join(p["pairings"]) + tail)
             if p["relations"]:
                 out.append("  relations: " + "; ".join(f"{r['rel']} {r['other']}" for r in p["relations"]))
+            for d in docs_store.docs_about(p["id"])[:5]:
+                out.append(f"  house {d['kind']} (kept {d['decided'][:10]}): {d['title']}. {d['body'][:400]}")
             if p["recent"]:
                 out.append("  recent: " + "; ".join(
                     f"{e['ts'][:10]} {e['kind']}" + (f" {e['action']}" if e["action"] else "") for e in p["recent"]))

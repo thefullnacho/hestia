@@ -186,7 +186,7 @@ guides, two tick guides, drought and irrigation, the bedding-plant pest and fung
 the survival manual and the drinking-water sheet). Those pairs seed the multi-source questions
 for the answer eval: a good answer there needs both guides.
 
-## House docs (spec, 2026-11-22, decided, not built)
+## House docs (spec 2026-11-22; first slice built 2026-11-23)
 
 The shelf holds other people's manuals. House docs are the household's own pages, written by the
 model on request and kept only when a person approves: a lighter cousin of goals, where the model
@@ -247,3 +247,21 @@ claims, cites only passages it was shown, and links `about` to a real entity.
 
 **Decided 2026-11-22.** Notes anchor to an entity plus an optional page, not to a passage. Kept
 docs get a one-way `.md` copy in their own folder; the database stays the source of truth.
+
+**First slice, 2026-11-23.** Built as specced: `docs_store.py`, `tools/doc.py`, `docs_api.py`, the
+Today card, Keep into the library with the `.md` copy, revisions, notes pinned to a page arriving
+with library answers, and kept docs listed in a records lookup. The folder ingest used to drop
+every indexed document that wasn't a PDF in the folder except phone scans; house docs are spared
+the same way now (`library_store.NOT_FILES`). Not yet built: the yearly "still true?" card, house
+docs in the app's Library view. On the MCP server `doc` is offered only with writes on; with no
+library turn behind it, a proposal from there can't list sources.
+
+Probe (`eval_docs.py`, ten requests across the three kinds, Gemma 4 12B, two runs each): 0 of 20 at
+first, every one an eval artifact or a harness gap, then 19 of 20. What it found: the eval fixtures
+didn't pass `doc` through; a "one-page guide" missed the routing words (a hyphen); Gemma said a GMRS
+card was "waiting on the Today page" without calling the tool, so doc requests joined
+`required_writes` and get the missing-write retry; a refused proposal read as an unknown outcome,
+which blocked the retry; and Gemma looked the generator up, then left `about` off the note even
+after the error said to pass it, so a note that names exactly one records entity takes it, by plain
+name match, shown on the card. The one remaining miss: a generator failure written up as a note
+about the generator instead of an account, once in two.

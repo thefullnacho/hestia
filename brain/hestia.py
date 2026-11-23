@@ -62,6 +62,7 @@ import recipe_import  # noqa: E402
 import recipe_drafts  # noqa: E402
 import receipts  # noqa: E402
 import receipts_api  # noqa: E402
+import docs_api  # noqa: E402
 import library_store  # noqa: E402
 import goals_store  # noqa: E402
 import review_notes  # noqa: E402
@@ -371,11 +372,14 @@ async def _run_tool(name: str, args: dict, budget: float) -> tuple[str, str]:
         except Exception:  # noqa: BLE001 — a status line must never cost the tool call
             pass
     source = _recipe_source.get()
+    citations = list(trace.citations) if (trace := _trace.get()) else []
     def dispatch(tool_name, tool_args):
         token = tools.recipe.SOURCE_CONTEXT.set(source)
+        cited = tools.doc.CITATIONS.set(citations)   # a doc may cite only what the library returned
         try:
             return tools.dispatch(tool_name, tool_args)
         finally:
+            tools.doc.CITATIONS.reset(cited)
             tools.recipe.SOURCE_CONTEXT.reset(token)
     started = time.monotonic()
     try:
@@ -1905,3 +1909,4 @@ app.include_router(recipe_review.router(_organize_recipe_source))
 app.include_router(goals_api.router())
 app.include_router(memory_api.router())
 app.include_router(receipts_api.router())
+app.include_router(docs_api.router())

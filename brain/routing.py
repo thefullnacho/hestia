@@ -68,6 +68,10 @@ INTENT_TOOLS = {
     'home': r"\b(?:light|lights|lamp|lamps)\b|\bturn\b[^.!?]{0,120}\b(?:on|off)\b",
     'reminder': r"\b(?:remind|reminder|timer|alarm)\b",
     'goals': r"\bgoals?\b|\bmilestones?\b|\bplan (?:out|for)\b|\bmake a plan\b",
+    # House docs (docs_store.py): a write-up, a card, a checklist, a note on something owned.
+    'doc': r"\b(?:write (?:it |that |this )?up|write-up|writeup|(?:make|draft|write|put together|create) "
+           r"(?:me |us )?(?:a |an )?(?:[\w-]+ ){0,3}(?:doc|document|page|card|checklist|guide|cheat ?sheet)|"
+           r"add (?:a )?note (?:to|on|about)|house docs?)\b",
     'calendar': r"\b(?:calendar|schedule|scheduled|appointment|appointments|event|events|birthday|birthdays|anniversary|coming up|this week|next week|weekend)\b",
     'shopping': r"\b(?:shopping|grocery|groceries|out of|buy)\b|\badd\b.+\blist\b",
     'memory': r"\b(?:remember|recall|preference|prefer|previously told)\b",
@@ -126,6 +130,9 @@ def required_writes(text: str) -> set[str]:
         'reminder': start + r"(?:remind me|set (?:a |an )?(?:timer|reminder))\b",
         'shopping': start + r"add\b[^.!?]*\b(?:shopping|grocery) list\b",
         'calendar': start + r"(?:add|put|schedule)\b[^.!?]*\bcalendar\b",
+        'doc': start + (r"(?:write (?:it |that |this )?up|(?:make|draft|write|put together|create) "
+                        r"(?:me |us )?(?:a |an )?(?:[\w-]+ ){0,3}(?:doc|document|page|card|checklist|guide|"
+                        r"cheat ?sheet)|add (?:a )?note (?:to|on|about))\b"),
     }
     found = {name for name, pattern in patterns.items() if re.search(pattern, text, re.I)}
     # The home tool only actuates lights: "turn on the news" is not a write it could attempt.
@@ -169,6 +176,9 @@ _ASKED = {
                  r"used (?:up|the last|the rest|half|some|all|a bit|a few|\d)|put (?:the|it|them|\d))\b|"
                  r"\b(?:add|log)\b[^.!?]{0,60}\binventory\b|\bwe(?:'re| are) (?:out of|down to|low on)\b|"
                  r"\bwe have (?:\d+|a few|a couple|some|two|three|four|five|six|a dozen)\b",
+    'doc': r"\b(?:write (?:it |that |this )?up|write-up|writeup|(?:make|draft|write|put together|create) "
+           r"(?:me |us )?(?:a |an )?(?:[\w-]+ ){0,3}(?:doc|document|page|card|checklist|guide|cheat ?sheet)|"
+           r"add (?:a )?note (?:to|on|about)|house docs?)\b",
     'goals': r"\b(?:make|draft|propose|set up|create|start)\b[^.!?]{0,40}\b(?:goal|plan)\b|"
              r"\bplan (?:out|for)\b|\b(?:mark|check off)\b[^.!?]{0,60}\b(?:done|complete|finished)\b|"
              r"\b(?:i|we) (?:just |finally )?(?:finished|ordered|built|completed)\b",
@@ -219,6 +229,8 @@ def request_schemas(user_text: str) -> list:
     if plan['garden_topic']:
         allow.update(('home', 'weather', 'records', 'library'))
     allow.update(explicit)
+    if 'doc' in allow:
+        allow.update(('library', 'records'))   # a doc draws on the shelf and the house's own records
     # "Finally ordered the heater" names no goal, but it finishes an open step: offer the tool
     # when the words overlap one. A local read; an empty allow set already means every tool.
     if allow and 'goals' not in allow and finishes_open_step(query):

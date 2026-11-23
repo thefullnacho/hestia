@@ -65,7 +65,9 @@ def test_the_read_only_table_names_real_arguments_and_real_actions():
 
 def test_read_only_offers_only_the_tables_tools_with_each_enum_narrowed():
     offered = listed()
-    assert set(offered) == set(mcp_server.GATES) and "search" not in offered
+    # A tool that only writes (doc) has nothing to show read-only, so it isn't listed at all.
+    readable = {n for n, g in mcp_server.GATES.items() if g is None or g[1]}
+    assert set(offered) == readable and "search" not in offered and "doc" not in offered
     assert offered["records"]["inputSchema"]["properties"]["action"]["enum"] == ["recent", "entity", "due"]
     assert offered["memory"]["inputSchema"]["properties"]["op"]["enum"] == ["recall"]
     assert offered["records"]["description"].startswith("(read-only here)")

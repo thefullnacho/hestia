@@ -23,7 +23,8 @@ HEADER = "X-Hestia-Memory"
 MAX_BODY = 16 * 1024
 
 
-async def body_json(request: Request, header: str = HEADER, what: str = "review what Hestia remembers") -> dict:
+async def body_json(request: Request, header: str = HEADER, what: str = "review what Hestia remembers",
+                    limit: int = MAX_BODY) -> dict:
     """The guard on the app's review writes (memory here, receipts in receipts_api): the page's own
     header, the same origin, a JSON object of bounded size."""
     if request.headers.get(header) != "1":
@@ -34,7 +35,7 @@ async def body_json(request: Request, header: str = HEADER, what: str = "review 
     if request.headers.get("content-type", "").split(";")[0] != "application/json":
         raise ValueError("Expected JSON from the app.")
     raw = await request.body()
-    if len(raw) > MAX_BODY:
+    if len(raw) > limit:
         raise ValueError("Request too large.")
     data = json.loads(raw or b"{}")
     if not isinstance(data, dict):
