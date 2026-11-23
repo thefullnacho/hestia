@@ -185,3 +185,49 @@ The overlap report also shows where the shelf repeats itself (two bee guides, tw
 guides, two tick guides, drought and irrigation, the bedding-plant pest and fungicide guides,
 the survival manual and the drinking-water sheet). Those pairs seed the multi-source questions
 for the answer eval: a good answer there needs both guides.
+
+## House docs (spec, 2026-11-22, not built)
+
+The shelf holds other people's manuals. House docs are the household's own pages, written by the
+model on request and kept only when a person approves: a lighter cousin of goals, where the model
+drafts and code keeps the record. Three kinds:
+
+- **guide:** a subject, made for this house. "A GMRS card for the family" draws on Part 95 and
+  AUXFOG and adds the household's call signs, radios and meeting channel from records.
+- **account:** an event written up. "Write up what happened with the generator in the storm."
+- **note:** marginalia on something the house owns. "Add a note to the generator: the choke
+  sticks below 20F, tap it twice." The troubleshooting the manual doesn't have.
+
+**Flow.** The model calls a new `doc` tool, `action='propose'`, with a title, a kind, the body
+(plain text with simple headings, capped in length), an optional `about` (a records entity) and
+the sources it drew on. Code checks what the model can't be trusted with: the kind is one of the
+three; `about` names an entity that exists (otherwise the reply says to register it first); every
+source is a passage the library actually returned this turn (`trace.citations`), so a doc can't
+cite a page it never saw. The proposal lands in a `house_docs` table in `hestia.db` and waits on
+Today as a card with Keep, Edit and Not this, the receipts pattern (`receipts_api.py`): one router,
+same-origin and JSON guard, no model. Nothing is on the shelf until Keep.
+
+**Keep.** A kept doc is filed through `index_doc` under `house:<id>`, the way the phone files a
+scanned paper (`add_scanned`), and embedded. It is then searchable and citable like any manual,
+cited as a house doc with its date. A note with `about` also shows when that entity is looked up
+in records. Editing a kept doc proposes a new version that replaces it on Keep; the old text stays
+in the table. `hestia.db` is already in the nightly backups, so docs are covered.
+
+**What stays in code.** Dates, the entity link, the source check, the length cap, the approval and
+the filing. The model writes the words. The claim guard already stops "I've saved that doc" with no
+call; the reply after a proposal says it's waiting on Today, never that it's filed. Under the
+untrusted-content write guard, a proposal counts as asked for when the person says "write up",
+"make a doc", "draft a page" or "add a note to".
+
+**Surfaces.** Chat proposes; Today approves; the app's Library view lists house docs beside the
+manuals. The MCP server classifies `doc` as a write (`HESTIA_MCP_WRITES=1`), so a household member's
+Claude Desktop can propose and the proposal still waits for Keep. In phone mode, drafting is model
+work and queues like the note-taker.
+
+**First slice.** The tool, the store, the Today card and Keep into the library, with tests per
+part and a probe: ten requests across the three kinds, checking that each one proposes rather than
+claims, cites only passages it was shown, and links `about` to a real entity.
+
+**Open questions.** Whether a note can also attach to a library passage (the field notes idea,
+2026-11-12) or only to a records entity at first; whether kept docs export as `.md` files beside
+the PDFs for reading outside the app.
