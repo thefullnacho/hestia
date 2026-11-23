@@ -186,7 +186,7 @@ guides, two tick guides, drought and irrigation, the bedding-plant pest and fung
 the survival manual and the drinking-water sheet). Those pairs seed the multi-source questions
 for the answer eval: a good answer there needs both guides.
 
-## House docs (spec, 2026-11-22, not built)
+## House docs (spec, 2026-11-22, decided, not built)
 
 The shelf holds other people's manuals. House docs are the household's own pages, written by the
 model on request and kept only when a person approves: a lighter cousin of goals, where the model
@@ -196,7 +196,10 @@ drafts and code keeps the record. Three kinds:
   AUXFOG and adds the household's call signs, radios and meeting channel from records.
 - **account:** an event written up. "Write up what happened with the generator in the storm."
 - **note:** marginalia on something the house owns. "Add a note to the generator: the choke
-  sticks below 20F, tap it twice." The troubleshooting the manual doesn't have.
+  sticks below 20F, tap it twice." The troubleshooting the manual doesn't have. A note attaches to
+  a records entity and may also name a library page (document and page number). When a search hit
+  lands on a page a note names, the note comes with it. Pages are the anchor, not passages:
+  passage ids change whenever the shelf is re-chunked, a page changes only when its PDF is replaced.
 
 **Flow.** The model calls a new `doc` tool, `action='propose'`, with a title, a kind, the body
 (plain text with simple headings, capped in length), an optional `about` (a records entity) and
@@ -213,6 +216,20 @@ cited as a house doc with its date. A note with `about` also shows when that ent
 in records. Editing a kept doc proposes a new version that replaces it on Keep; the old text stays
 in the table. `hestia.db` is already in the nightly backups, so docs are covered.
 
+**The file copy.** The database is the truth. On every Keep, code also writes the doc as a `.md`
+file in `data/house-docs/` (gitignored), one way: editing the file changes nothing in Hestia, and
+the next Keep overwrites it. The point is reading with the box down, printing an outage card, or
+carrying the folder on a USB stick. The folder is not `data/library/`, so a future ingest that
+reads text files can never index a doc twice.
+
+**Keeping the pile useful.** Bytes are not the risk: a doc is about 17 KB with its vectors, so a
+thousand is about 17 MB. Clutter is. Only a doc's newest version is indexed; older text stays in the
+table for history. Before a proposal is stored, code looks for a kept doc on the same entity or with
+a close title and offers the new one as a revision of it. Every house doc shares one source name, so
+the two-per-source cap keeps them from crowding out the manuals. Each doc carries its date, and a
+year after its last Keep a timer puts a "still true?" card on Today (Keep, Update, Retire): a row and
+a timer, not a model judgment. `library_store.py overlap` already finds docs that say the same thing.
+
 **What stays in code.** Dates, the entity link, the source check, the length cap, the approval and
 the filing. The model writes the words. The claim guard already stops "I've saved that doc" with no
 call; the reply after a proposal says it's waiting on Today, never that it's filed. Under the
@@ -228,6 +245,5 @@ work and queues like the note-taker.
 part and a probe: ten requests across the three kinds, checking that each one proposes rather than
 claims, cites only passages it was shown, and links `about` to a real entity.
 
-**Open questions.** Whether a note can also attach to a library passage (the field notes idea,
-2026-11-12) or only to a records entity at first; whether kept docs export as `.md` files beside
-the PDFs for reading outside the app.
+**Decided 2026-11-22.** Notes anchor to an entity plus an optional page, not to a passage. Kept
+docs get a one-way `.md` copy in their own folder; the database stays the source of truth.
