@@ -139,6 +139,56 @@ def required_writes(text: str) -> set[str]:
     return found
 
 
+# What the person asked to have written, in their own words, for the untrusted-content guard
+# (HARNESS.md, "Actions and retries"): once a turn has read a web page, a write runs only if its
+# tool is in asked_writes(). These cover phrasings required_writes() leaves out on purpose,
+# because that set also drives the missing-write nudge. Narrow English on purpose: a tool with no
+# match here simply cannot write after web content in that turn.
+_NOT = r"(?<!don't )(?<!do not )(?<!never )"
+_ASKED = {
+    'memory': _NOT + r"(?<!do you )(?<!did you )\bremember (?:that|this|it|my|our|me|we|i)\b|\bremember:|"
+              r"\bsave (?:that|this|it)\b|\bnote (?:that|this|it|down)\b|\bmake a note\b|"
+              r"\bdon'?t forget\b|\bdo not forget\b|\bkeep in mind\b",
+    'records': r"\b(?:log|record)\s+(?:that|this|it|the|a|an|my|our|today|\d)|"
+               r"\bkeep track of\b|\bstart tracking\b|\b(?:i|we) (?:just )?(?:picked|harvested)\b|"
+               r"\b(?:was|were) born\b|\bweigh(?:s|ed)\b",
+    'reminder': _NOT + r"\bremind (?:me|us)\b|\bset (?:a |an )?(?:timer|reminder|alarm)\b|"
+                r"\b(?:cancel|delete|remove|drop)\b[^.!?]{0,40}\breminders?\b",
+    'shopping': r"\b(?:add|put)\b[^.!?]{0,80}\b(?:on|to) (?:the |my |our )?(?:shopping |grocery )?list\b|"
+                r"\b(?:take|cross|remove)\b[^.!?]{0,80}\b(?:off|from) (?:the |my |our )?(?:shopping |grocery )?list\b|"
+                r"\bwe(?:'re| are) out of\b",
+    'calendar': r"\b(?:add|put|schedule)\b[^.!?]{0,80}\bcalendar\b",
+    'media': _NOT + r"\bdownload\b|"
+             r"\b(?:grab|queue(?: up)?)\b[^.!?]{0,60}\b(?:movie|film|show|series|season|episode|album|song|track|music)s?\b|"
+             r"\b(?:grab|queue(?: up)?) (?:it|that|this|them)\b|"
+             r"\badd\b[^.!?]{0,80}\b(?:movie|film|show|series|season|album|song)s?\b(?![^.!?]*\blist\b)|"
+             r"\badd\b[^.!?]{0,80}\bto (?:plex|the library|sonarr|radarr|lidarr)\b",
+    'recipe': r"\b(?:save|import|keep|add|store)\b[^.!?]{0,60}\brecipes?\b|"
+              r"\brecipe\b[^.!?]{0,40}\b(?:save|import|keep)\b|\bsave (?:that|this|it)\b",
+    'inventory': r"\b(?:i|we) (?:just |also )?(?:bought|picked up|moved|stored|counted|ran out of|"
+                 r"used (?:up|the last|the rest|half|some|all|a bit|a few|\d)|put (?:the|it|them|\d))\b|"
+                 r"\b(?:add|log)\b[^.!?]{0,60}\binventory\b|\bwe(?:'re| are) (?:out of|down to|low on)\b|"
+                 r"\bwe have (?:\d+|a few|a couple|some|two|three|four|five|six|a dozen)\b",
+    'goals': r"\b(?:make|draft|propose|set up|create|start)\b[^.!?]{0,40}\b(?:goal|plan)\b|"
+             r"\bplan (?:out|for)\b|\b(?:mark|check off)\b[^.!?]{0,60}\b(?:done|complete|finished)\b|"
+             r"\b(?:i|we) (?:just |finally )?(?:finished|ordered|built|completed)\b",
+    'home': r"\b(?:turn|switch|flip|shut)\b[^.!?]{0,120}\b(?:on|off)\b",
+}
+
+
+def asked_writes(text: str) -> set[str]:
+    """The write tools the person asked for in their own words: required_writes() plus the
+    phrasings above. Read only by the guard on writes after web content."""
+    required = required_writes(text)
+    extra = {name for name, pattern in _ASKED.items() if re.search(pattern, text, re.I)}
+    # "Turn off the news" is not a light: the home tool needs a light or a light area named.
+    areas = "|".join(map(re.escape, tools.home.light_areas()))
+    if 'home' in extra - required and not re.search(
+            r"\b(?:light|lights|lamp|lamps|it|them|everything" + (f"|{areas}" if areas else "") + r")\b", text, re.I):
+        extra.discard('home')
+    return required | extra
+
+
 def names_a_light_area(text: str, start: str) -> bool:
     """"Shut off the outside": a command whose object is one of the house's light areas and
     ends the sentence, so "kill the outside noise" or "turn on the kitchen radio" stays talk."""

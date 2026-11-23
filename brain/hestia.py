@@ -140,6 +140,7 @@ class TurnTrace:
     web_sources: list = field(default_factory=list)  # (title, url) the search tool showed this turn
     draft_line: str = ""                             # code's line when a pasted recipe became a draft
     addendum: str = ""                              # code-written lines after the model's answer
+    untrusted: bool = False                         # web text (search, a pasted page) entered this turn
 
     def usage(self) -> dict:
         return {"prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens,
@@ -338,6 +339,13 @@ def _act(trace: TurnTrace, name: str, result: ToolResult, kind: str = '') -> Non
     trace.receipts.append(entry)
 
 
+def _writes(name: str, args) -> bool:
+    """A call that changes something. records.weigh logs a puppy's weight but is not in
+    tool_contract.MUTATIONS (its receipt is read as a read's), so it is named here."""
+    return mutation(name, args) or (name == 'records' and isinstance(args, dict)
+                                    and args.get('action') == 'weigh')
+
+
 def _kind(args) -> str:
     return str(args.get('op') or args.get('action') or '') if isinstance(args, dict) else ''
 
@@ -504,6 +512,7 @@ async def _read_pasted(messages: list[dict], links: list[str], bare: bool, trace
             parts.append(f"[Hestia could not read {url}: {reason}.]")
             continue
         trace.web_sources.append(("", page["url"]))
+        trace.untrusted = True                          # the page joins the message below
         pages.append(page)
         parts.append(f"[The page at {page['url']}, read by Hestia just now"
                      + (f", titled \"{page['title']}\"" if page['title'] else "") + f":]\n{page['text']}")
@@ -592,6 +601,7 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
     total_calls = 0
     recovery_used = False
     required_writes = routing.required_writes(user_text)
+    asked_writes = routing.asked_writes(user_text)   # the person's words only, never a page's
     _log(f"start tools={[s['function']['name'] for s in schemas]}")
 
     for step in range(1, MAX_STEPS + 1):
@@ -708,6 +718,14 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
                     error = 'A previous write has an unknown outcome; further writes were stopped. Check operation status.'
             if not error:
                 error = guards.said_words(name, args, user_text, tools.home.light_areas())
+            if (not error and (trace := _trace.get()) and trace.untrusted and _writes(name, args)
+                    and name not in asked_writes):
+                # A page read this turn may be the one asking. Code holds the write to what the
+                # person typed; this refusal is never dropped from the receipts.
+                error = (f"Not run: this turn read web content, and the person didn't ask for this "
+                         f"{name} write. If they want it, ask them.")
+                code = 'not_requested'
+                _log(f"step {step} tool={name} NOT REQUESTED after web content, refused")
             if not error and name == 'shopping' and args.get('action') == 'clear':
                 if not re.fullmatch(r"(?:please )?confirm clear (?:the |my )?shopping list[.!]?", user_text.strip(), re.I):
                     error = 'To empty the list, say: confirm clear the shopping list.'
@@ -752,6 +770,8 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
                     trace.library_empty |= str(result).startswith(tools.library.EMPTY)
                 if name == "search" and outcome == "ok":
                     trace.web_sources += guards.web_sources(str(result))
+                    if not str(result).startswith("Error"):
+                        trace.untrusted = True          # its result joins the conversation below
             fact = receipt(name, args, result, outcome,
                            operation_store.digest([trace.request_id, name, args]) if trace else '')
             if trace and mutation(name, args):
