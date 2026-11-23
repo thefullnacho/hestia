@@ -97,7 +97,7 @@ def run_case(case: dict) -> tuple[bool, list[str]]:
 
 
 def main() -> None:
-    model = os.environ.get("HESTIA_OPENAI_MODEL") or os.environ.get("HESTIA_MODEL", "")
+    model = ev.backend.OPENAI_MODEL if ev.backend.BACKEND == "openai" else ev.backend.MODEL
     print(f"MODEL: {model}  (repeats={REPEATS}, {'every tool offered' if ALL_TOOLS else 'routed tools'})")
     passed = total = 0
     for case in CASES:
