@@ -147,14 +147,21 @@ def receipt(name, args, text, outcome='ok', operation_id=''):
     return ToolResult('unknown', text, operation_id, 'unverified_write')
 
 
+_WRAPPED_CALL = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.S)
+
+
 def read_call_from_text(text, schemas):
     """Recognize only a complete JSON read-call object from a native-parser miss.
 
     Never recover a mutation from prose. Writes require a native or schema-constrained
     call. Explanations, markdown and objects with extra keys are ordinary answer text.
+    A call wrapped in <tool_call> tags (Inkling 2 Mini writes these beside prose when the
+    server's parser misses them) is read from its first block, under the same rules.
     """
     if not isinstance(text, str) or len(text) > 32768:
         return None
+    if wrapped := _WRAPPED_CALL.search(text):
+        text = wrapped.group(1)
     try:
         obj = json.loads(text)
     except (ValueError, RecursionError):

@@ -21,6 +21,7 @@ K = 5
 # reading of the passages is the second gate. Set low on purpose, as a floor that turns a real
 # question away costs more than one that lets a near miss through to that second gate.
 FLOOR = float(os.environ.get("HESTIA_LIBRARY_FLOOR", "0.38"))
+EMPTY = "Nothing in the household library matches that."
 MED_NOTE = ("Medication rule: cite what these publications say about planning, supply and storage "
             "only. For a dose, a substitute, or stopping or skipping a medication, tell the user to "
             "ask their pharmacist or doctor; do not advise it yourself.")
@@ -95,8 +96,9 @@ def execute(query: str) -> str:
     if hits and hits[0].get("score") is not None and hits[0]["score"] < FLOOR:
         hits = []   # vector search ran and nothing is close: the shelf doesn't cover this
     if not hits:
-        return ("Nothing in the household library matches that. Say so plainly; do not answer "
-                "from a loosely related publication.")
+        return (EMPTY + " Don't stretch a loosely related publication to fit. Answer from what "
+                "you know, or search if it's something that changes. Hestia adds a note that the "
+                "shelf had nothing, so don't mention the library yourself.")
     lines = [f"[{i}] {cite(p)}\n{p['text']}" for i, p in enumerate(hits, 1)]
     head = ("Library passages (cite as: title, page). Answer only from these; if they don't cover "
             "the question, say the library doesn't. If a passage is about a different plant, animal "

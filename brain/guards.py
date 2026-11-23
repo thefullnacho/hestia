@@ -151,10 +151,17 @@ def web_addendum(answer: str, sources: list) -> str:
     return "Sources: " + "; ".join(picked) + "."
 
 
-def library_addendum(answer: str, citations: list, question: str) -> str:
+LIBRARY_EMPTY = "Library: nothing on this yet."
+
+
+def library_addendum(answer: str, citations: list, question: str, library_empty: bool = False) -> str:
     """Code's lines after a library answer: the source when the reply names none of the
-    passages it was given, and the pharmacist line for any dose or stopping question."""
+    passages it was given, the empty-shelf note when the library found nothing (so the reply
+    can lead with the answer and the gap still gets noticed), and the pharmacist line for any
+    dose or stopping question."""
     out = []
+    if library_empty and not citations and not re.search(r"\blibrary\b", answer, re.I):
+        out.append(LIBRARY_EMPTY)
     if citations:
         titles = [re.sub(r", (?:\d{4}, )?p\.\d+$", "", c) for c in citations]
         named = any(" ".join(t.lower().split()[:3]) in answer.lower() for t in titles)

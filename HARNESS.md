@@ -27,6 +27,10 @@ A light switch is held to the person's words (`guards.said_words`): said only "o
 A call that contradicts them is not run and goes back to the model, which can call again.
 Tool results carry succeeded/failed/unknown status. Writes return backend receipts,
 including partial or unknown outcomes, instead of trusting a model's success claim.
+A tool call the model writes as text inside `<tool_call>` tags, which the server's parser missed,
+is read from its first block under the same rule as a bare JSON call: reads run, writes never do.
+Call markup that can't run is never shown; the turn takes the native-tool-call retry instead.
+Inkling 2 Mini leaked raw markup into a reply in 3 of 12 runs of one question before this.
 A call refused for its arguments (a field the schema doesn't have, a wrong type) never ran,
 so when the same tool and op or action then succeeds in that turn, the refusal is dropped from
 the receipts. Before 2026-11-22 the reply read "Failed: ..." over a memory that had saved,
@@ -108,6 +112,15 @@ which the emergency preparedness shelf covers); canning and water treatment stay
 library; a price and a news question still searched; key-match 100% (11/11). Gemma is not yet
 re-measured on the new wording. A library lookup that comes back empty is also how holes in
 the shelf show up.
+
+The same day the prompt stopped treating every answer as suspect. Replies lead with the help and
+mention a limit at most once, only when it changes what to do; the grounding rules are scoped to
+house data and facts that change, and settled general knowledge is answered plainly. On Inkling,
+"what can't I do" phrasing in six meta and house questions (two runs each) went from 7 to 1, 6
+and 5 over three runs: a crude count, and too noisy to call a measured gain. The "I want to be
+straight about what I can't do" openers did stop. An empty library lookup is now noted by code at the end
+(`guards.LIBRARY_EMPTY`) unless the reply already says so. Inkling opens with that line anyway,
+even when told not to: a trained habit, left alone because the gap is worth seeing.
 
 ## Latency and streaming
 

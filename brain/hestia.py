@@ -136,6 +136,7 @@ class TurnTrace:
     failure: str = ""
     repair_tool: str = ""
     citations: list = field(default_factory=list)   # library passages this turn, as "title, year, p.N"
+    library_empty: bool = False   # the library ran this turn and found nothing
     web_sources: list = field(default_factory=list)  # (title, url) the search tool showed this turn
     draft_line: str = ""                             # code's line when a pasted recipe became a draft
     addendum: str = ""                              # code-written lines after the model's answer
@@ -457,7 +458,7 @@ async def run_agent(messages: list[dict], *, trace: TurnTrace | None = None) -> 
                 return trace.streamed_text + "\n" + guards.UNDONE_CLAIM
             return guards.UNDONE_CLAIM
         if answer not in _NO_LEARN and (extra := "\n".join(filter(None, (
-                guards.library_addendum(answer, trace.citations, asked[-1]['content']),
+                guards.library_addendum(answer, trace.citations, asked[-1]['content'], trace.library_empty),
                 guards.web_addendum(answer, trace.web_sources), trace.draft_line)))):
             trace.addendum = extra
             return (trace.streamed_text if trace.emitted else answer) + "\n" + extra
@@ -621,6 +622,10 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
             if recovered:
                 calls = [recovered]
                 msg['content'] = ''
+        if not calls and '<tool_call' in str(msg.get('content') or ''):
+            # Call markup that can't run (a write, malformed, or a question about code) is never
+            # shown to a person: an empty reply takes the "use a native tool call" retry below.
+            msg['content'] = ''
         if not isinstance(calls, list) or any(not isinstance(c, dict) or
                 not isinstance(c.get('function'), dict) for c in calls):
             return 'The model returned an invalid tool-call structure; nothing further was run.'
@@ -744,6 +749,7 @@ async def _agent_loop(messages: list[dict], *, asked: list[dict] | None = None,
                 trace.tools.append({"name": name, "mutation": mutation(name, args), "seconds": time.monotonic() - ts})
                 if name == "library" and outcome == "ok":
                     trace.citations += re.findall(r"^\[\d+\] (.+)$", str(result), re.M)
+                    trace.library_empty |= str(result).startswith(tools.library.EMPTY)
                 if name == "search" and outcome == "ok":
                     trace.web_sources += guards.web_sources(str(result))
             fact = receipt(name, args, result, outcome,

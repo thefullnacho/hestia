@@ -233,3 +233,40 @@ def test_refusal_stays_when_a_different_action_succeeds(monkeypatch, tmp_path):
     answer = _scripted_turn(monkeypatch, tmp_path, replies, dispatch,
                             'add eggs and take milk off the shopping list')
     assert 'Failed' in answer and 'Took off milk' in answer
+
+
+def test_wrapped_text_call_recovers_reads_only():
+    from tool_contract import read_call_from_text
+    schemas = tools.SCHEMAS
+    read = ('Let me check. <tool_call> {"name": "weather", "arguments": {"action": "rain"}} '
+            '</tool_call>')
+    assert read_call_from_text(read, schemas) == {
+        'function': {'name': 'weather', 'arguments': {'action': 'rain'}}}
+    write = ('<tool_call> {"name": "shopping", "arguments": {"action": "add", "items": "milk"}} '
+             '</tool_call>')
+    assert read_call_from_text(write, schemas) is None
+
+
+def test_call_markup_is_never_shown_to_a_person(monkeypatch, tmp_path):
+    # Inkling 2 Mini, 2026-11-22: prose plus <tool_call> blocks the server didn't parse came
+    # back as the reply. A write in markup doesn't run, and the markup doesn't reach the person.
+    calls = []
+    def dispatch(name, args):
+        calls.append(name)
+        return 'Added to the shopping list: milk.'
+    replies = [
+        {'content': 'On it. <tool_call> {"name": "shopping", "arguments": '
+                    '{"action": "add", "items": "milk"}} </tool_call>'},
+        {'content': 'Which store list should that go on?'}]
+    monkeypatch.setattr(hestia.config, 'DATA_DIR', tmp_path)
+    async def prompt(_):
+        return ''
+    monkeypatch.setattr(hestia, '_build_system_prompt', prompt)
+    monkeypatch.setattr(routing, 'request_schemas', lambda _: tools.SCHEMAS)
+    monkeypatch.setattr(tools, 'dispatch', dispatch)
+    async def chat(*_):
+        return replies.pop(0)
+    monkeypatch.setattr(backend, 'ollama_chat', chat)
+    answer = asyncio.run(hestia.run_agent([{'role': 'user', 'content': 'what do you think about milk'}]))
+    assert calls == []
+    assert '<tool_call' not in answer

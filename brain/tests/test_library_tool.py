@@ -147,3 +147,14 @@ def test_overlap_finds_sources_that_say_the_same_thing(shelf):
     assert got["junk"] == []
     assert [(p["a"], p["b"]) for p in got["pairs"]] == [("Garlic Again | Ext", "Growing Garlic | Ext")] \
         or [(p["a"], p["b"]) for p in got["pairs"]] == [("Garlic Again", "Growing Garlic")]
+
+
+def test_empty_shelf_note_is_written_by_code_not_the_model():
+    # Inkling 2 Mini opened every reply with "The library has nothing on X" when told to say
+    # so; code adds the note at the end instead, and only when the reply leaves it out.
+    assert guards.library_addendum("Keep the water in a heated base.", [], "chicken water",
+                                   library_empty=True) == guards.LIBRARY_EMPTY
+    assert guards.library_addendum("The library has nothing, but a heated base works.", [],
+                                   "chicken water", library_empty=True) == ""
+    assert guards.library_addendum("Keep the water in a heated base.", [], "chicken water") == ""
+    assert library.execute("how to grow figs").startswith(library.EMPTY)
