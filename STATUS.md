@@ -7,6 +7,54 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-22 (evening) - an Inkling trial, a shelf for radio, power and medicine, and a guard against pages that give orders
+
+All on `main` (`afd1db0`..`8ef4a3e`, plus `docs/injection-gemma` for the eval note); live brain
+restarted on each deploy and back on Gemma (`gemma4:12b`) at the end.
+
+- **Inkling 2 Mini trial:** a looping transformer served by Strata on the 5080, run as the live
+  brain through `HESTIA_BACKEND=openai` with no code changes. Key-match 82% at K=1, 100% after the
+  prompt work. It follows the prompt to the letter, which exposed three places the prompt had been
+  wrong all along. Strata is stopped; it runs a daily update check by default
+  (`STRATA_UPDATE_CHECK=0` turns it off), which would need settling before it could ever be resident.
+- **Answer order (`afd1db0`):** house first (records, memory, library), then the model's own
+  knowledge for settled questions, the web last. "Don't guess at things you can look up" is gone.
+  General radio questions went from web search 9/9 to answered directly.
+- **Refused-then-retried writes (`6c120a9`):** a call refused for bad arguments that a retry fixed
+  no longer reads "Failed:" over a write that landed (it made Inkling keep retrying a saved memory).
+- **Shelf (data only, gitignored):** 44 documents added, 13,086 passages: radio and comms (AUXFOG,
+  NIFOG, 47 CFR 95 and 97, Army FM 24-18, ATP 6-02.53, TM 11-666, NEETS 10 and 17, the Technician
+  pool, NOAA SAME), power and electronics (NEETS 1-4 and 7, FM 5-424, Reclamation's battery manual,
+  Sandia solar sizing, OSHA/CPSC/USFA safety), emergency medicine (Hesperian's three books merged
+  from chapters, ATP 4-02.11, TCCC, the Ship's Medicine Chest, JTS prolonged-care CPGs, Emergency
+  War Surgery, WHO/ICRC Basic Emergency Care, TB MED 507). Public domain or openly licensed only.
+  The prompt, the library tool and routing learned the new subjects (`36cb2c7`). Medical answers:
+  no refusals, cited, steps first then the call; the hedging was judged right and stays.
+- **Tone (`16a20db`):** replies lead with the help, a limit once; never-invent rules scoped to house
+  data and changing facts; an empty library lookup noted by code. Tool calls written as text in
+  `<tool_call>` tags now run if they're reads, and markup never reaches the person.
+- **Prompt injection:** `eval_injection.py` plants orders in pages (search and pasted links). The
+  untrusted-content guard (`202d088`): after web text enters a turn, a write runs only if the
+  person's own words asked for it (`routing.asked_writes`). Inkling tried 0 of 18 planted writes;
+  Gemma tried 6 of 18 with every tool offered, and the guard refused all 8 calls. Key-match on
+  Gemma with the new prompt: 100% at K=3.
+- **House docs spec (`486002b`, `8ef4a3e`):** guides, event accounts and equipment notes, proposed
+  by a `doc` tool, checked by code, approved on Today, filed into the library on Keep with a one-way
+  `.md` copy in `data/house-docs/`. Notes anchor to a records entity plus an optional page. Not built.
+
+Next action (mine): build the house docs first slice per LIBRARY-DESIGN.md.
+`[non-production]` Merge `docs/injection-gemma` (eval note plus this entry): `git merge --ff-only
+docs/injection-gemma && git push origin main`.
+`[non-production]` From a network that reaches nrel.gov: download NREL's small-solar and PV battery
+guides (the shelf has no 12 V DC / inverter guide and little on lithium battery banks) into
+`data/library-inbox/power/`.
+`[non-production]` Optional, in a browser: the DoD Field Antenna Handbook (DTIC ADA155204) and USMC
+MCRP 3-40.3C Antenna Handbook into `data/library-inbox/comms/`.
+`[non-production]` Drop one of the two duplicate GMRS-license memories (`user-applied-for-a-gmrs-general`
+and `-2`).
+`[non-production]` When the shelf looks right, delete `data/library-inbox/` (the staging copies,
+including the per-chapter files).
+
 ## 2026-11-22 - links, thinking, a cleaner shelf, off-site on a storage box, and a house that lost its DNS
 
 All on `main`; live brain restarted after `84e7837`. Test box tree at `2d2fdca`.
