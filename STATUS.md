@@ -7,6 +7,29 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-23 - house docs: the household's own pages, drafted by the model, kept by a person
+
+On `main` at `7028a99`; live brain restarted 10:48, `/health` lists `doc`, on `gemma4:12b`.
+
+- **House docs, first slice:** the `doc` tool proposes a guide, an account or a note on something
+  owned. Code checks the kind, the records entity (or the one records name a note mentions) and that
+  every source is a passage the library returned that turn. Proposals wait on Today (Keep, Edit, Not
+  this); Keep files into the library as `house:<id>` with a one-way `.md` copy in `data/house-docs/`,
+  and replaces the doc it revises. A note pinned to a page comes back with that page in library
+  answers; kept docs show in a records lookup. Spec and probe notes in LIBRARY-DESIGN.md.
+- **Ingest fix:** the folder ingest dropped every indexed non-PDF except phone scans, so the first
+  re-ingest would have wiped kept house docs. Spared now (`library_store.NOT_FILES`), with a test.
+- **Probe (`eval_docs.py`) on Gemma:** 0 of 20, then 19 of 20 after fixing what it exposed: a fixture
+  gap, a hyphen in the routing words, Gemma claiming a card was "waiting on Today" without calling the
+  tool (doc requests are now `required_writes`, so the missing-write retry fires), and refusals read as
+  unknown outcomes. Key-match 100% and injection 14 of 14 with the new tool in. 1086 tests.
+- Not built: the yearly "still true?" card, house docs in the app's Library view.
+
+Next action (mine): after Alex keeps a first real doc, check it in the library and `data/house-docs/`;
+then the yearly "still true?" card.
+`[non-production]` Ask Hestia for a first real house doc ("make me a GMRS card for the family") and
+keep or edit it on Today.
+
 ## 2026-11-22 (evening) - an Inkling trial, a shelf for radio, power and medicine, and a guard against pages that give orders
 
 All on `main` (`afd1db0`..`8ef4a3e`, plus `docs/injection-gemma` for the eval note); live brain
