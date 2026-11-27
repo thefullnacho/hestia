@@ -34,6 +34,12 @@ OPENAI_MODEL = os.environ.get("HESTIA_OPENAI_MODEL", MODEL)
 NUM_CTX = int(os.environ.get("HESTIA_NUM_CTX", "32768"))
 # qwen3 thinking mode: off by default (fast, no eval gain). HESTIA_THINK=1 to enable.
 THINK = os.environ.get("HESTIA_THINK", "0") not in ("0", "", "false", "False")
+# Split sampling: scoped tool rounds (routing narrowed the surface to specific tools) run at
+# TOOL_TEMPERATURE (0.0) for deterministic calls and arguments; pure synthesis (tools disabled)
+# and open-ended unscoped chat (full tool list) run at TEMPERATURE (0.6) so Gemma 4's prose and
+# reasoning stay natural. Repair rounds stay pinned at 0.
+TEMPERATURE = float(os.environ.get("HESTIA_TEMPERATURE", "0.6"))
+TOOL_TEMPERATURE = float(os.environ.get("HESTIA_TOOL_TEMPERATURE", "0.0"))
 OUTPUT_TOKENS = int(os.environ.get("HESTIA_OUTPUT_TOKENS", "768"))
 # A turn the person asked to think (the app's thinking button, Ollama only): the thinking is
 # counted against num_predict, so 768 would leave no room for the answer itself.
@@ -88,6 +94,12 @@ def openai_messages(messages: list[dict]) -> list[dict]:
     return out
 
 
+def chat_temperature(offered: list) -> float:
+    """Sampling temperature for one chat round: TOOL_TEMPERATURE when routing scoped the turn
+    to a subset of tools, TEMPERATURE for tools-disabled synthesis and unscoped chat."""
+    return TOOL_TEMPERATURE if 0 < len(offered) < len(tools.SCHEMAS) else TEMPERATURE
+
+
 async def openai_chat(messages: list[dict], schemas: list | None = None) -> dict:
     """OpenAI-compatible backend (POST /v1/chat/completions), e.g. mlx_lm.server.
 
@@ -96,9 +108,10 @@ async def openai_chat(messages: list[dict], schemas: list | None = None) -> dict
     dropped; the repair prompt text is unchanged. Selected by HESTIA_BACKEND=openai.
     """
     trace = turn_trace.get()
+    offered = tools.SCHEMAS if schemas is None else schemas
     body = {"model": OPENAI_MODEL, "messages": openai_messages(messages),
-            "tools": tools.SCHEMAS if schemas is None else schemas,
-            "stream": False, "temperature": 0.3, "max_tokens": OUTPUT_TOKENS}
+            "tools": offered,
+            "stream": False, "temperature": chat_temperature(offered), "max_tokens": OUTPUT_TOKENS}
     repair = trace.repair_tool if trace else ''
     if trace:
         trace.repair_tool = ''
@@ -192,10 +205,11 @@ async def ollama_chat(messages: list[dict], schemas: list | None = None) -> dict
     # think=False keeps qwen3 in fast mode (thinking on cost ~4s/turn for no eval gain;
     # see brain/eval_models.py — qwen3:14b no-think scored 100%/100% English at 1.5s).
     trace = turn_trace.get()
+    offered = tools.SCHEMAS if schemas is None else schemas
     body = {"model": trace.model if trace else MODEL, "messages": messages,
-            "tools": tools.SCHEMAS if schemas is None else schemas,
+            "tools": offered,
             "stream": False, "think": trace.think if trace else THINK,
-            "options": {"temperature": 0.3, "num_ctx": NUM_CTX,
+            "options": {"temperature": chat_temperature(offered), "num_ctx": NUM_CTX,
                         "num_predict": THINK_OUTPUT_TOKENS if body_think(trace) else OUTPUT_TOKENS}}
     repair = trace.repair_tool if trace else ''
     if trace:
@@ -303,7 +317,8 @@ async def text_chat(messages: list[dict], schemas: list | None = None) -> dict:
         trace.repair_tool = ''
     schema = next((s['function']['parameters'] for s in offered
                    if s['function']['name'] == repair), None) if repair else None
-    body = {"n_predict": OUTPUT_TOKENS, "temperature": 0.3, "stop": [EOS_TOKEN], "cache_prompt": True}
+    body = {"n_predict": OUTPUT_TOKENS, "temperature": chat_temperature(offered),
+            "stop": [EOS_TOKEN], "cache_prompt": True}
     if schema is not None:
         convo = [*messages, {'role': 'system', 'content':
             f'Return only the JSON argument object for the {repair} tool, matching the supplied schema. '

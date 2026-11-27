@@ -146,3 +146,24 @@ def test_model_name_follows_the_backend(monkeypatch):
     monkeypatch.setattr(backend, "BACKEND", "openai")
     monkeypatch.setattr(backend, "OPENAI_MODEL", "mlx-qwen")
     assert backend.model_name() == "mlx-qwen"
+
+
+def test_chat_splits_tool_and_synthesis_temperature(monkeypatch):
+    monkeypatch.setattr(backend, "BACKEND", "ollama")
+    monkeypatch.setattr(backend, "TOOL_TEMPERATURE", 0.0)
+    monkeypatch.setattr(backend, "TEMPERATURE", 0.6)
+    seen = []
+
+    class Client:
+        async def post(self, path, json):
+            seen.append(json)
+            return _Response({"message": {"content": "ok"}})
+
+    monkeypatch.setattr(backend, "client", Client())
+    schema = [{"type": "function", "function": {"name": "home", "parameters": {"type": "object", "properties": {}}}}]
+    asyncio.run(backend.chat([{"role": "user", "content": "lights off"}], schema))
+    asyncio.run(backend.chat([{"role": "user", "content": "answer"}], []))
+    asyncio.run(backend.chat([{"role": "user", "content": "why is the sky blue"}], backend.tools.SCHEMAS))
+    assert seen[0]["options"]["temperature"] == 0.0
+    assert seen[1]["options"]["temperature"] == 0.6
+    assert seen[2]["options"]["temperature"] == 0.6

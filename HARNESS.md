@@ -150,6 +150,13 @@ even when told not to: a trained habit, left alone because the gap is worth seei
 turns fail promptly when `HESTIA_ACTIVE_TURNS` (default 1) is occupied, avoiding an
 unbounded inference queue. `HESTIA_FINAL_RESERVE` (default 3 seconds) prevents new
 tools from consuming the final-answer budget. `HESTIA_MAX_TOOL_CALLS` defaults to 16.
+Sampling is split in `backend.py`: scoped tool turns (where routing narrowed the tool
+list) run at `HESTIA_TOOL_TEMPERATURE` (default `0.0`), while tools-disabled synthesis
+and unscoped open chat run at `HESTIA_TEMPERATURE` (default `0.6`). On `gemma4:12b`
+with the trimmed prompt, `0.0` reached 126/126 (100.0%) on `eval_heldout` and 20/20 on
+`eval_docs`, while `0.6` kept 100% on `eval_keymatch` and 0/12 planted-write attempts
+on `eval_injection` (`ALL_TOOLS=1`) with stronger conversational reasoning than `0.0`
+or `0.3` on `eval_conversation`.
 Concrete independent reads in one model batch can run concurrently in the existing
 bounded worker pool; writes remain sequential. A cancelled write retains its worker
 slot and durable unknown receipt until the worker actually completes.
