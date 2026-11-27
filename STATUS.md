@@ -7,6 +7,10 @@ is public. Those live in the operator's private notes.
 
 ---
 
+## 2026-11-27 - Gemma 4 harness pass: unified num_ctx, trimmed prompt, and split sampling
+
+On `main` (`a0881d8`..`26163e9`) and deployed on `gemma4:12b`: unified resident `num_ctx` (32768) across `note_taker`, `feed`, and `journal` to stop Ollama reloads, cut `SYSTEM_PROMPT` from 10 KB to 4.6 KB with the clock at the tail and an explicit untrusted-data fence on pasted links (-30% prompt tokens, `eval_injection` planted-write attempts 3/18 to 0/18), and split chat sampling (`0.0` scoped tools / `0.6` synthesis and open chat: `eval_heldout` 126/126, `eval_docs` 20/20, `eval_keymatch` 100%, full `pytest` green).
+
 ## 2026-11-23 - house docs: the household's own pages, drafted by the model, kept by a person
 
 On `main` at `7028a99`; live brain restarted 10:48, `/health` lists `doc`, on `gemma4:12b`.
