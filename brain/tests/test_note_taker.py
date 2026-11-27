@@ -156,3 +156,11 @@ def test_parse_drops_rejected_before_the_cap(inbox):
            ' {"content": "The well pump is in the basement."}]')
     assert [p["content"] for p in inbox.parse_proposals(raw)] == [
         "The barn has a 40 amp subpanel.", "The well pump is in the basement."]
+
+
+def test_extract_request_matches_resident_num_ctx_unless_offloaded(monkeypatch):
+    import backend
+    monkeypatch.setattr(note_taker, "OLLAMA", backend.OLLAMA)
+    assert note_taker.extract_request("hi")["options"]["num_ctx"] == backend.NUM_CTX
+    monkeypatch.setattr(note_taker, "OLLAMA", "http://127.0.0.1:11435")
+    assert note_taker.extract_request("hi")["options"]["num_ctx"] == 8192

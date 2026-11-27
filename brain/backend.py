@@ -353,10 +353,13 @@ async def _send_text(body: dict, sink=None) -> dict:
 # new place to run the model (the phone) is a change to this module alone.
 
 def _completion_request(messages: list[dict], *, model: str | None, temperature: float,
-                        num_ctx: int | None, max_tokens: int | None, json_format) -> tuple[str, dict]:
+                        num_ctx: int | None, max_tokens: int | None, json_format,
+                        default_ctx: bool = True) -> tuple[str, dict]:
     """The path and body for one no-tools completion on the configured backend. `json_format` is
     None, "json", or a JSON schema. In OpenAI mode the server's own model answers (OPENAI_MODEL);
-    context size and thinking are Ollama settings and are left out."""
+    context size and thinking are Ollama settings and are left out. On Ollama, callers targeting
+    the resident server default to NUM_CTX so a smaller or omitted context window never forces
+    Ollama to evict and reload the resident model."""
     if BACKEND in ("completion", "phone"):
         return text_request(messages, temperature=temperature, max_tokens=max_tokens, json_format=json_format)
     if BACKEND == "openai":
@@ -369,8 +372,9 @@ def _completion_request(messages: list[dict], *, model: str | None, temperature:
             body["response_format"] = {"type": "json_schema", "json_schema": {"name": "answer", "schema": json_format}}
         return "/v1/chat/completions", body
     options = {"temperature": temperature}
-    if num_ctx:
-        options["num_ctx"] = num_ctx
+    ctx = num_ctx if num_ctx is not None else (NUM_CTX if default_ctx else None)
+    if ctx:
+        options["num_ctx"] = ctx
     if max_tokens:
         options["num_predict"] = max_tokens
     body = {"model": model or MODEL, "messages": messages, "stream": False, "think": False, "options": options}
@@ -411,8 +415,10 @@ def complete(messages: list[dict], *, model: str | None = None, temperature: flo
     With the model on a phone this refuses: those callers queue in model_jobs instead."""
     if deferred():
         raise RuntimeError("the model is on a phone: queue this request in model_jobs")
+    same_host = not ollama or ollama.rstrip("/") == OLLAMA.rstrip("/")
     path, body = _completion_request(messages, model=model, temperature=temperature, num_ctx=num_ctx,
-                                     max_tokens=max_tokens, json_format=json_format)
+                                     max_tokens=max_tokens, json_format=json_format,
+                                     default_ctx=same_host)
     if BACKEND == "completion":
         r = httpx.post(COMPLETION_BASE + path, json=body, timeout=timeout)
     elif BACKEND == "openai":

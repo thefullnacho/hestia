@@ -227,9 +227,15 @@ def _extract(transcript: str) -> str:
 
 
 def extract_request(transcript: str) -> dict:
-    """The model step as data, so it can run now or wait in model_jobs for a phone."""
+    """The model step as data, so it can run now or wait in model_jobs for a phone.
+
+    When sharing the resident Ollama, match backend.NUM_CTX so post-turn extraction does not
+    force Ollama to unload and reload the resident model between chat turns; an offloaded
+    note-taker server keeps the smaller 8k window."""
+    same_host = OLLAMA.rstrip("/") == backend.OLLAMA.rstrip("/")
+    num_ctx = backend.NUM_CTX if same_host else 8192
     return {"messages": [{"role": "user", "content": EXTRACT_PROMPT + transcript}],
-            "options": {"model": MODEL, "temperature": 0.1, "num_ctx": 8192, "max_tokens": 512,
+            "options": {"model": MODEL, "temperature": 0.1, "num_ctx": num_ctx, "max_tokens": 512,
                         "timeout": TIMEOUT, "ollama": OLLAMA}}
 
 

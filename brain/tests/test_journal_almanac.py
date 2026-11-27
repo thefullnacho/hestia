@@ -142,3 +142,17 @@ def test_year_over_year_compares_water_and_rain(season, monkeypatch, tmp_path):
     page = almanac.render(almanac.snapshot(2026, DAY))
     assert "water 226 → 57 gal (-75%)" in page
     assert "rain 6 → 3 in" in page
+
+
+def test_journal_narrate_uses_resident_num_ctx(monkeypatch):
+    import backend
+    bodies = []
+
+    class Resp:
+        def raise_for_status(self): return self
+        def json(self): return {"message": {"content": "Quiet day."}, "done_reason": "stop"}
+
+    monkeypatch.setattr(backend, "BACKEND", "ollama")
+    monkeypatch.setattr(backend.httpx, "post", lambda url, **kw: bodies.append(kw["json"]) or Resp())
+    assert journal.narrate(["weather: calm"]) == "Quiet day."
+    assert bodies[0]["options"]["num_ctx"] == backend.NUM_CTX

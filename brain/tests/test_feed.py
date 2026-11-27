@@ -298,3 +298,8 @@ def test_one_person_with_nothing_new_is_a_normal_night(monkeypatch):
     monkeypatch.setattr(feed, "run_person", run)
     monkeypatch.setattr(feed, "prune_images", lambda *a: 0)
     assert feed.main() == 0
+
+
+def test_rank_request_matches_resident_num_ctx():
+    import backend
+    assert feed.rank_request("p")["options"]["num_ctx"] == backend.NUM_CTX

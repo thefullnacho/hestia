@@ -39,7 +39,7 @@ MODEL = os.environ.get("HESTIA_FEED_MODEL") or os.environ.get("HESTIA_MODEL", "g
 TIMEOUT = float(os.environ.get("HESTIA_FEED_TIMEOUT", "180"))
 # Twenty-odd candidates run to roughly 8k tokens, past Ollama's small default window, and
 # matching the brain's own num_ctx keeps the resident model loaded instead of reloading it.
-NUM_CTX = int(os.environ.get("HESTIA_NUM_CTX") or 16384)
+NUM_CTX = backend.NUM_CTX
 
 PER_QUERY = 5          # search results kept per query
 LANGUAGE = os.environ.get("HESTIA_FEED_LANGUAGE", "en")

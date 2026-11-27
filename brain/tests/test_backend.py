@@ -47,6 +47,13 @@ def test_one_caller_can_point_at_another_ollama(sent, monkeypatch):
     monkeypatch.setattr(backend, "BACKEND", "ollama")
     backend.complete([{"role": "user", "content": "x"}], ollama="http://elsewhere:11434/")
     assert sent[0][0] == "http://elsewhere:11434/api/chat"
+    assert "num_ctx" not in sent[0][1]["options"]
+
+
+def test_resident_complete_defaults_to_resident_num_ctx(sent, monkeypatch):
+    monkeypatch.setattr(backend, "BACKEND", "ollama")
+    backend.complete([{"role": "user", "content": "x"}])
+    assert sent[0][1]["options"]["num_ctx"] == backend.NUM_CTX
 
 
 def test_openai_mode_speaks_openai_and_reports_truncation(sent, monkeypatch):
@@ -72,7 +79,8 @@ def test_acomplete_uses_the_same_request(monkeypatch):
 
     monkeypatch.setattr(backend, "client", Client())
     out = asyncio.run(backend.acomplete([{"role": "user", "content": "x"}], temperature=0, max_tokens=8))
-    assert seen[0][0] == "/api/chat" and seen[0][1]["options"] == {"temperature": 0, "num_predict": 8}
+    assert seen[0][0] == "/api/chat" and seen[0][1]["options"] == {
+        "temperature": 0, "num_ctx": backend.NUM_CTX, "num_predict": 8}
     assert out == {"content": "{}", "truncated": True}
 
 

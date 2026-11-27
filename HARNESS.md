@@ -323,6 +323,10 @@ Extraction has one dedicated worker and no waiting queue; busy periods skip opti
 extraction. `HESTIA_NOTETAKER_OLLAMA` can select a separate local inference server,
 with `HESTIA_NOTETAKER_MODEL` selecting its model. Sharing the foreground GPU can
 still add contention after a note job has started; no runtime GPU settings are changed.
+Callers targeting the resident Ollama server (`note_taker`, `journal`, `feed`, `briefing`)
+match `backend.NUM_CTX` by default (32768) so background jobs do not force Ollama to evict
+and reload the resident model at a smaller context size; an offloaded note-taker server keeps
+its smaller 8k window.
 
 Precision is enforced in code as well as the prompt. On 2026-10-20 the note-taker proposed 29
 facts in a day and about 1 in 6 was worth keeping: the rest described the assistant's own
