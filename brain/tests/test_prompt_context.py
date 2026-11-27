@@ -53,3 +53,15 @@ def test_build_prompt_asks_home_for_only_selected_blocks(monkeypatch):
     prompt = asyncio.run(hestia._build_system_prompt("hello"))
     assert seen == {"lights": False, "soil": False}
     assert "--- LIGHT CATALOG ---" not in prompt
+
+
+def test_clock_sits_after_stable_context_blocks(monkeypatch):
+    monkeypatch.setattr(routing, "context_plan", lambda _: {
+        "matched": None, "garden_focus": "", "garden_topic": False,
+        "lights": False, "soil": False,
+    })
+    monkeypatch.setattr(hestia.records_store, "roster", lambda: "Biscuit (pet)")
+    monkeypatch.setattr(hestia.memory_store, "context_block", lambda _: "orange bag coffee")
+    prompt = hestia._system_prompt("hello", routing.context_plan("hello"))
+    assert prompt.index("--- WHO & WHAT ---") < prompt.index("Current date/time:")
+    assert prompt.index("--- MEMORY ---") < prompt.index("Current date/time:")

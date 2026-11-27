@@ -118,7 +118,13 @@ semantic retrieval remains a measured follow-up if lexical misses warrant it.
 
 The prompt sets an order: the house first (records and memory for the household, the library
 for its subjects), then the model's own knowledge for settled general questions, and the web
-last, for things that change, things it doesn't know, or when asked. An answer from its own
+last, for things that change, things it doesn't know, or when asked. Per-tool details live in
+each tool's JSON schema so they enter the prompt only when that tool is offered; `SYSTEM_PROMPT`
+holds only voice, answer order, cross-tool boundaries, grounding, trust, and safety (~4.3 KB, down
+from ~10 KB). In `_system_prompt`, the minute-level clock sits at the end so ticking minutes do
+not bust the prefix cache for skills, catalogs, roster, and memories ahead of it. Pasted web pages
+carry an explicit `UNTRUSTED WEB PAGE DATA` boundary right beside the page text so local attention
+windows see the trust rule next to the untrusted text. An answer from its own
 knowledge where current details could matter says so and offers to check. Until this date the
 prompt said to search "anything outside the house" and "don't guess at things you can look up";
 Gemma loosely ignored it, and Inkling 2 Mini, which follows it literally, searched "what do you

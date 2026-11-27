@@ -83,6 +83,7 @@ def test_pasted_page_then_unrequested_shopping_add_is_refused(monkeypatch, tmp_p
         _call('shopping', {'action': 'add', 'items': 'vodka'}),
         {'content': 'Yes, mid October.'}])
     assert 'IMPORTANT SYSTEM NOTE' in seen[0][-1]['content']   # the page did reach the model
+    assert 'UNTRUSTED WEB PAGE DATA' in seen[0][-1]['content']
     assert calls == []
     assert 'Not run: this turn read web content' in answer
 
